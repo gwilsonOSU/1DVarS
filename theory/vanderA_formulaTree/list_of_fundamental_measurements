@@ -1,0 +1,14 @@
+
+WAVE-BY-WAVE PARAMETERS:
+
+uhat = rms velocity
+uc, ut = velocities crest and trough
+wmin, wmax = min/max vertical velocities
+cw = wave speed
+Tcu, Ttu, Tc, Tt = flow acceleration time periods, defines wave shape
+psi = wave direction
+
+d50,d90 = grain size params
+ws = sediment fall velocity
+eta, lambda = ripple geometry (if present)
+
