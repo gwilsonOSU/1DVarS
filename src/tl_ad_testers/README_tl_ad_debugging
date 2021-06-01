@@ -1,0 +1,16 @@
+
+A nice way to debug AD symmetry is demonstrated in
+ad_qtrans_vanderA_tester.m.  The strategy is to add optional inputs of
+'invar' or 'outvar' in the AD and TL models, respectively.  These
+override the input/output variables of the code (and, for the AD
+model, no longer initialize the desired input variable to zero, but
+initialize the "default" AD input variable to zero).  Then use grep to
+find all of the TL variables in the order they appear in the TL code.
+One by one, run the TL-AD symmetry check for each of these variables.
+No need to comment out any code blocks in either TL or AD code during
+these tests.
+
+Most likely the TL-AD symmetry test will pass for a few of the
+variables in order, then break at some point.  When the TL-AD symmetry
+breaks, that means there is a bug affecting that part of the AD code.
+This made it very easy to isolate the bug and debug the AD code.

@@ -1,0 +1,54 @@
+
+
+--
+Basic Idea:
+
+The sediment transport model's purpose is to provide a dynamical
+update to bathymetry and its covariance between forecast cycles, by
+considering the basic sediment transport equations and parameter
+uncertainty.  As a bonus, uncertain sediment transport parameters can
+be estimated based on the updates, BUT I will not include them as
+time-dependent sequentially updated parameters, i.e. I will assume
+such parameters are temporally uncorrelated between forecast cycles.
+
+Put another way, we are assimilating hydrodynamic data to provide
+constraints on the uncertain morphodynamics.
+
+The key advantage of this scheme is that it keeps the full sediment
+transport model out of the "outer loop" during assimlation.  It only
+comes in at the forecast step.
+
+--
+Assimilation cycle:
+
+0a) Define initial bathymetry at time t=t(0).  Initialize covariances
+    for (a) the initial bathymetry, (b) sediment transport parameters,
+    and (c) wave model parameters.  Note, parameters (b)-(c) and their
+    covariances will not be updated sequentially, but they serve to
+    provide uncertainty estimates for bathymetry.
+
+0b) Use the initial bathymetry plus covariances to make a forecasted
+    bathymetry for t(1), including forecast covariance.  Provide the
+    full covariance matrix for the updated bathymetry including
+    cross-covariances with sediment transport parameters.
+
+for n = 1..N
+
+  1a) Assimilate hydrodynamic data from time t=t(n) to obtain an
+      updated bathymetry at t(n).  Note, there is no need to consider
+      the full sediment transport model here, as we are only updating
+      the forecasted bathymetry from the previous time step time
+      t(n-1).  That is, assume the hydrodynamics are only sensitive to
+      bathymetry at time t(n), not to bathymetry at some later time
+      dependent on sediment transport.
+
+      That said, do use the previous cross-covariances to estimate
+      sediment transport parameters from time t(n-1).  Record these
+      estimates, but do not update them for the next forecast cycle.
+
+  1b) After the outer loop iterations, make a new forecast for t(n+1)
+      based on the updated initial bathymetry.  Provide the full
+      covariance matrix for the updated bathymetry including
+      cross-covariances with sediment transport parameters.
+
+end

@@ -1,0 +1,8 @@
+This was copied from here on April 19, 2019:
+
+~/work/writing/published/JTECH2018_uavInversion/experiments/sourcecode_withMixing/waveModel/
+
+After copying, some variable input/output names were changed, and the
+model name was changed from waveModel to hydroModel.  These changes
+help the code conform to my sediment transport TL-AD codes developed
+in parent directory

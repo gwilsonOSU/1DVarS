@@ -1,0 +1,104 @@
+function tl_Q =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,...
+                     tl_Cw,tl_Cc,tl_Cf,tl_Ka,bkgd)%,outvar)
+%
+% TL-code for qtrans_dubarbier.m
+%
+
+% break out NL background vars, and recompute some helper variables
+fld=fields(bkgd);
+for i=1:length(fld)
+  eval([fld{i} ' = bkgd.' fld{i} ';']);
+end
+utabs=abs(utilde);
+utotabs=abs(utot);
+nt=length(t);
+nx=length(h);
+
+% physical constants
+physicalConstants;
+
+% derived params
+tl_Hmo=tl_Hrms*1.4; % ok
+tl_Uw = omega/2.*( tl_Hrms./sinh(kabs.*h) ...
+                   - Hrms./sinh(kabs.*h).^2.*cosh(kabs.*h).*(tl_kabs.*h+kabs.*tl_h) ) ...
+        + tl_omega.*Hrms./(2*sinh(kabs.*h));
+
+% step through each gridpoint
+for i=1:nx
+
+  % intra-wave velocity information, using Ruessink et al. (2012).  Note,
+  % comparing to Hsu et al. (2006) it seems as though Dubarbier et al. are
+  % using \tilde{U} and \tilde{u} (upper and lower case) interchangably for
+  % "wave velocity".  There are a few other obvious sloppy notational errors
+  % like using "omega_s" for fall velocity
+  tl_utilde(:,i)=tl_Uwave_ruessink2012(tl_Hmo(i),tl_kabs(i),tl_omega,tl_h(i),...
+                                       omega*t,bkgd_uwave(i))';
+
+  H = imag(hilbert(eye(length(t))));  % apply hilbert() to a bunch of delta functions
+  % tl_uH=imag(hilbert(tl_utilde));
+  tl_uH=H*tl_utilde(:,i);
+  tl_Au_nums = mean( 3*uH(:,i).^2.*tl_uH );
+  tl_Au_dens_1(i) = mean( 2*uH(:,i).*tl_uH );
+  tl_Au_dens(i) = (3/2)*Au_dens_1(i).^(3/2-1).*tl_Au_dens_1(i);
+  tl_Au(i) = tl_Au_nums./Au_dens(i) - Au_nums(i)./Au_dens(i).^2.*tl_Au_dens(i);
+  tl_Aw = omega*tl_Uw(i) + tl_omega*Uw(i);
+  for j=1:length(t)
+    tl_utot(j,i)=1/utot(j,i)*utilde(j,i)*tl_utilde(j,i) ...
+        + 1/utot(j,i)*udelta(i,1)*tl_udelta(i,1) ...
+        + 1/utot(j,i)*udelta(i,2)*tl_udelta(i,2);
+  end
+
+  % energetics model, eqns (11)-(14)
+  tl_qa(i) = -tl_Ka*Au(i)*Aw(i) ...
+          -Ka*tl_Au(i)*Aw(i) ...
+          -Ka*Au(i)*tl_Aw;  % ad symmetric
+  tl_utabs(:,i)=sign(utilde(:,i)).*tl_utilde(:,i);  % ad symmetric
+  tl_utotabs(:,i)=sign(utot(:,i)).*tl_utot(:,i);  % ad symmetric
+
+  tl_qb1=0;
+  for j=1:nt
+    tl_qb1=tl_qb1+2*utabs(j,i).*tl_utabs(j,i).*utilde(j,i)/nt ...
+                 + utabs(j,i).^2.*tl_utilde(j,i)/nt;  % ad symmetric
+  end
+  tl_qb2=0;
+  for j=1:nt
+    tl_qb2=tl_qb2+2*utabs(j,i).*tl_utabs(j,i)*udelta(i,1)/nt ...
+           + utabs(j,i).^2*tl_udelta(i,1)/nt;  % ad symmetric
+  end
+  tl_qb3=0;
+  for j=1:nt
+    tl_qb3=tl_qb3+3*utotabs(j,i).^2.*tl_utotabs(j,i)/nt;
+  end
+  tl_qb(i) = rho*eps_b/tan_phi*( tl_Cw*qb1(i) ...
+                              + Cw*tl_qb1 ...
+                              + tl_Cc*qb2(i) ...
+                              + Cc*tl_qb2 ...
+                              - tl_Cf*tanbeta(i)/tan_phi*qb3(i) ...
+                              - Cf*tl_tanbeta(i)/tan_phi*qb3(i) ...
+                              - Cf*tanbeta(i)/tan_phi*tl_qb3 );  % NOT symmetric???
+  tl_qs1=mean( 3*utabs(:,i).^2.*tl_utabs(:,i).*utilde(:,i) ...
+               + utabs(:,i).^3.*tl_utilde(:,i));  % ad symmetric
+  tl_qs2=mean( 3*utotabs(:,i).^2.*tl_utotabs(:,i)*udelta(i,1) ...
+               + utotabs(:,i).^3*tl_udelta(i,1) );  % ad symmetric
+  tl_qs3=mean( 5*utotabs(:,i).^4.*tl_utotabs(:,i) );  % ad symmetric
+  tl_qs(i) = rho*eps_s/ws(i)*( tl_Cw*qs1(i) ...
+                         + Cw*tl_qs1 ...
+                         + tl_Cc*qs2(i) ...
+                         + Cc*tl_qs2 ...
+                         - tl_Cf*eps_s*tanbeta(i)/ws(i)*qs3(i) ...
+                         - Cf*eps_s*tl_tanbeta(i)/ws(i)*qs3(i) ...
+                         + Cf*eps_s*tanbeta(i)/ws(i)^2*qs3(i)*tl_ws(i) ...
+                         - Cf*eps_s*tanbeta(i)/ws(i)*tl_qs3 ) ...
+          - rho*eps_s/ws(i)^2*( Cw*qs1(i) ...
+                             + Cc*qs2(i) ...
+                             - Cf*eps_s*tanbeta(i)/ws(i)*qs3(i) )*tl_ws(i);  % ad symmetric
+  tl_q(i)=tl_qa(i)+tl_qb(i)+tl_qs(i);
+
+end
+
+% normalize to get volumetric transport, m2/s units (bed volume per unit
+% time per unit width), and convert to row vectors
+tl_Q =tl_q(:)/qnorm;
+
+% % TEST
+% eval(['tl_Q=tl_' outvar ';']);

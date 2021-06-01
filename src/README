@@ -1,0 +1,91 @@
+
+"Surfzone Inverse Modeling Toolkit (SIM-T)"
+
+---
+PURPOSE AND DIRECTORY STRUCTURE:
+
+This is a collection of codes for 1DH morphodynamic modeling combined
+with variational inverse (tangent-linear-adjoint, or TL-AD) methods.
+
+I have broken the code up into modules/libraries, stored as
+sub-directories in pwd.  The intention is to keep only the model codes
+and model-verification codes in pwd, while application codes (i.e.,
+for specific case studies) will live in the parent directory ../.
+
+---
+MODEL DESCRIPTION:
+
+The models use a 1D coordinate system where x(1) is the most-offshore
+(boundary) gridpoint, and +x is onshore.
+
+The MAIN CODE is ./hydroSedModel.m.  This takes as input a bathymetry,
+incident waves, and wind, and outputs waves, currents, sediment flux,
+and the updated bathymetry over a user-specified integration time
+(assuming constant sediment flux).  The sub-modules used to do the
+calculations are described below, and each are separated into their
+own sub-directories.  References for the sub-modules are found in
+../refs.
+
+  0) some preliminaries: wind stress is calculated following the
+     simple parameterization used by Reniers et al. (2004).  Sediment
+     fall velocity is calculated following Brown & Lawler (2003).
+
+  1) hydro_ruessink2001: Computes 1DH hydrodynamics (waves and
+     currents) by propagating the waves from the offshore boundary.
+     Largely following Ruessink et al. (2001)
+
+  2) udelta_reniers2004: Computes the near-bottom mean-flow current
+     given depth-averaged currents, following the undertow model of
+     Reniers et al. (2004).  This is only computed if the
+     user-selected sediment transport sub-module requires it.
+
+  3) Three different sub-modules have been implemented for calculating
+     the cross-shore sediment flux, and can be found in
+     ./qtransModels:
+
+     a) Soulsby & van Rijn.  This is the simplest and by far least
+        computationally expensive.  Is akin to XBeach, without the
+        bells and whistles.
+
+     b) van Der A et al. (2013).  Includes effects of asymmetric
+        waves, phase lag between suspension and transport, bed slope,
+        bed shear stress due to waves and currents.
+
+     c) Dubarbier et al. (2015).  This is similar to the Unibest model
+        from papers in Ruessink's orbit.
+
+     One of the 3 sub-modules is selected by the user as an input.
+     With the exception of Soulsby & van Rijn, the modules include
+     wave asymmetry based on the parameterization of Ruessink et
+     al. (2012).
+
+  4) Finally, a simple upwind scheme is used to calculate the sediment
+     flux gradient and update the bed.
+
+---
+DEVELOPMENT NOTES:
+
+All notes taken during development of the NL-TL-AD code suite can be
+found in ../theory.  These notes pertain to things like unravelling
+the equations presented in references, and figuring out ways to handle
+tricky TL-AD coding such as coupled nonlinear systems of equations.
+
+---
+CODE VERIFICATION:
+
+At time of writing (April, 2019), the codes have been compared to one
+another in terms of sediment flux, and found to produce predictions
+with similar order of magnitude and x-shore distribution.  I have not
+attempted a "validation" of the sediment flux predictions.
+
+All TL-AD codes have been individually tested to verify that (a) TL
+models match with small perturbations of their NL counterparts; and
+(b) AD models pass the adjoint symmetry test to within machine
+precision.  Test codes can be found in subdirectories */tl_ad_testers.
+Additionally, the fully coupled master code hydroSedModel.m has passed
+the same TL-AD tests, see ./tl_ad_testers.
+
+  NOTE: the tl-ad testers were re-organized after initial development,
+  along with the re-organization of modules into sub-directories.
+  They may require adding some 'addpath' statements now that the code
+  is not all in one directory.
