@@ -1,22 +1,44 @@
 % Test cases of forward model skill during canonical on/offshore migration
 % cases from Duck94.
 %
-% This is mostly copied from duck94Assimilation.m
+% The code is largely based on a previous version:
+% ./initialExperiments/duck94Assimilation.m.  Some functionality for
+% assimilation is included here, however.  See below.
 %
-addpath(genpath('~/work/unfunded_projects/sedimentTransport1D_TLAD/hydroSedModel/'))
-addpath tools
+% BASIC PURPOSE: Forward modeling of selected time periods in Duck94 that
+% had significant bar migration (see user inputs to select a time period).
+% You can choose from one of Dubarbier, van der A, or Soulsby Van-Rijn
+% sediment transport formulations, and compare their skill for predicting
+% the bar migration.
+%
+% OPTIONS / EXPERIMENTS:
+%
+% See user inputs block at top of code, you can turn on/off the following:
+%
+% a) Assimilate data to correct hydrodynamics (waves and currents).
+%    Doing so results in a much better sediment transport prediction.
+%
+% b) Include adjoint sensitivity analysis after each time step.  This could
+%    be used to look for the most-sensitive model input parameters w.r.t.
+%    morphology change.
+%
+addpath(genpath('../../src'))  % hydroSedModel.m, and dependencies
+addpath ./data/tools
 clear
 
 %--------------------------------------
 % user inputs
 %--------------------------------------
 
+% optional flags
 doassim=1;   % use assimilation to correct hydro errors
 doadjoint=1; % include a sensitivity analysis for sed transport inputs
 
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
 % al. (1998) four standard test cases.  All but case (b) are offshore bar
-% migration events.
+% migration events.  Note, case-b is a good example of an onshore migration,
+% and currently (last checked June, 2021) this case gives good results with
+% options sedmodel='vanderA' and doassim=1.
 duck94Case='b';
 
 % sediment model: uncomment one of the following...
@@ -24,7 +46,8 @@ duck94Case='b';
 sedmodel='vanderA';
 % sedmodel='soulsbyVanRijn';
 
-% model grid
+% model grid.  Should not need to change this, except maybe if you want to
+% test different grid resolution.
 grid.dx=5;
 grid.x=[100:grid.dx:900]';
 grid.nx=length(grid.x);
@@ -66,7 +89,9 @@ switch duck94Case
 end
 
 %--------------------------------------
-% get SPUV measurements for this time period
+% Get SPUV measurements for this time period.  Note, code to read the raw
+% data is included but is commented out.  Instead, I saved a local mat-file
+% version of the data to speed up the loading process.
 %--------------------------------------
 
 % % load all .mea files to get SPUV data vs. time
@@ -325,7 +350,7 @@ end
 obs=obs(:);  % time-ordered, 17-26min intervals
 
 %--------------------------------------
-% model run
+% Model initialization
 %--------------------------------------
 
 % initialize sediment transport input parameters
@@ -350,44 +375,51 @@ else
   error(['invalid sedmodel=' sedmodel])
 end
 
-% initialize 'model' struct
-clear model
-model=grid;  % initial grid (x,h,xFRF)
-model.ka_drag=0.0125;  % tuned by Ruessink et al. (2001)
-model.d50=nan(nx,1);
-model.d50(grid.xFRF<150)=400e-6;  % shoreface coarse sand, Birkemeier et al. (1985)
-model.d90(grid.xFRF<150)=400e-6;  % shoreface coarse sand
-model.d50(grid.xFRF>=150)=180e-6; % Dubarbier et al. (2015) used 170um here, but 180 is from Birkemeier et al. (1985)
-model.d90(grid.xFRF>=150)=240e-6;  % Birkemeier et al., 1985
-model.params=params;
-model.sedmodel=sedmodel;
+% initialize 'modelinput' struct.  This will be used as the base input for
+% each model simulation.  Some of the inputs will get updated with each time
+% step, others will remain constant for all time steps.
+modelinput=grid;  % initialize: x,h,xFRF
+modelinput.ka_drag=0.0125;  % tuned by Ruessink et al. (2001)
+modelinput.d50=nan(nx,1);
+modelinput.d50(grid.xFRF<150)=400e-6;  % shoreface coarse sand, Birkemeier et al. (1985)
+modelinput.d90(grid.xFRF<150)=400e-6;  % shoreface coarse sand
+modelinput.d50(grid.xFRF>=150)=180e-6; % Dubarbier et al. (2015) used 170um here, but 180 is from Birkemeier et al. (1985)
+modelinput.d90(grid.xFRF>=150)=240e-6;  % Birkemeier et al., 1985
+modelinput.params=params;
+modelinput.sedmodel=sedmodel;
 
 % initialize covariances for assimilation step
 xx=meshgrid(grid.xFRF);
 sig_h=0.01*exp(-3*(grid.xFRF-200).^2/150^2);  % minimal h-correction
 Ch0=diag(sig_h)*exp(-3*(xx-xx').^2/50^2)*diag(sig_h);
-model.Cgamma=.1^2*exp(-3*(xx-xx').^2/25^2);
-model.Chs=blkdiag(Ch0,diag(params_std.^2));
-model.CH0=0.25^2;
-model.Ctheta0=deg2rad(10)^2;
-model.Cka=0.005^2;
+modelinput.Cgamma=.1^2*exp(-3*(xx-xx').^2/25^2);
+modelinput.Chs=blkdiag(Ch0,diag(params_std.^2));
+modelinput.CH0=0.25^2;
+modelinput.Ctheta0=deg2rad(10)^2;
+modelinput.Cka=0.005^2;
 
-% time loop
-for n=1:(length(obs)-1)  % start at 140 for case-b testing
+%--------------------------------------
+% Time loop of model runs
+%--------------------------------------
+
+for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   disp(['time ' num2str(n) ' of ' num2str(length(obs))])
 
-  % forcing conditions for this time step.  Note, use Tm1 wave period
-  % following Ruessink et al. (2012) formulation for wave shape
-  model.H0    =interp1(waves8m.dnum_est,waves8m.Hrms  ,obs(n).dnum_est);
-  model.theta0=interp1(waves8m.dnum_est,waves8m.theta0,obs(n).dnum_est);
-  model.omega =interp1(waves8m.dnum_est,waves8m.sigmam,obs(n).dnum_est);
-  model.tauw=interp1(windEOP.dnum_est,windEOP.tau,obs(n).dnum_est);
-  model.tauw=repmat(model.tauw,nx,1);
-  model.dgamma=zeros(nx,1);
+  % Set wave conditions for this time step.  Note, use Tm1 wave period
+  % (corresponding to waves8m.sigmam) following Ruessink et al. (2012)
+  % formulation for wave shape
+  modelinput.H0    =interp1(waves8m.dnum_est,waves8m.Hrms  ,obs(n).dnum_est);
+  modelinput.theta0=interp1(waves8m.dnum_est,waves8m.theta0,obs(n).dnum_est);
+  modelinput.omega =interp1(waves8m.dnum_est,waves8m.sigmam,obs(n).dnum_est);
+  modelinput.tauw=interp1(windEOP.dnum_est,windEOP.tau,obs(n).dnum_est);
+  modelinput.tauw=repmat(modelinput.tauw,nx,1);
+  modelinput.dgamma=zeros(nx,1);
 
-  % add tide for this time step
+  % Add tide for this time step.  Note by convention modelinput.h does not
+  % contain tide.  We add tide before each forecast step (now) and remove it
+  % after the forecast is done.
   tide=interp1(waves8m.dnum_est,waves8m.tide,obs(n).dnum_est);
-  model.h=model.h+tide;
+  modelinput.h=modelinput.h+tide;
 
   % define observations for assimilation
   thisobs=obs(n);
@@ -401,28 +433,30 @@ for n=1:(length(obs)-1)  % start at 140 for case-b testing
   % from hydro_ruessink2001.m, most notably the equation for the modeled
   % longshore current 'vm'
   rho=1030;
-  ind=find(model.xFRF(obs(n).v.ind)>800);
+  ind=find(modelinput.xFRF(obs(n).v.ind)>800);
   if(isempty(ind))
-    model.detady=zeros(nx,1);
+    modelinput.detady=zeros(nx,1);
   else
-    thisx=model.xFRF(obs(n).v.ind(ind));
+    thisx=modelinput.xFRF(obs(n).v.ind(ind));
     thisv=obs(n).v.d(ind)';
-    thish=interp1(model.xFRF,model.h,thisx);  % includes tide
+    thish=interp1(modelinput.xFRF,modelinput.h,thisx);  % includes tide
     a=1.16;  % empirical constant
-    Cd=0.015*(model.ka_drag./thish).^(1/3);
+    Cd=0.015*(modelinput.ka_drag./thish).^(1/3);
     g=9.8;
     thisk=zeros(length(thish),1);  % init
     for j=1:length(thish)  % dispersion reln
-      thisk(j)=fzero(@(k)model.omega^2-g*k*tanh(k*thish(j)),.1);
+      thisk(j)=fzero(@(k)modelinput.omega^2-g*k*tanh(k*thish(j)),.1);
     end
-    urms=1.416*model.H0.*model.omega./(4*sinh(thisk.*thish));
+    urms=1.416*modelinput.H0.*modelinput.omega./(4*sinh(thisk.*thish));
     vm = @(Fy)sqrt( sqrt( (a*Cd.*urms).^4 + 4*(Cd.*Fy).^2 )./(2*Cd.^2) - (a*urms).^2/2 ).*sign(-Fy);
     Fy=fminsearch(@(Fy)sum((vm(Fy)-thisv).^2),0);  % choose total forcing to match observed v
-    detady = 1/mean(g*thish)*( Fy - model.tauw(1,2)/rho );  % solve longshore momentum budget
-    model.detady=detady*ones(nx,1);
+    detady = 1/mean(g*thish)*( Fy - modelinput.tauw(1,2)/rho );  % solve longshore momentum budget
+    modelinput.detady=detady*ones(nx,1);
   end
 
-  % run model to step forward in time
+  % Run model to step forward in time.  This takes the initial 'modelinput'
+  % struct, and produces a new 'fcst' struct containing a forecast valid for
+  % the current time step.
   dt=diff([obs(n+[0:1]).dnum_est])*24*60*60;
   mfact=1;
   dtm=dt/mfact;  % sub-divide into mfact time steps to avoid instability
@@ -431,22 +465,28 @@ for n=1:(length(obs)-1)  % start at 140 for case-b testing
       disp(['  sub-step ' num2str(nn) ' of ' num2str(mfact)])
     end
 
-    % forward model step
+    % Forecast step.  Depending on user input flag 'doassim', this can either be
+    % a pure forecast for t=t(n)+dtm, or it can be an assimilative update
+    % for t(n) followed by a forecast for t(n)+dtm.  For the latter case,
+    % see README for a description of the forecast-assimilation scheme.
     if(~doassim) % v1: without assimilation
-      fcst=hydroSedModel(model.x,model.h,model.H0,model.theta0,model.omega,model.ka_drag,model.tauw,model.detady,model.dgamma,model.d50,model.d90,model.params,sedmodel,dtm);
+      fcst=hydroSedModel(modelinput.x,modelinput.h,modelinput.H0,modelinput.theta0,modelinput.omega,modelinput.ka_drag,modelinput.tauw,modelinput.detady,modelinput.dgamma,modelinput.d50,modelinput.d90,modelinput.params,sedmodel,dtm);
     else % v2: assimilate data to correct hydro model
-      [~,fcst]=assim_1dh(model,thisobs,dt,0,0);
+      [~,fcst]=assim_1dh(modelinput,thisobs,dt,0,0);
     end
 
-    model.h=fcst.hp;
+    modelinput.h=fcst.hp;
   end
+
+  % Remove tide again.  We want to keep h in navd88 except when running the
+  % forecast step.
   fcst.h =fcst.h -tide;
   fcst.hp=fcst.hp-tide;
 
-  % save this forecast for later inspection
+  % save the result in an array
   out(n)=fcst;
 
-  % show results
+  % plot results for this time step
   lw=1.5;
   clf
   subplot(221), hold on
@@ -461,7 +501,7 @@ for n=1:(length(obs)-1)  % start at 140 for case-b testing
   plot(grid.xFRF(obs(n).H.ind),obs(n).H.d,'ko')
   ylabel('H_{rms} [m]')
   subplot(223), hold on
-  plot(grid.xFRF,out(n).Q,'b','linewidth',lw)  % out(n).hp-model.h+tide
+  plot(grid.xFRF,out(n).Q,'b','linewidth',lw)  % out(n).hp-modelinput.h+tide
   ylabel('Q [m^2/s]')
   ylim([-1 1]*5e-4)
   subplot(224), hold on
@@ -488,7 +528,7 @@ for n=1:(length(obs)-1)  % start at 140 for case-b testing
         ', ' datestr(obs(n).dnum_est) 'EST'])
   pause(.01)
 
-  % OPTIONAL: having done the forward model simulation, now do the adjoint
+  % Optional: having done the forward model simulation, now do the adjoint
   % sensitivity analysis for the sediment transport model.
   if(doadjoint)
     if(~strcmp(sedmodel,'vanderA'))
@@ -499,8 +539,7 @@ for n=1:(length(obs)-1)  % start at 140 for case-b testing
      ad_qtrans_vanderA(ones(nx,1),fcst.bkgd_qtrans,eparam);
   end
 
-  % Use forecast bathymetry for the next time step t(n+1)
-  model.h=out(n).hp;
+  % Use the forecast bathymetry as input for the next time step t(n+1)
+  modelinput.h=out(n).hp;
 
-  % save working.mat
 end

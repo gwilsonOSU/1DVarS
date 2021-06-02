@@ -1,4 +1,12 @@
 
+NOTE: files in the 'initialExperiments' directory may be outdated, and
+in particular they include outdated path variables in matlab.  These
+were created before migrating the 1DVarS code to a github repo.
+
+However, duck94ForwardModel.m contains most of the functionality of
+the scripts in 'initialExperiments'.  If you are looking to develop
+new code based on a test case, I highly recommended to base your code
+on duck94ForwardModel.m since it's been kept up-to-date and tested.
 
 --
 Basic Idea:
