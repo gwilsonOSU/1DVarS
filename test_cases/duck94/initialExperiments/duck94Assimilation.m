@@ -1,7 +1,6 @@
 % Test cases of sequential data assimilation during canonical on/offshore
 % migration cases from Duck94.
 %
-addpath(genpath('~/work/unfunded_projects/sedimentTransport1D_TLAD/hydroSedModel/'))
 addpath tools
 clear
 

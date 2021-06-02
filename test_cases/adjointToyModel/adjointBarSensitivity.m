@@ -1,7 +1,7 @@
 % for a given beach profile, wave conditions, examine the sensitivity of
 % on/offshore transport of a bar.  Requires knowing where the bar is.
 %
-addpath(genpath('~/work/exploratory/sedimentTransport1D_TLAD/hydroSedModel/'))
+addpath(genpath('../../src'))
 clear
 
 % background model

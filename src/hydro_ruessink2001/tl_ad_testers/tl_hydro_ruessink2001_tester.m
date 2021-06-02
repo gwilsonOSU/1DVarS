@@ -4,7 +4,7 @@
 addpath ..
 clear
 
-load ../../../waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
+addpath ./example_inputOutput/assim_1dh_output_oct.mat
 waves=posterior;
 physicalConstants;
 

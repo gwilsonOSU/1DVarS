@@ -40,7 +40,6 @@ function [Hrms,vbar,theta,kabs,Q,hp,workspc] = ...
 % wkspc: all internal variables used in model; this is for passing as a
 %        background state to TL-AD codes
 %
-addpath(genpath('~/work/unfunded_projects/sedimentTransport1D_TLAD/hydroSedModel/'))  % add all libraries/utils
 
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)

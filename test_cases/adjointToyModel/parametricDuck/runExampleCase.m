@@ -3,7 +3,7 @@
 % profile
 %
 addpath parametricBeaches_RAH
-addpath(genpath('../../hydroSedModel'))
+addpath(genpath('../../../src'))
 clear
 
 sedmodel='dubarbier';

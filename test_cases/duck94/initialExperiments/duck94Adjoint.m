@@ -3,7 +3,6 @@
 %
 % This is mostly copied from duck94Forwardmodel.m
 %
-addpath(genpath('~/work/unfunded_projects/sedimentTransport1D_TLAD/hydroSedModel/'))
 addpath tools
 clear
 
