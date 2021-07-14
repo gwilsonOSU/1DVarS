@@ -1,3 +1,9 @@
+% The original version of this code is saved in the same directory. This is
+% just a branch for experiments and debugging.
+
+%NOTE: The change log also keeps track of the changes made to all the
+%functions called by this script for convenience.
+
 % Test cases of forward model skill during canonical on/offshore migration
 % cases from Duck94.
 %
@@ -22,8 +28,8 @@
 %    be used to look for the most-sensitive model input parameters w.r.t.
 %    morphology change.
 %
-addpath(genpath('../../src'))  % hydroSedModel.m, and dependencies
-addpath ./data/tools
+% addpath(genpath('../../src'))  % hydroSedModel.m, and dependencies
+% addpath ./data/tools
 clear
 
 %--------------------------------------
@@ -32,7 +38,7 @@ clear
 
 % optional flags
 doassim=1;   % use assimilation to correct hydro errors
-doadjoint=1; % include a sensitivity analysis for sed transport inputs
+doadjoint=0; % include a sensitivity analysis for sed transport inputs
 
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
 % al. (1998) four standard test cases.  All but case (b) are offshore bar
@@ -41,10 +47,23 @@ doadjoint=1; % include a sensitivity analysis for sed transport inputs
 % options sedmodel='vanderA' and doassim=1.
 duck94Case='b';
 
+
+%Adding directory to save outputs:
+dir = strcat('/home/');
+if exist ('dir','var') == 0
+    dir = pwd;
+    mkdir Ch
+    mkdir ChPlots
+    mkdir AssimilatedBathymetry
+end
+
+
+
+
+
 % sediment model: uncomment one of the following...
 % sedmodel='dubarbier';
 sedmodel='vanderA';
-% sedmodel='soulsbyVanRijn';
 
 % model grid.  Should not need to change this, except maybe if you want to
 % test different grid resolution.
@@ -361,13 +380,14 @@ if(strcmp(sedmodel,'dubarbier'))
   params.Cc=.02002 ;  % default 0.02002;  % hsu et al. 0.0053
   params.Cf=0.01173;  % default 0.01173 ; hsu et al. 0.0
   params.Ka=0.631e-4;  % default 0.631e-4;  % hoefel & elgar 1.4e-4; hsu et al. 0.0
-  params_std=[.0002 .01  .005 5e-5];
+%   params_std=[.0002 .01  .005 5e-5];   % Old line
+  params_std=[5e-3 .0002 .01  .005 5e-5];
 elseif(strcmp(sedmodel,'vanderA'))
   params.n=1.2;  % vanderA 1.2.  Larger values promote offshore bar migration
   params.m=11;  % vanderA 11; hsu et al. 11.  Just scales everything up
   params.xi=1.7;  % ??? tuning parameter, O(1) according to Kranenburg (2013).  VDA pg. 35 says 1.7
   params.alpha=20;  % comes in eqn 27-28, not the same as eqn 19
-  params_std=[.2 2 .5 2];
+  params_std=[5e-3 .2 2 .5 2];
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   params.alphab=1.6;
   params.facua =1.0;
@@ -401,6 +421,17 @@ modelinput.Cka=0.005^2;
 %--------------------------------------
 % Time loop of model runs
 %--------------------------------------
+
+%Declaring the Variable to store Ch values:
+InputChStore = nan (length(obs),1);
+%Declaring the Variable to store rmse values:
+RMSE = nan (length(obs),1);
+RMSEp = nan (length(obs),1);
+
+%Declaring the time variable:
+Time = zeros (length(obs),1);
+
+
 
 for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   disp(['time ' num2str(n) ' of ' num2str(length(obs))])
@@ -460,6 +491,27 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   dt=diff([obs(n+[0:1]).dnum_est])*24*60*60;
   mfact=1;
   dtm=dt/mfact;  % sub-divide into mfact time steps to avoid instability
+  
+  %Saving the input Ch (sum of its diagonal members)
+  InputChStore(n,1) = trace(modelinput.Chs);
+  
+   % Saving Ch Matrices and Plots
+    ChFullMatrix = modelinput.Chs(1:nx, 1:nx); 
+    save (strcat(dir,'Ch/','ChFull',num2str(n),'.mat'),'ChFullMatrix')
+    
+    figure('Units', 'inches','Position', [0,0,8,4])
+    s = pcolor(grid.xFRF,grid.xFRF,ChFullMatrix);
+    title(strcat('Ch for n = ',num2str(n)),'FontSize',14,'Interpreter','Latex')
+    s.FaceColor = 'interp';
+    shading flat
+    c = colorbar;
+    dc = (max(max(ChFullMatrix)) - min(min(ChFullMatrix)))/10;
+    c.Ticks = [min(min(ChFullMatrix)): dc: max(max(ChFullMatrix))];
+    colormap jet     
+    print ('-dpng', '-r300', strcat(dir,'ChPlots/','Ch- ','n=', num2str(n), ' of ', num2str(length(obs)),'.png'))
+    close
+  
+  
   for nn=1:mfact
     if(mfact>1)
       disp(['  sub-step ' num2str(nn) ' of ' num2str(mfact)])
@@ -469,11 +521,19 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
     % a pure forecast for t=t(n)+dtm, or it can be an assimilative update
     % for t(n) followed by a forecast for t(n)+dtm.  For the latter case,
     % see README for a description of the forecast-assimilation scheme.
+    try
     if(~doassim) % v1: without assimilation
       fcst=hydroSedModel(modelinput.x,modelinput.h,modelinput.H0,modelinput.theta0,modelinput.omega,modelinput.ka_drag,modelinput.tauw,modelinput.detady,modelinput.dgamma,modelinput.d50,modelinput.d90,modelinput.params,sedmodel,dtm);
     else % v2: assimilate data to correct hydro model
-      [~,fcst]=assim_1dh(modelinput,thisobs,dt,0,0);
+      [posterior,fcst]=assim_1dh2(modelinput,thisobs,dt,0,1);          
     end
+    catch
+        warning(strcat('Model crashed at n = ',num2str(n)));
+        ErrorMsg = strcat('It crashed at n = ',num2str(n));
+        save (strcat(dir,'ErrorMsg.mat'),'ErrorMsg')
+        exit
+    end
+
 
     modelinput.h=fcst.hp;
   end
@@ -490,9 +550,12 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   lw=1.5;
   clf
   subplot(221), hold on
+  set(gcf,'visible','off')
   plot(grid.xFRF,grid.h,'g','linewidth',lw)
-  plot(grid.xFRF,out(n).hp,'b','linewidth',lw)
+  plot(grid.xFRF,out(n).h,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).h.ind),obs(n).h.d,'ko')
+  plot(grid.xFRF,modelinput.h-tide -sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
+  plot(grid.xFRF,modelinput.h - tide +sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
   set(gca,'ydir','r')
   legend('initial, n=1',['n=' num2str(n) ' of ' num2str(length(obs))],'observed')
   ylabel('h [m]')
@@ -521,11 +584,13 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
     end
     plot(grid.xFRF(ishore)*[1 1],ax(3:4),'k--')
     axis(ax)
-    grid on
+%     grid on           %grid is declared as a struct earlier in the script
   end
   subplot(221)
   title(['yday ' num2str(obs(n).dnum_est-datenum(1994,1,0)) ...
         ', ' datestr(obs(n).dnum_est) 'EST'])
+  %Saving the plot:
+  print ('-dpng', '-r300', strcat(dir,'AssimilatedBathymetry/','Bathymetry- ','n=', num2str(n), ' of ', num2str(length(obs)),'.png'))    
   pause(.01)
 
   % Optional: having done the forward model simulation, now do the adjoint
@@ -539,7 +604,32 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
      ad_qtrans_vanderA(ones(nx,1),fcst.bkgd_qtrans,eparam);
   end
 
+
+% %  %CALCULATING rmse
+    RMSE(n) = rms(out(n).h(obs(n).h.ind) - obs(n).h.d');
+    RMSEp(n+1) = rms(out(n).hp(obs(n+1).h.ind) - obs(n+1).h.d');
+    
+% Storing time:
+    if n < length(obs)      %Using the if condition to avoid crashing if the outer loop is expanded to length(obs) instead of length(obs) -1
+        Time(n+1) = Time(n) + hours(datetime(obs(n+1).dnum_est,'ConvertFrom','datenum') - datetime(obs(n).dnum_est,'ConvertFrom','datenum'));
+    end
+  
+  
+  
   % Use the forecast bathymetry as input for the next time step t(n+1)
   modelinput.h=out(n).hp;
+  modelinput.Chs(1:nx, 1:nx) = posterior.Chsp(1:nx, 1:nx);
+  
+  %Saving Ch, RMSE, Time, Posterior
+save (strcat(dir,'InputChLog.mat'),'InputChStore')
+save (strcat(dir,'RMSE.mat'),'RMSE')
+save (strcat(dir,'RMSEp.mat'),'RMSEp')
+save (strcat(dir,'Time.mat'),'Time')
 
+SaveOut = out(n);
+save (strcat(dir,'Output/out', num2str(n),'.mat'),'SaveOut')
+save (strcat(dir,'Posterior/posterior', num2str(n),'.mat'),'posterior')
 end
+
+
+

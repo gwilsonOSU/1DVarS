@@ -1,5 +1,5 @@
 function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
-          ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
+    ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
     ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Q,ad_hp,bkgd)
 %
 % AD-code for tl_hydroSedModel.m
@@ -16,7 +16,8 @@ end
 % min depth constraint
 h(imask)=hmin;
 Q(imask)=0;
-Q(imax:end)=0;
+% Q(imax:end)=0;
+Q(imask:end)=0;
 
 nx=length(h);
 
@@ -44,7 +45,7 @@ ad_kvec=zeros(nx,2);
 ad_tanbeta=zeros(nx,1);
 ad_dQdx=zeros(nx,1);
 ad_d50=zeros(nx,1);
-ad_d90=0;
+ad_d90=zeros(nx,1);
 ad_ws=0;
 ad_omega=0;
 ad_params.fv =0;

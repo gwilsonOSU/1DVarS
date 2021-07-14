@@ -1,0 +1,5 @@
+USER MANUAL for Initializing the model:
+
+1. Specify a directory 'dir' and associated folders at line 53. 
+2. Choose the case of Duck94 bar migration at line 48.
+3. Choose the sediment transporation model (Dubarbier or VanderA) at line 65/66.

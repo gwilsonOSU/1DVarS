@@ -304,6 +304,7 @@ if(~doCovUpdate)  % skip this step
 end
 disp('propagating forecast covariance')
 Chsp=nan(nx+ns);
+
 parfor i=1:nx
   % disp(['  gridpoint ' num2str(i) ' of ' num2str(nx)])
   if(floor(i/nx*10)>floor((i-1)/nx*10))
@@ -313,27 +314,29 @@ parfor i=1:nx
   % adjoint model acting on identity matrix
   comb=zeros(nx,1);
   comb(i)=1;  % data functional (delta-fn, aka identity matrix)
-  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,...
-   ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
+  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma, ...
+      ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
       ad_hydroSedModel(0*comb,0*comb,0*comb,0*comb,0*comb,comb,fcst);
-
+ 
   % convert sediment transport params from struct to vector
   fld=fields(ad_params);
-  ad_pp=zeros(length(fld),1);
+  ad_pp=zeros(length(fld),1);     % Old line
+
   for j=1:length(fld)
-    ad_pp(j)=getfield(ad_params,fld{j});
+    ad_pp(j)=getfield(ad_params,fld{j});  
   end
 
   % apply the full posterior covariance matrix to the adjoint vector, then
   % re-package the outputs for input to TL model
-  phi=C2*[ad_h; ad_pp; ad_H0; ad_theta0; ad_ka_drag];
+  phi=C2*[ad_h; ad_pp; ad_dgamma; ad_H0; ad_theta0; ad_ka_drag];
   ad_h=phi(1:nx);
   for j=1:length(fld)
     ad_params=setfield(ad_params,fld{j},phi(nx+j));
   end
-  ad_H0=phi(nx+ns+1);
-  ad_theta0=phi(nx+ns+2);
-  ad_ka_drag=phi(nx+ns+3);
+  ad_dgamma = phi((nx+ns+1):(2*nx+ns));   
+  ad_H0=phi(nx+ns+nx+1);
+  ad_theta0=phi(nx+ns+nx+2);
+  ad_ka_drag=phi(nx+ns+nx+3);
 
   % tangent linear run, I*C*I'
   [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Q,tl_hp] = ...
@@ -342,6 +345,7 @@ parfor i=1:nx
                        ad_theta0,...
                        0*ad_omega,...
                        ad_ka_drag,...
+                       ad_dgamma,...
                        0*ad_tau_wind,...
                        0*ad_detady,...
                        0*ad_d50,...
@@ -358,28 +362,31 @@ parfor i=1:ns
   % note, an adjoint model run is not required here since the sediment
   % transport params are an input not an output
   ad_h=zeros(nx,1);
+  ad_dgamma = zeros(nx,1);
   ad_H0=0;
   ad_theta0=0;
   ad_omega=0;
   ad_ka_drag=0;
   ad_tau_wind=zeros(nx,2);
   ad_detady=zeros(nx,1);
-  ad_d50=0;
-  ad_d90=0;
+  ad_d50=zeros(nx,1);
+  ad_d90=zeros(nx,1);
   ad_pp=zeros(ns,1);
   ad_pp(i)=1;  % delta function
+   
 
   % apply the full posterior covariance matrix to the adjoint vector, then
   % re-package the outputs for input to TL model
-  phi=C2*[ad_h; ad_pp; ad_H0; ad_theta0; ad_ka_drag];
+  phi=C2*[ad_h; ad_pp; ad_dgamma; ad_H0; ad_theta0; ad_ka_drag];
   ad_h=phi(1:nx);
   ad_params=struct;
   for j=1:length(fld)
     ad_params=setfield(ad_params,fld{j},phi(nx+j));
   end
-  ad_H0=phi(nx+ns+1);
-  ad_theta0=phi(nx+ns+2);
-  ad_ka_drag=phi(nx+ns+3);
+  ad_dgamma = phi((nx+ns+1):(2*nx+ns));    % Change 20
+  ad_H0=phi(nx+ns+nx+1);
+  ad_theta0=phi(nx+ns+nx+2);
+  ad_ka_drag=phi(nx+ns+nx+3);
 
   % tangent linear run, I*C*I'
   [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Q,tl_hp] = ...
@@ -388,6 +395,7 @@ parfor i=1:ns
                        ad_theta0,...
                        0*ad_omega,...
                        ad_ka_drag,...
+                       ad_dgamma,...
                        0*ad_tau_wind,...
                        0*ad_detady,...
                        0*ad_d50,...

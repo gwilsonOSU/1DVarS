@@ -26,7 +26,8 @@ nx=length(h);
 % min depth constraint
 h(imask)=hmin;
 Q(imask)=0;
-Q(imax:end)=0;
+% Q(imax:end)=0;
+Q(imask:end)=0;
 tl_h(imask)=0;
 
 % % wind stress, following Reniers et al. (2004) eqn (6)
