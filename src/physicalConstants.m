@@ -8,5 +8,5 @@ rhop=2650;  % density of sediment, kg/m3
 rhoa=1;     % air density, kg/m3
 psed=0.4;  % porosity
 nu=1.7e-6;  % kinematic viscosity of water, m2/s
-s=(rhop-rho)/rho;
+s=rhop/rho;
 hmin=0.5;
