@@ -66,7 +66,7 @@ r_r2012  =uwave_wksp.r  ;
 phi_r2012=uwave_wksp.phi;
 uhat=sqrt(2*mean(uw.^2));   % rms wave velocity for full wave cycle, eqn 8
 uhatc=max(uw);  % max velocity under crest, see text below eqn 7
-uhatt=min(uw);  % max velocity under trough (negative valued)
+uhatt=-min(uw);  % max velocity under trough (positive valued)
 
 % timing of wave velocity direction change, crest, and trough, based on
 % Ruessink et al 2012.
@@ -146,8 +146,8 @@ else
 end
 fwdc=alpha*fd+(1-alpha)*fwc;  % eqn 18
 fwdt=alpha*fd+(1-alpha)*fwt;  % eqn 18
-ucrvec=utildecr*[1 0]+udelta;  % eqn 12, TODO: wave angle?
-utrvec=utildetr*[1 0]+udelta;  % eqn 13
+ucrvec=utildecr*[+1 0]+udelta;  % eqn 12, TODO: wave angle?
+utrvec=utildetr*[-1 0]+udelta;  % eqn 13
 ucrabs=sqrt(ucrvec(1)^2+ucrvec(2)^2);
 utrabs=sqrt(utrvec(1)^2+utrvec(2)^2);
 thetac=.5*fwdc.*ucrabs.^2/((s-1)*g*d50);  % eqn 17
