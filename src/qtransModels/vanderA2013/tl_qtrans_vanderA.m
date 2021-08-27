@@ -65,7 +65,7 @@ tl_Ttu=tl_Tt-tl_Tc;  % duration of deceleration under trough
 [~,ic]=max(uw);
 [~,it]=min(uw);
 tl_uhatc = tl_uw(ic);
-tl_uhatt = tl_uw(it);
+tl_uhatt = -tl_uw(it);
 
 % critical shields param, Soulsby
 tl_Dstar=(g*(s-1)/nu^2)^(1/3)*tl_d50;
@@ -182,8 +182,8 @@ tl_fwdt = tl_alpha*fd ...
        + alpha*tl_fd ...
        - tl_alpha*fwt ...
        + (1-alpha)*tl_fwt;
-tl_ucrvec = tl_utildecr*[1 0] + tl_udelta;
-tl_utrvec = tl_utildetr*[1 0] + tl_udelta;
+tl_ucrvec = tl_utildecr*[+1 0] + tl_udelta;
+tl_utrvec = tl_utildetr*[-1 0] + tl_udelta;
 tl_ucrabs = .5/sqrt(ucrvec(1)^2+ucrvec(2)^2)*( ...
     2*ucrvec(1)*tl_ucrvec(1) ...
     + 2*ucrvec(2)*tl_ucrvec(2) );
