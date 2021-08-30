@@ -110,8 +110,8 @@ dl2ds=-1./(sig_b-sgridb);
 
 for i=2:-1:1
 
-alphab=Ab(i).*( Bbp(i)./sig_b.*(l1-l2) - Cbp(i).*l2 );
-dalphabds=Ab(i).*( Bbp(i)./sig_b.*(dl1ds-dl2ds) - Cbp(i).*dl2ds ); % ok2
+alphab=Ab(i).*( Bbp(i)./sig_b.*(l1-l2) + Cbp(i).*l2 );
+dalphabds=Ab(i).*( Bbp(i)./sig_b.*(dl1ds-dl2ds) + Cbp(i).*dl2ds ); % ok2
 betab=Ab(i).*( -1/sig_b.*(l1-l2) - l2 );
 dbetabds=Ab(i).*( -1/sig_b.*(dl1ds-dl2ds) - dl2ds ); % ok2
 alpham=alphab(end) ...
@@ -268,19 +268,19 @@ ad_l1   =ad_l1- Ab(i)./sig_b            .*ad_betab;
 ad_l2   =ad_l2+ Ab(i)./sig_b            .*ad_betab;
 ad_l2   =ad_l2   - Ab(i)                   .*ad_betab;
 ad_betab=0*ad_betab;
-%6 tl_alphab=tl_Ab(i).*( Bbp(i)./sig_b.*(l1-l2) - Cbp(i).*l2 ) ...
+%6 tl_alphab=tl_Ab(i).*( Bbp(i)./sig_b.*(l1-l2) + Cbp(i).*l2 ) ...
 %           + Ab(i).*( tl_Bbp(i)./sig_b.*(l1-l2) ...
 %                   - Bbp(i)./sig_b^2.*(l1-l2).*tl_sig_b ...
 %                   + Bbp(i)./sig_b.*(tl_l1-tl_l2) ...
-%                   - tl_Cbp(i).*l2 ...
-%                   - Cbp(i).*tl_l2 ); % ok2
-ad_Ab(i) =ad_Ab(i) +sum(( Bbp(i)./sig_b.*(l1-l2) - Cbp(i).*l2 ).*ad_alphab);
+%                   + tl_Cbp(i).*l2 ...
+%                   + Cbp(i).*tl_l2 ); % ok2
+ad_Ab(i) =ad_Ab(i) +sum(( Bbp(i)./sig_b.*(l1-l2) + Cbp(i).*l2 ).*ad_alphab);
 ad_Bbp(i)=ad_Bbp(i)+ sum(Ab(i)./sig_b.*(l1-l2)                .*ad_alphab);
 ad_sig_b =ad_sig_b - sum(Ab(i).*Bbp(i)./sig_b^2.*(l1-l2)      .*ad_alphab);
 ad_l1    =ad_l1    + Ab(i).*Bbp(i)./sig_b                 .*ad_alphab;
 ad_l2    =ad_l2    - Ab(i).*Bbp(i)./sig_b                 .*ad_alphab;
-ad_Cbp(i)=ad_Cbp(i)- sum(Ab(i).*l2                            .*ad_alphab);
-ad_l2    =ad_l2    - Ab(i).*Cbp(i)                        .*ad_alphab;
+ad_Cbp(i)=ad_Cbp(i)+ sum(Ab(i).*l2                            .*ad_alphab);
+ad_l2    =ad_l2    + Ab(i).*Cbp(i)                        .*ad_alphab;
 ad_alphab=0*ad_alphab;
 %3 tl_Cbp(i)=-tl_Df.*k(i)./(delta*omega) ...
 %        -Df.*tl_k(i)./(delta*omega) ...

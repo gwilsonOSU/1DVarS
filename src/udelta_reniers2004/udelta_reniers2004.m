@@ -23,7 +23,7 @@ physicalConstants;
 
 % other fixed params
 kappa=0.4;  % von karman
-fdelta=3;   % stated in text
+fdelta=3;   % stated in text (after eqn 16)
 nintegral=100;  % number of gridpionts for sigma-integration
 
 % derived params.  See notes here:
@@ -88,7 +88,7 @@ for i=1:2  % for each direction
 Ab(i)=ht./(fv*rho.*phi_s.*nubar_t+rho*phi_b.*nubar_tb);  % eqn (B9)
 Bbp(i)=tau_t(i)+Df.*k(i)/omega;
 Cbp(i)=-Df.*k(i)./(delta*omega);
-alphab=Ab(i).*( Bbp(i)./sig_b.*(l1-l2) - Cbp(i).*l2 );
+alphab=Ab(i).*( Bbp(i)./sig_b.*(l1-l2) + Cbp(i).*l2 );
 betab=Ab(i).*( -1/sig_b.*(l1-l2) - l2 );
 
 % coef functions for mid-layer velocity profile, see
