@@ -112,6 +112,9 @@ for i=1:nx
   end
 end
 
+% TODO: rotate udelta into the wave direction, as assumed by van der A
+% equations.
+
 % run the requested model for sediment flux (m2/s)
 tanbeta=calcTanbeta(x,h)';
 if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)

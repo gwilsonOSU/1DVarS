@@ -364,7 +364,8 @@ if(strcmp(sedmodel,'dubarbier'))
   params_std=[5e-3 .0002 .01  .005 5e-5];
 elseif(strcmp(sedmodel,'vanderA'))
   params.n=1.2;  % vanderA 1.2.  Larger values promote offshore bar migration
-  params.m=11;  % vanderA 11; hsu et al. 11.  Just scales everything up
+  params.m=30;  % vanderA 11; hsu et al. 11.  Just scales everything up
+  warning('setting params.m=30 (very large)')
   params.xi=1.7;  % ??? tuning parameter, O(1) according to Kranenburg (2013).  VDA pg. 35 says 1.7
   params.alpha=8.2;  % comes in eqn 27-28, not the same as eqn 19.  Default 8.2
   params_std=[5e-3 .2 2 .5 2];

@@ -45,7 +45,10 @@ if(~exist('dgamma'))
 end
 
 % dispersion
-k=fsolve(@(k)omega^2-g*k.*tanh(k.*h),omega./sqrt(g*h),optimset('Display','off'));
+for i=1:nx
+  k(i)=fzero(@(k)omega^2-g*k.*tanh(k.*h(i)),omega./sqrt(g*h(i)),optimset('Display','off'));
+end
+k=k(:);
 c=max(0,real(omega./k));
 n=.5*(1+2*k.*h./sinh(2*k.*h));
 cg=n.*c;

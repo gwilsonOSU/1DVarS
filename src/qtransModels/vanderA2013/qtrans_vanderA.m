@@ -173,10 +173,6 @@ else
   deltast=(d50)*13*thetahatt;
 end
 
-% % old version: Use linear theory transfer function to get vertical fluid velocities
-% worbc=+max(etawc/c*diff(uw)./diff(t));
-% worbt=-min(etawt/c*diff(uw)./diff(t));
-
 % Use stokes 2nd order theory to get vertical fluid velocities and correct
 % settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
 % simply ported from COAWST code.
@@ -197,6 +193,11 @@ worbc = .125*worb1c*sqrt(64-(-worb1c+sqrt(worb1c^2+32*worb2c^2))^2/(worb2c^2)) .
        + worb2c*sin(2*acos(.125*(-worb1c+sqrt(worb1c^2+32*worb2c^2))/worb2c));
 worbt = .125*worb1t*sqrt(64-(-worb1t+sqrt(worb1t^2+32*worb2t^2))^2/(worb2t^2)) ...
        + worb2t*sin(2*acos(.125*(-worb1t+sqrt(worb1t^2+32*worb2t^2))/worb2t));
+
+% % old version: Use linear theory transfer function to get vertical fluid velocities
+% worbc=+max(etawc/c*diff(uw)./diff(t));
+% worbt=-min(etawt/c*diff(uw)./diff(t));
+
 wsc=max(ws-worbc,0.001);
 wst=max(ws+worbt,0.001);
 
