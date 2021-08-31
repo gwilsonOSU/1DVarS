@@ -1,6 +1,6 @@
-function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
+function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,param)
 %
-% [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws)
+% [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,param)
 %
 % Calculates transport following van der A (2013)
 %
@@ -17,6 +17,7 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 % kabs  : wavenumber, scalar, rad/m
 % omega : wave frequency, rad/m
 % udelta: near-bed mean velocity, m/s
+% delta : height for near-bed velocity, m
 % ws    : sediment settling velocity, m/s
 % param.{alpha,xi,m,n}: tuning parameters struct
 %        alpha: phase lag effect, eqns (24)-(28).  Default 8.2
@@ -40,18 +41,17 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 % this wrapper loop serves to handle vector inputs
 nx=length(h);
 for i=1:nx
-  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),param);
+  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),param);
 end
 qs=qs(:);
 
 end  % end of wrapper function, start of main function
 
-function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
+function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,param)
 
 physicalConstants;
 
 % fixed constants
-delta=0.2;  % vanderA's approximation, see Fig. 14 and discussion thereof
 nt=1000;  % for calculation of intra-wave velocity
 
 % derived params
@@ -208,11 +208,17 @@ Pc = param.alpha*(1-param.xi*uhatc./c).*etawc./(2*(Tc-Tcu)*wsc);  % eqn 27
 Pt = param.alpha*(1+param.xi*uhatt./c).*etawt./(2*(Tt-Ttu)*wst);  % eqn 28
 if(abs(thetac)>theta_cr)
   Omegac=param.m*(abs(thetac)-theta_cr).^param.n;  % eqn 2
+  %indt=find(uw>0);  % TEST CODE
+  %theta_timedep=.5*fwdc.*(uw(indt)+udelta(1)).^2/((s-1)*g*d50);  % TEST CODE
+  %Omegac=1/Tc*trapz(t(indt),11*max(0,abs(theta_timedep)-theta_cr).^1.65);  % TEST CODE
 else
   Omegac=0;
 end
 if(abs(thetat)>theta_cr)
   Omegat=param.m*(abs(thetat)-theta_cr).^param.n;  % eqn 2
+  %indt=find(uw<0);  % TEST CODE
+  %theta_timedep=.5*fwdc.*(uw(indt)+udelta(1)).^2/((s-1)*g*d50);  % TEST CODE
+  %Omegat=1/Tt*trapz(t(indt),11*max(0,abs(theta_timedep)-theta_cr).^1.65);  % TEST CODE
 else
   Omegat=0;
 end

@@ -1,4 +1,4 @@
-function tl_udelta=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_tau_wind,tl_Dr,tl_fv,tl_d50,bkgd)%,outvar)
+function [tl_udelta,tl_delta]=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_tau_wind,tl_Dr,tl_fv,tl_d50,bkgd)%,outvar)
 %
 % TL-code for udelta_reniers2004.m
 %

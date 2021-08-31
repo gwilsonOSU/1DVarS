@@ -1,4 +1,4 @@
-function [Hrms,vbar,theta,kabs,Q,hp,workspc] = ...
+function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
     hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,...
                   dgamma,...
                   d50,d90,params,sedmodel,dt)
@@ -101,33 +101,37 @@ end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
 Dr(Dr==0)=min(Dr(Dr>0));
+delta=zeros(nx,1);
 for i=1:nx
   if(Dr(i)==0)
     udelta(i,:)=[0 0];
+    delta(i)=0;
   else
-    [udelta(i,:),udel_bkgd(i)]= ...
+    [udelta(i,:),delta(i),udel_bkgd(i)]= ...
         udelta_reniers2004(ubar(i,:),k(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
                            tau_wind(i,:),Dr(i),params.fv,d50(i));
   end
 end
 
-% TODO: rotate udelta into the wave direction, as assumed by van der A
-% equations.
+% rotate udelta into wave direction, as assumed by sed transport equations
+udelta_w(:,1) = udelta(:,1).*cos(theta) - udelta(:,2).*sin(theta);
+udelta_w(:,2) = udelta(:,1).*sin(theta) + udelta(:,2).*cos(theta);
 
 % run the requested model for sediment flux (m2/s)
-tanbeta=calcTanbeta(x,h)';
 if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
+  tanbeta=calcTanbeta(x,h)';
   [Q,Qb,Qs,Qa,bkgd_qtrans] = ...
-      qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta,ws,...
+      qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta_w,ws,...
                        params.Cw,params.Cc,params.Cf,params.Ka);
-elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
-  [Q,bkgd_qtrans] = ...
-      qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,params);
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
+  tanbeta=calcTanbeta(x,h)';
   [Q,~] = ...
       qtrans_soulsbyVanRijn(x,d50,d90,h,tanbeta,Hrms,kabs,...
                             omega,theta,ubar,Dr,params);
+elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
+  [Q,bkgd_qtrans] = ...
+      qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta_w,delta,ws,params);
 end
 Q=real(Q);
 
@@ -171,13 +175,16 @@ wgt=.5*(1+cos(pi/L*(di+L)));
 wgt(di<-L)=1;
 wgt(di>0)=0;
 
+% rotate output from wave-following coords to cartesian
+Qx=Q.*cos(theta);  % x-shore component
+
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % transport rate (m2/s) including the bed porosity
-dQdx=ddx_upwind(x,Q,horig);
+dQdx=ddx_upwind(x,Qx,horig);
 if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dx=abs(x(2)-x(1));
-  [hp1,qp1]=dhdt_marieu2007(Q,h,dx,dt/2,-1);
+  [hp1,qp1]=dhdt_marieu2007(Qx,h,dx,dt/2,-1);
   hp=dhdt_marieu2007(qp1,hp1,dx,dt/2,+1);
   dh=hp-horig;
 else
@@ -198,6 +205,7 @@ hp = horig + dh;
   vname{end+1}='Ew';
   vname{end+1}='Hrms';
   vname{end+1}='Q';
+  vname{end+1}='Qx';
   vname{end+1}='dQdx';
   vname{end+1}='bkgd_qtrans';
   vname{end+1}='c';
@@ -217,7 +225,9 @@ hp = horig + dh;
   vname{end+1}='ubar';
   vname{end+1}='udel_bkgd';
   vname{end+1}='hydro_bkgd';
+  vname{end+1}='delta';
   vname{end+1}='udelta';
+  vname{end+1}='udelta_w';
   vname{end+1}='vbar';
   vname{end+1}='tau_wind';
   vname{end+1}='ws';

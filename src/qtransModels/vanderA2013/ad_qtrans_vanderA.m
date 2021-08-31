@@ -1,4 +1,4 @@
-function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_param] = ...
+function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_param] = ...
     ad_qtrans_vanderA(ad_qs,bkgd,eparam)%,invar)
 %
 % AD code for qtrans_vanderA.m
@@ -22,6 +22,7 @@ ad_h          =zeros(nx,1);
 ad_Hrms       =zeros(nx,1);
 ad_kabs       =zeros(nx,1);
 ad_udelta     =zeros(nx,2);
+ad_delta      =zeros(nx,1);
 ad_omega=0;
 ad_tauwRe=0;
 ad_streamingEffect=0;
@@ -37,7 +38,7 @@ for i=nx:-1:1
   %     tl_qtrans_vanderA(tl_d50,tl_d90,tl_h(i),tl_Hrms(i),tl_kabs(i),...
   %                       tl_udelta(i,:),tl_ws,tl_param,bkgd_qtrans(i));
   [ad1_d50,ad1_d90,ad1_h,ad1_Hrms,ad1_kabs,...
-   ad1_omega,ad1_udelta,ad1_ws,ad1_param] = ...
+   ad1_omega,ad1_udelta,ad1_delta,ad1_ws,ad1_param] = ...
       ad_qtrans_vanderA_main(ad_qs(i),bkgd(i));%,invar);
   ad_d50(i)=ad_d50(i)+ad1_d50   ;
   ad_d90(i)=ad_d90(i)+ad1_d90   ;
@@ -47,6 +48,7 @@ for i=nx:-1:1
   ad_kabs(i)  =ad_kabs(i)  +ad1_kabs  ;
   ad_omega=ad_omega+ad1_omega;
   ad_udelta(i,:)=ad_udelta(i,:)+ad1_udelta;
+  ad_delta(i)=ad_delta(i)+ad1_delta;
   ad_param(i).n    =ad_param(i).n    +ad1_param.n    ;
   ad_param(i).m    =ad_param(i).m    +ad1_param.m    ;
   ad_param(i).xi   =ad_param(i).xi   +ad1_param.xi   ;
@@ -64,7 +66,7 @@ end
 
 end  % end of wrapper function, start of main function
 
-function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd)%,invar)
+function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd)%,invar)
 
 physicalConstants;
 
@@ -88,6 +90,7 @@ ad_Hmo=0;
 ad_Hrms  =0;
 ad_kabs  =0;
 ad_udelta=[0 0];
+ad_delta=0;
 ad_ws    =0;
 ad_param.m    =0;
 ad_param.n    =0;

@@ -1,6 +1,6 @@
 function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
     ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
-    ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Q,ad_hp,bkgd)
+    ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hp,bkgd)
 %
 % AD-code for tl_hydroSedModel.m
 %
@@ -16,8 +16,7 @@ end
 % min depth constraint
 h(imask)=hmin;
 Q(imask)=0;
-% Q(imax:end)=0;
-Q(imask:end)=0;
+Qx(imask)=0;
 
 nx=length(h);
 
@@ -35,6 +34,7 @@ ad_Ew=zeros(nx,1);
 ad_Er=zeros(nx,1);
 ad_c=zeros(nx,1);
 ad_udelta=zeros(nx,2);
+ad_delta=zeros(nx,1);
 ad_ubarvec=zeros(nx,2);
 ad_ubar=zeros(nx,1);
 ad_detady=zeros(nx,1);
@@ -75,15 +75,26 @@ end
 %b06 bathymetry update: dhdt = -dzdt = dQdx.  This is just the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % transport rate (m2/s) including the bed porosity
+%
+% TODO: At time of writing I only have the upwind differencing version of
+% this code.  Need to write the version with Marieu dQdx formulation.
+%
 %2 tl_hp = tl_h + tl_dQdx*dt;
 ad_h = ad_h + ad_hp;
 ad_dQdx = ad_dQdx + ad_hp*bkgd.dt;
 ad_hp=0;
 % 1b tl_dQdx=tl_dQdx.*wgt;   % apply damping near shore
 ad_dQdx = ad_dQdx.*wgt;
-%1 tl_dQdx = tl_ddx_upwind(tl_Q,x,Q,horig);
-ad_Q=ad_Q+ad_ddx_upwind(ad_dQdx,x,Q,horig);
+%1 tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
+ad_Qx=ad_Qx+ad_ddx_upwind(ad_dQdx,x,Qx,horig);
 ad_dQdx=0;
+
+% rotate output from wave-following coords to cartesian
+% tl_Qx = tl_Q.*cos(theta) ...
+%        - Q.*sin(theta).*tl_theta;
+ad_Q = ad_Q         + cos(theta).*ad_Qx;
+ad_theta = ad_theta - sin(theta).*Q.*ad_Qx;
+ad_Qx = 0;
 
 % mitigate transport discontinuity at the shoreline
 % tl_Q(imask)=0;
@@ -152,21 +163,43 @@ elseif(strcmp(bkgd.sedmodel,'vanderA'))
   ad_Q=0;
 end
 
+%  rotate udelta into wave direction, as assumed by sed transport equations
+% tl_udelta_w(:,1) = ...
+%     - udelta(:,1).*sin(theta).*tl_theta ...
+%     + tl_udelta(:,1).*cos(theta) ...
+%     - tl_udelta(:,2).*sin(theta) ...
+%     - udelta(:,2).*cos(theta).*tl_theta;
+ad_udelta(:,1)=ad_udelta(:,1)+ cos(theta).*ad_udelta_w(:,1);
+ad_udelta(:,2)=ad_udelta(:,2)- sin(theta).*ad_udelta_w(:,1);
+ad_theta = ad_theta - (udelta(:,1).*sin(theta) + udelta(:,2).*cos(theta)).*ad_udelta_w(:,1);
+ad_udelta_w(:,1)=0;
+% tl_udelta_w(:,2) = ...
+%     + tl_udelta(:,1).*sin(theta) ...
+%     + udelta(:,1).*cos(theta).*tl_theta ...
+%     + tl_udelta(:,2).*cos(theta) ...
+%     - udelta(:,2).*sin(theta).*tl_theta;
+ad_udelta(:,1)=ad_udelta(:,1)+ sin(theta).*ad_udelta_w(:,2);
+ad_udelta(:,2)=ad_udelta(:,2)+ cos(theta).*ad_udelta_w(:,2);
+ad_theta = ad_theta + (udelta(:,1).*cos(theta) - udelta(:,2).*sin(theta)).*ad_udelta_w(:,2);
+ad_udelta_w(:,2)=0;
+
 %b04 Reniers et al. (2004) model for velocity at top of boundary layer
 if(strcmp(bkgd.sedmodel,'dubarbier') | strcmp(bkgd.sedmodel,'vanderA'))
   for i=nx:-1:1
     if(Dr(i)==0)
       % tl_udelta(i,:)=[0 0];
       ad_udelta(i,:)=0;
+      % tl_delta(i)=0;
+      ad_delta(i)=0;
     else
-      % tl_udelta(i,:)=tl_udelta_reniers2004(tl_ubarvec(i,:),tl_kvec(i,:),...
+      % [tl_udelta(i,:),tl_delta(i)]=tl_udelta_reniers2004(tl_ubarvec(i,:),tl_kvec(i,:),...
       %                                      tl_h(i),tl_Hrms(i),tl_detady(i),...
       %                                      tl_windW(i,:),tl_Dr(i),tl_fv,tl_d50(i),...
       %                                      udel_bkgd(i));
       [ad1_ubarvec,ad1_kvec,ad1_omega,...
        ad1_h,ad1_Hrms,ad1_detady,...
        ad1_tau_wind,ad1_Dr,ad1_fv,ad1_d50(i)] = ...
-          ad_udelta_reniers2004(ad_udelta(i,:),udel_bkgd(i));
+          ad_udelta_reniers2004(ad_udelta(i,:),ad_delta(i),udel_bkgd(i));
       ad_ubarvec(i,:)=ad_ubarvec(i,:)+ad1_ubarvec;
       ad_kvec(i,:)   =ad_kvec(i,:)   +ad1_kvec;
       ad_omega       =ad_omega       +ad1_omega;
@@ -176,7 +209,7 @@ if(strcmp(bkgd.sedmodel,'dubarbier') | strcmp(bkgd.sedmodel,'vanderA'))
       ad_tau_wind(i,:)=ad_tau_wind(i,:)+ad1_tau_wind;
       ad_Dr(i)       =ad_Dr(i)       +ad1_Dr;
       ad_params.fv   =ad_params.fv   +ad1_fv;
-      ad_d50(i)         =ad_d50(i)         +ad1_d50(i);
+      ad_d50(i)      =ad_d50(i)      +ad1_d50(i);
     end
   end
 else

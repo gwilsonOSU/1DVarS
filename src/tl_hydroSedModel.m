@@ -1,4 +1,4 @@
-function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Q,tl_hp] = ...
+function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hp] = ...
     tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,...
                      tl_dgamma,...
                      tl_tau_wind,tl_detady,tl_d50,tl_d90,tl_params,bkgd)
@@ -26,8 +26,7 @@ nx=length(h);
 % min depth constraint
 h(imask)=hmin;
 Q(imask)=0;
-% Q(imax:end)=0;
-Q(imask:end)=0;
+Qx(imask)=0;
 tl_h(imask)=0;
 
 % % wind stress, following Reniers et al. (2004) eqn (6)
@@ -66,22 +65,38 @@ tl_ws=tl_ws_brownLawler(tl_d50,d50);
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
 if(strcmp(bkgd.sedmodel,'dubarbier') | strcmp(bkgd.sedmodel,'vanderA'))
+  tl_udelta=zeros(nx,2);
+  tl_delta=zeros(nx,1);
   for i=1:nx
     if(Dr(i)==0)
       tl_udelta(i,:)=[0 0];
+      tl_delta(i)=0;
     else
-      tl_udelta(i,:)=tl_udelta_reniers2004(tl_ubarvec(i,:),tl_kvec(i,:),...
-                                           tl_omega,tl_h(i),tl_Hrms(i),tl_detady(i),...
-                                           tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,...
-                                           tl_d50(i),udel_bkgd(i));
+      [tl_udelta(i,:),tl_delta(i)] = ...
+          tl_udelta_reniers2004(tl_ubarvec(i,:),tl_kvec(i,:),...
+                                tl_omega,tl_h(i),tl_Hrms(i),tl_detady(i),...
+                                tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,...
+                                tl_d50(i),udel_bkgd(i));
     end
   end
 end
 
+% rotate udelta into wave direction, as assumed by sed transport equations
+tl_udelta_w(:,1) = ...
+    + tl_udelta(:,1).*cos(theta) ...
+    - udelta(:,1).*sin(theta).*tl_theta ...
+    - tl_udelta(:,2).*sin(theta) ...
+    - udelta(:,2).*cos(theta).*tl_theta;
+tl_udelta_w(:,2) = ...
+    + tl_udelta(:,1).*sin(theta) ...
+    + udelta(:,1).*cos(theta).*tl_theta ...
+    + tl_udelta(:,2).*cos(theta) ...
+    - udelta(:,2).*sin(theta).*tl_theta;
+
 % transport model
 if(strcmp(bkgd.sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
   tl_tanbeta=tl_calcTanbeta(tl_h,x)';
-  tl_Q=tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,...
+  tl_Q=tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta_w,tl_ws,...
                            tl_params.Cw,tl_params.Cc,tl_params.Cf,tl_params.Ka,...
                            bkgd_qtrans);
 elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
@@ -91,17 +106,25 @@ elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
                                 tl_Dr,tl_params,bkgd_qtrans);
 elseif(strcmp(bkgd.sedmodel,'vanderA'))  % van Der A et al. (2013)
   tl_Q=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,...
-                         tl_udelta,tl_ws,tl_params,bkgd_qtrans);
+                         tl_udelta_w,tl_delta,tl_ws,tl_params,bkgd_qtrans);
 end
 
 % mitigate transport discontinuity at the shoreline
 Q(imask)=0;
 tl_Q(imask)=0;
 
+% rotate output from wave-following coords to cartesian
+tl_Qx = tl_Q.*cos(theta) ...
+        - Q.*sin(theta).*tl_theta;
+
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % transport rate (m2/s) including the bed porosity
-tl_dQdx = tl_ddx_upwind(tl_Q,x,Q,horig);
+%
+% TODO: At time of writing I only have the upwind differencing version of
+% this code.  Need to write the version with Marieu dQdx formulation.
+%
+tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
 tl_dQdx=tl_dQdx.*wgt;   % apply damping near shore
 tl_hp = tl_h + tl_dQdx*bkgd.dt;
 

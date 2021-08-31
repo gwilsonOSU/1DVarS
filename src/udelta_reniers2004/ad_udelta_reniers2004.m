@@ -1,4 +1,4 @@
-function [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_d50]=ad_udelta_reniers2004(ad_udelta,bkgd)%,invar)
+function [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_d50]=ad_udelta_reniers2004(ad_udelta,ad_delta,bkgd)%,invar)
 %
 % AD-code for tl_udelta_reniers2004.m
 %

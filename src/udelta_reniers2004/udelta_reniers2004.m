@@ -1,6 +1,6 @@
-function [udelta,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,d50)
+function [udelta,delta,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,d50)
 %
-% udelta=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,d50)
+% [udelta,delta]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,d50)
 %
 % Solves for bottom boundary velocity u_delta, see Reniers et al. (2004)
 % eqn. (B12).

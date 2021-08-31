@@ -1,4 +1,4 @@
-function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_param,bkgd)%,outvar)
+function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_delta,tl_ws,tl_param,bkgd)%,outvar)
 %
 % TL code for qtrans_vanderA.m
 %
@@ -9,13 +9,13 @@ tl_Q=zeros(nx,1);
 for i=1:nx
   tl_qs(i)= ...
       tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_Hrms(i),tl_kabs(i),...
-                             tl_omega,tl_udelta(i,:),tl_ws(i),tl_param,bkgd(i));%,outvar);
+                             tl_omega,tl_udelta(i,:),tl_delta(i),tl_ws(i),tl_param,bkgd(i));%,outvar);
 end
 tl_qs=tl_qs(:);
 
 end  % end of wrapper function, start of main function
 
-function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_param,bkgd)%,outvar)
+function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_delta,tl_ws,tl_param,bkgd)%,outvar)
 
 physicalConstants;
 
@@ -127,7 +127,9 @@ tl_lambda = tl_ahat*mlambda*nlambda*(1.97-0.44*psihat^.21) ...
     - ahat*mlambda*nlambda*0.44*.21*psihat^(.21-1)*tl_psihat;
 
 % shields parameter related parameters.  Requires solving a 5-eqn nonlinear
-% system, so this is done in its own code.
+% system, so this is done in its own code. TODO, currently
+% tl_vanderA_shields.m does not support tl_delta as an input.  For now, just
+% approximate tl_delta~0.
 if(sqrt(udelta(1)^2+udelta(2)^2)==0)
   tl_udabs=0;
 else

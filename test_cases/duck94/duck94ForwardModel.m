@@ -39,7 +39,7 @@ doadjoint=0; % include a sensitivity analysis for sed transport inputs
 % migration events.  Note, case-b is a good example of an onshore migration,
 % and currently (last checked June, 2021) this case gives good results with
 % options sedmodel='vanderA' and doassim=1.
-duck94Case='b';
+duck94Case='c';
 
 % sediment model: uncomment one of the following...
 % sedmodel='dubarbier';
@@ -364,8 +364,8 @@ if(strcmp(sedmodel,'dubarbier'))
   params_std=[5e-3 .0002 .01  .005 5e-5];
 elseif(strcmp(sedmodel,'vanderA'))
   params.n=1.2;  % vanderA 1.2.  Larger values promote offshore bar migration
-  params.m=30;  % vanderA 11; hsu et al. 11.  Just scales everything up
-  warning('setting params.m=30 (very large)')
+  params.m=20;  % vanderA 11; hsu et al. 11.  Just scales everything up
+  warning('setting params.m=20 (very large)')
   params.xi=1.7;  % ??? tuning parameter, O(1) according to Kranenburg (2013).  VDA pg. 35 says 1.7
   params.alpha=8.2;  % comes in eqn 27-28, not the same as eqn 19.  Default 8.2
   params_std=[5e-3 .2 2 .5 2];
