@@ -119,13 +119,12 @@ udelta_w(:,1) = udelta(:,1).*cos(theta) - udelta(:,2).*sin(theta);
 udelta_w(:,2) = udelta(:,1).*sin(theta) + udelta(:,2).*cos(theta);
 
 % run the requested model for sediment flux (m2/s)
+tanbeta=calcTanbeta(x,h)';
 if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
-  tanbeta=calcTanbeta(x,h)';
   [Q,Qb,Qs,Qa,bkgd_qtrans] = ...
       qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta_w,ws,...
                        params.Cw,params.Cc,params.Cf,params.Ka);
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
-  tanbeta=calcTanbeta(x,h)';
   [Q,~] = ...
       qtrans_soulsbyVanRijn(x,d50,d90,h,tanbeta,Hrms,kabs,...
                             omega,theta,ubar,Dr,params);
