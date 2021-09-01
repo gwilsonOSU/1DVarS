@@ -1,6 +1,6 @@
-function [hp,qp]=dhdt_marieu2007(q,h,dx,dt,ghost)
+function [hpout,qpout,bkgd]=dhdt_marieu2007(qin,hin,dx,dt,ghost)
 %
-% [hp,qp]=dhdt_marieu2007(q,h,dx,dt,ghost)
+% [hp,qp,bkgd]=dhdt_marieu2007(q,h,dx,dt,ghost)
 %
 % Modified nonoscillatory-centered scheme by Marieu et al. (2007, JGR)
 % "Modeling of vortex ripple morphodynamics"
@@ -29,24 +29,27 @@ function [hp,qp]=dhdt_marieu2007(q,h,dx,dt,ghost)
 %   >> [hp1,qp1]=dhdt_marieu2007(q,h,dx,dt/2,-1);
 %   >> hp=dhdt_marieu2007(qp1,hp1,dx,dt/2,+1);
 %
+% OPTIONAL: Output struct 'bkgd' contains background information required
+% as input for TL-AD codes
 
 % Note, Marieu's 'h' is elevation while mine is depth, so the sign of h is
 % negated compared to eqn 17.  To make things simple, switch to their
 % convention here then switch back to my convention at the end of the
 % function
-h=-h;
+h=-hin;
 
-nx=length(q);
-
-% add ghost points if requested
+% add ghost points
 if(ghost==+1)
-  q=[q; q(nx)];
-  h=[h; h(nx)];
+  q=[qin; qin(nx)];
+  h=[hin; hin(nx)];
 else
-  q=[q(1); q];
-  h=[h(1); h];
+  q=[qin(1); qin];
+  h=[hin(1); hin];
 end
+
+% grid
 nx=length(q);
+x=([1:nx]-1)*dx;
 
 % local bed celerity a, eqn (21), using centered difference
 a(2:nx-1)=2*(q(3:nx)-q(1:nx-2))./(h(3:nx)-h(1:nx-2));
@@ -55,22 +58,22 @@ a(nx)=(q(nx)-q(nx-1))/(h(nx)-h(nx-1));
 
 % replace with 3rd order polynomial in cases where h has low slope, or where
 % there is a local min/max in h
+a_orig=a;
 dhmin=0.01;
-i=find(abs(h(3:nx)-h(1:nx-2))<dhmin)+1;  % low slope
-if(abs(h(2   )-h(1 ))<dhmin) i=union(i ,1); end  % low slope, boundary
-if(abs(h(nx)-h(nx-1))<dhmin) i=union(nx,1); end  % low slope, boundary
-i=union(i,find(sign(h(3:nx)-h(2:nx-1))==sign(h(1:nx-2)-h(2:nx-1)))+1);  % min/max
+i_interp=find(abs(h(3:nx)-h(1:nx-2))<dhmin)+1;  % low slope
+if(abs(h(2   )-h(1 ))<dhmin) i_interp=union(i_interp,1); end  % low slope, boundary
+if(abs(h(nx)-h(nx-1))<dhmin) i_interp=union(nx,1); end  % low slope, boundary
+i_interp=union(i_interp,find(sign(h(3:nx)-h(2:nx-1))==sign(h(1:nx-2)-h(2:nx-1)))+1);  % min/max
 warning off
-for j=i(:)'
+for j=i_interp(:)'
   ind=unique(min(nx,max(1,j+[-2 -1 +1 +2])));
   ind=setdiff(ind,j);
-  pa=polyfit(ind,a(ind),length(ind)-1);  % 3rd order polynomial
+  pa=polyfit(ind,a_orig(ind),length(ind)-1);  % 3rd order polynomial
   a(j)=polyval(pa,j);  % interpolate
 end
 warning on
 
 % interpolate to get q at predictor time step dt/2, eqn 20
-x=([1:nx]-1)*dx;
 xp=x-a*dt/2;
 qp=nan(nx,1);
 for i=1:nx
@@ -119,7 +122,7 @@ hp(1:nx-1) = .5*(h(1:nx-1)+h(2:nx)) ...
     - dt/dx*(qp(2:nx)-qp(1:nx-1));
 
 % output is supposed to be on the staggered grid, so interpolate q accordingly
-qp=.5*(qp(1:nx-1)+qp(2:nx));
+qpout=.5*(qp(1:nx-1)+qp(2:nx));
 
 % % OLD: interpolate to non-staggered grid
 % hpp=nan(nx,1);
@@ -129,4 +132,28 @@ qp=.5*(qp(1:nx-1)+qp(2:nx));
 
 % revert the result to h=depth instead of h=elevation (see start of code
 % where this was flipped)
-hp=-hp;
+hpout=-hp;
+
+% if requested, save info for use in TL-AD codes
+if(nargout==3)
+  bkgd=struct;
+  bkgd.a_orig  =a_orig  ;
+  bkgd.i_interp=i_interp;
+  bkgd.q       =q       ;
+  bkgd.qp      =qp      ;
+  bkgd.dh1     =dh1     ;
+  bkgd.dh2     =dh2     ;
+  bkgd.dh3     =dh3     ;
+  bkgd.dh      =dh      ;
+  bkgd.hp      =hp      ;
+  bkgd.hpout   =hpout   ;
+  bkgd.hin     =hin     ;
+  bkgd.h       =h       ;
+  bkgd.dx      =dx      ;
+  bkgd.dt      =dt      ;
+  bkgd.ghost   =ghost   ;
+  bkgd.dhmin   =dhmin   ;
+  bkgd.x
+  bkgd.xp
+  bkgd.beta
+end
