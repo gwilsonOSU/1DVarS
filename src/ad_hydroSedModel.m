@@ -72,22 +72,38 @@ end
 % % TL: tl_hp=zeros(nx,1);
 % ad_hp=zeros(nx,1);
 
-%b06 bathymetry update: dhdt = -dzdt = dQdx.  This is just the Exner equation,
+
+% bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % transport rate (m2/s) including the bed porosity
-%
-% TODO: At time of writing I only have the upwind differencing version of
-% this code.  Need to write the version with Marieu dQdx formulation.
-%
-%2 tl_hp = tl_h + tl_dQdx*dt;
-ad_h = ad_h + ad_hp;
-ad_dQdx = ad_dQdx + ad_hp*bkgd.dt;
+%5 tl_hp = tl_horig + tl_dh;
+ad_horig = ad_horig + ad_hp;
+ad_dh    = ad_dh    + ad_hp;
 ad_hp=0;
-% 1b tl_dQdx=tl_dQdx.*wgt;   % apply damping near shore
-ad_dQdx = ad_dQdx.*wgt;
-%1 tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
-ad_Qx=ad_Qx+ad_ddx_upwind(ad_dQdx,x,Qx,horig);
-ad_dQdx=0;
+%4 tl_dh(isnan(dh))=0;
+ad_dh(isnan(dh))=0;
+%3 tl_dh=tl_dh.*wgt;   % apply damping near shore
+ad_dh = ad_dh + ad_dh.*wgt;
+if(doMarieu)  % use "stable" Marieu formulation for dh/dt
+  dx=abs(x(2)-x(1));
+  %2c tl_dh=tl_hp-tl_horig;
+  ad_horig = ad_horig - ad_dh;
+  ad_hp = ad_hp + ad_dh;
+  ad_dh=0;
+  %2b tl_hp=tl_dhdt_marieu2007(tl_qp1,tl_hp1,bkgd_marieu_step2);
+  [ad_qp1,ad_hp1]=ad_dhdt_marieu2007(ad_hp,ad_qp,bkgd_marieu_step2)
+  %2a [tl_hp1,tl_qp1]=tl_dhdt_marieu2007(tl_Qx,tl_h,bkgd_marieu_step1);
+  [ad_Qx,ad_h]=ad_dhdt_marieu2007(ad_hp1,ad_qp1,bkgd_marieu_step1)
+  ad_hp1=0;
+  ad_qp1=0;
+else
+  %2a tl_dh=tl_dQdx*dt;  % use ddx_upwind() result
+  ad_dQdx = ad_dQdx + dt*ad_dh;
+  ad_dh=0;
+  %1 tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
+  ad_Qx = ad_ddx_upwind(ad_dQdx,x,Qx,horig);
+  ad_dQdx=0;
+end
 
 % rotate output from wave-following coords to cartesian
 % tl_Qx = tl_Q.*cos(theta) ...

@@ -183,8 +183,8 @@ Qx=Q.*cos(theta);  % x-shore component
 dQdx=ddx_upwind(x,Qx,horig);
 if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dx=abs(x(2)-x(1));
-  [hp1,qp1]=dhdt_marieu2007(Qx,h,dx,dt/2,-1);
-  hp=dhdt_marieu2007(qp1,hp1,dx,dt/2,+1);
+  [hp1,qp1,bkgd_marieu_step1]=dhdt_marieu2007(Qx,h,dx,dt/2,-1);
+  [hp,~,,bkgd_marieu_step2]=dhdt_marieu2007(qp1,hp1,dx,dt/2,+1);
   dh=hp-horig;
 else
   dh=dQdx*dt;  % use ddx_upwind() result
@@ -236,6 +236,10 @@ hp = horig + dh;
     vname{end+1}='Qb';
     vname{end+1}='Qs';
     vname{end+1}='Qa';
+  end
+  if(doMarieu)
+    vname{end+1}='bkgd_marieu_step1';
+    vname{end+1}='bkgd_marieu_step2';
   end
   workspc=struct;
   for i=1:length(vname)
