@@ -10,6 +10,7 @@ end
 tl_h=-tl_hin;
 
 % add ghost points
+nx=length(bkgd.qin);
 if(ghost==+1)
   tl_q=[tl_qin; tl_qin(nx)];
   tl_h=[tl_hin; tl_hin(nx)];

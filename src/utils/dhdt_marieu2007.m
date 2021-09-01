@@ -39,6 +39,7 @@ function [hpout,qpout,bkgd]=dhdt_marieu2007(qin,hin,dx,dt,ghost)
 h=-hin;
 
 % add ghost points
+nx=length(qin);
 if(ghost==+1)
   q=[qin; qin(nx)];
   h=[hin; hin(nx)];
@@ -140,7 +141,9 @@ if(nargout==3)
   bkgd.a_orig  =a_orig  ;
   bkgd.i_interp=i_interp;
   bkgd.q       =q       ;
+  bkgd.qin     =qin     ;
   bkgd.qp      =qp      ;
+  bkgd.qpout   =qpout   ;
   bkgd.dh1     =dh1     ;
   bkgd.dh2     =dh2     ;
   bkgd.dh3     =dh3     ;
@@ -153,7 +156,8 @@ if(nargout==3)
   bkgd.dt      =dt      ;
   bkgd.ghost   =ghost   ;
   bkgd.dhmin   =dhmin   ;
-  bkgd.x
-  bkgd.xp
-  bkgd.beta
+  bkgd.x       =x       ;
+  bkgd.xp      =xp      ;
+  bkgd.beta    =beta    ;
+  bkgd.nx      =nx      ;
 end
