@@ -188,6 +188,7 @@ if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dh=hp-horig;
 else
   dh=dQdx*dt;  % use ddx_upwind() result
+  qp=nan(nx,1);
 end
 dh=dh.*wgt;   % apply damping near shore
 dh(isnan(dh))=0;
@@ -213,6 +214,7 @@ hp = horig + dh;
   vname{end+1}='detady';
   vname{end+1}='h';
   vname{end+1}='hp';
+  vname{end+1}='dh';
   vname{end+1}='k';
   vname{end+1}='kabs';
   vname{end+1}='nx';
@@ -232,6 +234,9 @@ hp = horig + dh;
   vname{end+1}='ws';
   vname{end+1}='x';
   vname{end+1}='dt';
+  vname{end+1}='doMarieu';
+  vname{end+1}='doFilterQ';
+  vname{end+1}='doDubarbierHack';
   if(strcmp(sedmodel,'dubarbier'))
     vname{end+1}='Qb';
     vname{end+1}='Qs';

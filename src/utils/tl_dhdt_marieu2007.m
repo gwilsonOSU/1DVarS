@@ -5,15 +5,15 @@ fld=fields(bkgd);
 for i=1:length(fld)
   eval([fld{i} '=bkgd.' fld{i} ';']);
 end
+beta=bkgd.beta;
 
 % reverse sign convention for calculations
 tl_h=-tl_hin;
 
 % add ghost points
-nx=length(bkgd.qin);
 if(ghost==+1)
-  tl_q=[tl_qin; tl_qin(nx)];
-  tl_h=[tl_hin; tl_hin(nx)];
+  tl_q=[tl_qin; tl_qin(nxin)];
+  tl_h=[tl_hin; tl_hin(nxin)];
 else
   tl_q=[tl_qin(1); tl_qin];
   tl_h=[tl_hin(1); tl_hin];
@@ -45,6 +45,8 @@ for j=i_interp(:)'
   % written out in polynomial regression form.  This is verified to give the
   % same result, but writing this out this way makes it easier to add in the
   % TL code.
+  norder=length(ind)-1;
+  X=nan(length(ind));
   for n=0:norder
     X(:,norder-n+1)=ind.^n;
   end
@@ -68,11 +70,13 @@ for i=1:nx
   i0=max(find(x<xp(i)));
   if(isempty(i0)) % extrapolate, x<x(1)
     x0=x(1)-dx;
+    q0=2*q(2)-q(1);
     tl_q0=2*tl_q(2)-tl_q(1);
     tl_qp(i) = tl_q0 + (tl_q(1)-tl_q0)/dx*(xp(i)-x0) ...
         + (q(1)-q0)/dx*tl_xp(i);
   elseif(i0==nx)  % extrapolate, x>x(nx)
     x1=x(i0)+dx;
+    q1=2*q(i0)-q(i0-1);
     tl_q1=2*tl_q(i0)-tl_q(i0-1);
     tl_qp(i) = tl_q(i0) + (tl_q1-tl_q(i0))/dx*(xp(i)-x(i0)) ...
         + (q1-q(i0))/dx*tl_xp(i);

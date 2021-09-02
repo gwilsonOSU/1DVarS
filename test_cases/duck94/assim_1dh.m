@@ -305,7 +305,8 @@ end
 disp('propagating forecast covariance')
 Chsp=nan(nx+ns);
 
-parfor i=1:nx
+% parfor i=1:nx
+for i=1:nx
   % disp(['  gridpoint ' num2str(i) ' of ' num2str(nx)])
   if(floor(i/nx*10)>floor((i-1)/nx*10))
     disp([num2str(floor(i/nx*10)*10) '%'])

@@ -26,6 +26,7 @@ nx=length(h);
 
 % init
 ad_h=zeros(nx,1);
+ad_dh=zeros(nx,1);
 ad_dgamma=zeros(nx,1);
 ad_H0=0;
 ad_theta0=0;
@@ -34,6 +35,7 @@ ad_Ew=zeros(nx,1);
 ad_Er=zeros(nx,1);
 ad_c=zeros(nx,1);
 ad_udelta=zeros(nx,2);
+ad_udelta_w=zeros(nx,2);
 ad_delta=zeros(nx,1);
 ad_ubarvec=zeros(nx,2);
 ad_ubar=zeros(nx,1);
@@ -43,6 +45,7 @@ ad_w1=zeros(nx,1);
 ad_Dr=zeros(nx,1);
 ad_kvec=zeros(nx,2);
 ad_tanbeta=zeros(nx,1);
+ad_Q=zeros(nx,1);
 ad_dQdx=zeros(nx,1);
 ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
@@ -63,6 +66,9 @@ elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
   ad_params.alphab=0;
   ad_params.facua =0;
 end
+if(doMarieu)
+  ad_qp=zeros(nx,1);
+end
 
 % % TEST: redefine input var
 % eval(['ad_' invar '=ad_Q;'])
@@ -72,12 +78,11 @@ end
 % % TL: tl_hp=zeros(nx,1);
 % ad_hp=zeros(nx,1);
 
-
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % transport rate (m2/s) including the bed porosity
-%5 tl_hp = tl_horig + tl_dh;
-ad_horig = ad_horig + ad_hp;
+%5 tl_hp = tl_h + tl_dh;
+ad_h = ad_h + ad_hp;
 ad_dh    = ad_dh    + ad_hp;
 ad_hp=0;
 %4 tl_dh(isnan(dh))=0;
@@ -86,14 +91,16 @@ ad_dh(isnan(dh))=0;
 ad_dh = ad_dh + ad_dh.*wgt;
 if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dx=abs(x(2)-x(1));
-  %2c tl_dh=tl_hp-tl_horig;
-  ad_horig = ad_horig - ad_dh;
+  %2c tl_dh=tl_hp-tl_h;
+  ad_h = ad_h - ad_dh;
   ad_hp = ad_hp + ad_dh;
   ad_dh=0;
   %2b tl_hp=tl_dhdt_marieu2007(tl_qp1,tl_hp1,bkgd_marieu_step2);
-  [ad_qp1,ad_hp1]=ad_dhdt_marieu2007(ad_hp,ad_qp,bkgd_marieu_step2)
+  [ad_qp1,ad_hp1]=ad_dhdt_marieu2007(ad_hp,ad_qp,bkgd_marieu_step2);
+  ad_hp=0;
+  ad_qp=0;
   %2a [tl_hp1,tl_qp1]=tl_dhdt_marieu2007(tl_Qx,tl_h,bkgd_marieu_step1);
-  [ad_Qx,ad_h]=ad_dhdt_marieu2007(ad_hp1,ad_qp1,bkgd_marieu_step1)
+  [ad_Qx,ad_h]=ad_dhdt_marieu2007(ad_hp1,ad_qp1,bkgd_marieu_step1);
   ad_hp1=0;
   ad_qp1=0;
 else
@@ -118,10 +125,10 @@ ad_Q(imask)=0;
 
 if(strcmp(bkgd.sedmodel,'dubarbier'))
   %b05 Dubarbier et al. (2015) transport model
-  %1 tl_Q=tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,...
+  %1 tl_Q=tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta_w,tl_ws,...
   %                          tl_params.Cw,tl_params.Cc,tl_params.Cf,tl_params.Ka,...
   %                          bkgd_qtrans);
-  [ad1_tanbeta,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,...
+  [ad1_tanbeta,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta_w,ad1_ws,...
    ad1_Cw,ad1_Cc,ad1_Cf,ad1_Ka] = ...
       ad_qtrans_dubarbier(ad_Q,bkgd_qtrans);
   ad_tanbeta=ad_tanbeta+ad1_tanbeta;
@@ -129,7 +136,7 @@ if(strcmp(bkgd.sedmodel,'dubarbier'))
   ad_Hrms   =ad_Hrms   +ad1_Hrms   ;
   ad_kabs   =ad_kabs   +ad1_kabs   ;
   ad_omega  =ad_omega  +ad1_omega  ;
-  ad_udelta =ad_udelta +ad1_udelta ;
+  ad_udelta_w =ad_udelta_w+ad1_udelta_w;
   ad_ws     =ad_ws     +ad1_ws     ;
   ad_params.Cw=ad_params.Cw+ad1_Cw;
   ad_params.Cc=ad_params.Cc+ad1_Cc;
@@ -160,9 +167,9 @@ elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
   ad_tanbeta=0*ad_tanbeta;
 elseif(strcmp(bkgd.sedmodel,'vanderA'))
   % tl_Q=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,...
-  %                        tl_udelta,tl_ws,tl_params,bkgd_qtrans);
+  %                        tl_udelta_w,tl_ws,tl_params,bkgd_qtrans);
   [ad1_d50,ad1_d90,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,...
-   ad1_udelta,ad1_ws,ad1_params] = ...
+   ad1_udelta_w,ad1_delta,ad1_ws,ad1_params] = ...
       ad_qtrans_vanderA(ad_Q,bkgd_qtrans);
   ad_d50   =ad_d50   +ad1_d50   ;
   ad_d90   =ad_d90   +ad1_d90   ;
@@ -171,7 +178,8 @@ elseif(strcmp(bkgd.sedmodel,'vanderA'))
   ad_Hrms  =ad_Hrms  +ad1_Hrms  ;
   ad_kabs  =ad_kabs  +ad1_kabs  ;
   ad_omega =ad_omega +ad1_omega ;
-  ad_udelta=ad_udelta+ad1_udelta;
+  ad_udelta_w=ad_udelta_w+ad1_udelta_w;
+  ad_delta =ad_delta +ad1_delta;
   ad_params.n    =ad_params.n    +ad1_params.n    ;
   ad_params.m    =ad_params.m    +ad1_params.m    ;
   ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
