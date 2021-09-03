@@ -47,6 +47,14 @@ tl_h(imask)=0;
     tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,...
                   bkgd.hydro_bkgd);
 
+% special case dt=0: in this case we are done since there is no morphology
+% upate to compute
+if(dt==0)
+  tl_Qx=zeros(nx,1);
+  tl_hp=tl_h;
+  tl_h=tl_h;
+else
+
 % convert from (kabs,theta) to vector wavenumber, and calculate c for
 % convenience
 tl_c = -omega./kabs.^2.*tl_kabs ...
@@ -134,6 +142,8 @@ end
 tl_dh=tl_dh.*wgt;   % apply damping near shore
 tl_dh(isnan(dh))=0;
 tl_hp = tl_h + tl_dh;
+
+end  % catch for special case dt==0
 
 % % TEST
 % eval(['tl_Q=tl_' outvar ';']);

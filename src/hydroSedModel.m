@@ -67,6 +67,14 @@ nx=length(x);
 [Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
     hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma);
 
+% special case dt=0: in this case we are done since there is no morphology
+% update to compute
+if(dt==0)
+  Qx=zeros(nx,1);
+  hp=horig;
+  h=horig;
+else
+
 % convert from (kabs,theta) to vector wavenumber, and calculate c for
 % convenience
 k=cat(2,kabs(:).*cos(theta(:)),kabs(:).*sin(theta(:)));
@@ -198,62 +206,71 @@ dh=dh.*wgt;   % apply damping near shore
 dh(isnan(dh))=0;
 hp = horig + dh;
 
+end  % catch for special case dt==0
+
 % save all relevant variables in a struct, so they can be reused in TL-AD
 % functions
-  vname={};
-  vname{end+1}='imask';
-  vname{end+1}='wgt';
-  vname{end+1}='horig';
-  vname{end+1}='Dr';
-  vname{end+1}='Er';
-  vname{end+1}='Ew';
-  vname{end+1}='Hrms';
-  vname{end+1}='Q';
-  vname{end+1}='Qx';
-  vname{end+1}='dQdx';
-  vname{end+1}='bkgd_qtrans';
-  vname{end+1}='c';
-  vname{end+1}='d50';
-  vname{end+1}='d90';
-  vname{end+1}='detady';
-  vname{end+1}='h';
-  vname{end+1}='hp';
-  vname{end+1}='dh';
-  vname{end+1}='k';
-  vname{end+1}='kabs';
-  vname{end+1}='nx';
-  vname{end+1}='omega';
-  vname{end+1}='params';
-  vname{end+1}='sedmodel';
-  vname{end+1}='tanbeta';
-  vname{end+1}='theta';
-  vname{end+1}='ubar';
-  vname{end+1}='udel_bkgd';
-  vname{end+1}='hydro_bkgd';
-  vname{end+1}='delta';
-  vname{end+1}='udelta';
-  vname{end+1}='udelta_w';
-  vname{end+1}='vbar';
-  vname{end+1}='tau_wind';
-  vname{end+1}='ws';
-  vname{end+1}='x';
-  vname{end+1}='dt';
-  vname{end+1}='doMarieu';
-  vname{end+1}='doFilterQ';
-  vname{end+1}='doDubarbierHack';
-  if(strcmp(sedmodel,'dubarbier'))
-    vname{end+1}='Qb';
-    vname{end+1}='Qs';
-    vname{end+1}='Qa';
-  end
-  if(doMarieu)
-    vname{end+1}='bkgd_marieu_step1';
-    vname{end+1}='bkgd_marieu_step2';
-  end
-  workspc=struct;
-  for i=1:length(vname)
+vname={};
+vname{end+1}='x';       % input
+vname{end+1}='h';       % input
+vname{end+1}='H0';      % input
+vname{end+1}='theta0';  % input
+vname{end+1}='omega';   % input
+vname{end+1}='ka_drag'; % input
+vname{end+1}='tau_wind';% input
+vname{end+1}='detady';  % input
+vname{end+1}='dgamma';  % input
+vname{end+1}='d50';     % input
+vname{end+1}='d90';     % input
+vname{end+1}='params';  % input
+vname{end+1}='sedmodel';% input
+vname{end+1}='dt';      % input
+vname{end+1}='imask';
+vname{end+1}='wgt';
+vname{end+1}='horig';
+vname{end+1}='Dr';
+vname{end+1}='Er';
+vname{end+1}='Ew';
+vname{end+1}='Hrms';
+vname{end+1}='Q';
+vname{end+1}='Qx';
+vname{end+1}='dQdx';
+vname{end+1}='bkgd_qtrans';
+vname{end+1}='c';
+vname{end+1}='h';
+vname{end+1}='hp';
+vname{end+1}='dh';
+vname{end+1}='k';
+vname{end+1}='kabs';
+vname{end+1}='nx';
+vname{end+1}='tanbeta';
+vname{end+1}='theta';
+vname{end+1}='ubar';
+vname{end+1}='udel_bkgd';
+vname{end+1}='hydro_bkgd';
+vname{end+1}='delta';
+vname{end+1}='udelta';
+vname{end+1}='udelta_w';
+vname{end+1}='vbar';
+vname{end+1}='ws';
+vname{end+1}='doMarieu';
+vname{end+1}='doFilterQ';
+vname{end+1}='doDubarbierHack';
+if(strcmp(sedmodel,'dubarbier'))
+  vname{end+1}='Qb';
+  vname{end+1}='Qs';
+  vname{end+1}='Qa';
+end
+if(doMarieu)
+  vname{end+1}='bkgd_marieu_step1';
+  vname{end+1}='bkgd_marieu_step2';
+end
+workspc=struct;
+for i=1:length(vname)
+  if(exist(vname{i}))
     workspc=setfield(workspc,vname{i},eval(vname{i}));
   end
+end
 
 % optional, if user only wants the struct
 if(nargout==1)

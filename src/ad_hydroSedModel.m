@@ -78,6 +78,13 @@ end
 % % TL: tl_hp=zeros(nx,1);
 % ad_hp=zeros(nx,1);
 
+% special case dt=0: in this case we are done since there is no morphology
+% upate to compute.  Skip over all the morphology stuff.
+if(dt==0)
+  ad_Qx=zeros(nx,1);
+  ad_hp=zeros(nx,1);
+else
+
 % % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % % transport rate (m2/s) including the bed porosity
@@ -278,6 +285,8 @@ ad_kvec=0;
 ad_kabs=ad_kabs-omega./kabs.^2.*ad_c;
 ad_omega=ad_omega+ sum(ad_c./kabs);
 ad_c=0;
+
+end  % catch for special case dt==0
 
 %b00 1DH wave and longshore current balance
 
