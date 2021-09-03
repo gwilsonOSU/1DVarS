@@ -44,7 +44,10 @@ function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)
 doDubarbierHack=0;  % shift velocities shoreward per Dubarbier's approxmiation
-doMarieu=1;  % use Marieu's dh/dt formulation instead of upwind differencing
+doMarieu=0;  % use Marieu's dh/dt instead of upwind differencing
+if(doMarieu==1)
+  warning('Marieu code TL-AD appears to have stability issues!')
+end
 
 physicalConstants;
 
@@ -180,13 +183,14 @@ Qx=Q.*cos(theta);  % x-shore component
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % transport rate (m2/s) including the bed porosity
-dQdx=ddx_upwind(x,Qx,horig);
 if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dx=abs(x(2)-x(1));
-  [hp1,qp1,bkgd_marieu_step1]=dhdt_marieu2007(Qx,h,dx,dt/2,-1);
-  [hp,qp,bkgd_marieu_step2]=dhdt_marieu2007(qp1,hp1,dx,dt/2,+1);
+  [hp1,qp1,bkgd_marieu_step1]=dhdt_marieu2007(Qx,horig,dx,dt/2,-1);
+  [hp ,qp ,bkgd_marieu_step2]=dhdt_marieu2007(qp1,hp1,dx,dt/2,+1);
   dh=hp-horig;
+  dQdx=nan(nx,1);
 else
+  dQdx=ddx_upwind(x,Qx,horig);
   dh=dQdx*dt;  % use ddx_upwind() result
   qp=nan(nx,1);
 end

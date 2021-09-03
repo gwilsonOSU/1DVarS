@@ -35,10 +35,8 @@ doassim=1;   % use assimilation to correct hydro errors
 doadjoint=0; % include a sensitivity analysis for sed transport inputs
 
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
-% al. (1998) four standard test cases.  All but case (b) are offshore bar
-% migration events.  Note, case-b is a good example of an onshore migration,
-% and currently (last checked June, 2021) this case gives good results with
-% options sedmodel='vanderA' and doassim=1.
+% al. (1998) four standard test cases.  All but case 'b' are offshore bar
+% migration events.
 duck94Case='b';
 
 % sediment model: uncomment one of the following...
@@ -364,7 +362,8 @@ if(strcmp(sedmodel,'dubarbier'))
   params_std=[5e-3 .0002 .01  .005 5e-5];
 elseif(strcmp(sedmodel,'vanderA'))
   params.n=1.65;  % vanderA 1.2.  Larger values promote offshore bar migration
-  params.m=11;  % vanderA 11; hsu et al. 11.  Just scales everything up
+  params.m=20;  % vanderA 11; hsu et al. 11.  Just scales everything up
+  warning('test code, using params.m=20')
   params.xi=1.7;  % ??? tuning parameter, O(1) according to Kranenburg (2013).  VDA pg. 35 says 1.7
   params.alpha=8.2;  % comes in eqn 27-28, not the same as eqn 19.  Default 8.2
   params_std=[5e-3 .2 2 .5 2];

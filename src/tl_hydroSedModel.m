@@ -120,13 +120,14 @@ tl_Qx = tl_Q.*cos(theta) ...
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
 % transport rate (m2/s) including the bed porosity
-tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
 if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dx=abs(x(2)-x(1));
   [tl_hp1,tl_qp1]=tl_dhdt_marieu2007(tl_Qx,tl_h,bkgd_marieu_step1);
   [tl_hp,tl_qp]=tl_dhdt_marieu2007(tl_qp1,tl_hp1,bkgd_marieu_step2);
   tl_dh=tl_hp-tl_h;
+  tl_dQdx=nan(nx,1);
 else
+  tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
   tl_dh=tl_dQdx*dt;  % use ddx_upwind() result
   tl_qp=nan(nx,1);
 end

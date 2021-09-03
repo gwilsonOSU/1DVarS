@@ -78,46 +78,44 @@ end
 % % TL: tl_hp=zeros(nx,1);
 % ad_hp=zeros(nx,1);
 
-% bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
-% e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
-% transport rate (m2/s) including the bed porosity
-%5 tl_hp = tl_h + tl_dh;
+% % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
+% % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
+% % transport rate (m2/s) including the bed porosity
+% tl_hp = tl_h + tl_dh;
 ad_h = ad_h + ad_hp;
-ad_dh    = ad_dh    + ad_hp;
+ad_dh = ad_dh + ad_hp;
 ad_hp=0;
-%4 tl_dh(isnan(dh))=0;
+% tl_dh(isnan(dh))=0;
 ad_dh(isnan(dh))=0;
-%3 tl_dh=tl_dh.*wgt;   % apply damping near shore
-ad_dh = ad_dh + ad_dh.*wgt;
+% tl_dh=tl_dh.*wgt;   % apply damping near shore
+ad_dh = ad_dh + wgt.*ad_dh;
 if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dx=abs(x(2)-x(1));
-  %2c tl_dh=tl_hp-tl_h;
-  ad_h = ad_h - ad_dh;
+  % tl_dh=tl_hp-tl_h;
   ad_hp = ad_hp + ad_dh;
+  ad_h = ad_h - ad_dh;
   ad_dh=0;
-  %2b tl_hp=tl_dhdt_marieu2007(tl_qp1,tl_hp1,bkgd_marieu_step2);
+  % [tl_hp,tl_qp]=tl_dhdt_marieu2007(tl_qp1,tl_hp1,bkgd_marieu_step2);
   [ad_qp1,ad_hp1]=ad_dhdt_marieu2007(ad_hp,ad_qp,bkgd_marieu_step2);
   ad_hp=0;
   ad_qp=0;
-  %2a [tl_hp1,tl_qp1]=tl_dhdt_marieu2007(tl_Qx,tl_h,bkgd_marieu_step1);
+  % [tl_hp1,tl_qp1]=tl_dhdt_marieu2007(tl_Qx,tl_h,bkgd_marieu_step1);
   [ad_Qx,ad_h]=ad_dhdt_marieu2007(ad_hp1,ad_qp1,bkgd_marieu_step1);
   ad_hp1=0;
   ad_qp1=0;
 else
-  %2a tl_dh=tl_dQdx*dt;  % use ddx_upwind() result
-  ad_dQdx = ad_dQdx + dt*ad_dh;
-  ad_dh=0;
-  %1 tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
-  ad_Qx = ad_ddx_upwind(ad_dQdx,x,Qx,horig);
-  ad_dQdx=0;
+  % tl_qp=nan(nx,1);
+  % tl_dh=tl_dQdx*dt;  % use ddx_upwind() result
+  % tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
+  ad_Qx = tl_ddx_upwind(ad_dQdx,x,Qx,horig);
 end
 
 % rotate output from wave-following coords to cartesian
 % tl_Qx = tl_Q.*cos(theta) ...
-%        - Q.*sin(theta).*tl_theta;
-ad_Q = ad_Q         + cos(theta).*ad_Qx;
-ad_theta = ad_theta - sin(theta).*Q.*ad_Qx;
-ad_Qx = 0;
+%         - Q.*sin(theta).*tl_theta;
+ad_Q    =ad_Q    + cos(theta)   .*ad_Qx;
+ad_theta=ad_theta- Q.*sin(theta).*ad_Qx;
+ad_Qx=0;
 
 % mitigate transport discontinuity at the shoreline
 % tl_Q(imask)=0;
@@ -187,25 +185,27 @@ elseif(strcmp(bkgd.sedmodel,'vanderA'))
   ad_Q=0;
 end
 
-%  rotate udelta into wave direction, as assumed by sed transport equations
-% tl_udelta_w(:,1) = ...
-%     - udelta(:,1).*sin(theta).*tl_theta ...
-%     + tl_udelta(:,1).*cos(theta) ...
-%     - tl_udelta(:,2).*sin(theta) ...
-%     - udelta(:,2).*cos(theta).*tl_theta;
-ad_udelta(:,1)=ad_udelta(:,1)+ cos(theta).*ad_udelta_w(:,1);
-ad_udelta(:,2)=ad_udelta(:,2)- sin(theta).*ad_udelta_w(:,1);
-ad_theta = ad_theta - (udelta(:,1).*sin(theta) + udelta(:,2).*cos(theta)).*ad_udelta_w(:,1);
-ad_udelta_w(:,1)=0;
+% rotate udelta into wave direction, as assumed by sed transport equations
 % tl_udelta_w(:,2) = ...
 %     + tl_udelta(:,1).*sin(theta) ...
 %     + udelta(:,1).*cos(theta).*tl_theta ...
 %     + tl_udelta(:,2).*cos(theta) ...
 %     - udelta(:,2).*sin(theta).*tl_theta;
-ad_udelta(:,1)=ad_udelta(:,1)+ sin(theta).*ad_udelta_w(:,2);
-ad_udelta(:,2)=ad_udelta(:,2)+ cos(theta).*ad_udelta_w(:,2);
-ad_theta = ad_theta + (udelta(:,1).*cos(theta) - udelta(:,2).*sin(theta)).*ad_udelta_w(:,2);
+ad_udelta(:,1)=ad_udelta(:,1)+ sin(theta)             .*ad_udelta_w(:,2);
+ad_theta      =ad_theta      + udelta(:,1).*cos(theta).*ad_udelta_w(:,2);
+ad_udelta(:,2)=ad_udelta(:,2)+ cos(theta)             .*ad_udelta_w(:,2);
+ad_theta      =ad_theta      - udelta(:,2).*sin(theta).*ad_udelta_w(:,2);
 ad_udelta_w(:,2)=0;
+% tl_udelta_w(:,1) = ...
+%     + tl_udelta(:,1).*cos(theta) ...
+%     - udelta(:,1).*sin(theta).*tl_theta ...
+%     - tl_udelta(:,2).*sin(theta) ...
+%     - udelta(:,2).*cos(theta).*tl_theta;
+ad_udelta(:,1)=ad_udelta(:,1)+ cos(theta)             .*ad_udelta_w(:,1);
+ad_theta      =ad_theta      - udelta(:,1).*sin(theta).*ad_udelta_w(:,1);
+ad_udelta(:,2)=ad_udelta(:,2)- sin(theta)             .*ad_udelta_w(:,1);
+ad_theta      =ad_theta      - udelta(:,2).*cos(theta).*ad_udelta_w(:,1);
+ad_udelta_w(:,1)=0;
 
 %b04 Reniers et al. (2004) model for velocity at top of boundary layer
 if(strcmp(bkgd.sedmodel,'dubarbier') | strcmp(bkgd.sedmodel,'vanderA'))

@@ -32,61 +32,100 @@ function [hpout,qpout,bkgd]=dhdt_marieu2007(qin,hin,dx,dt,ghost)
 % OPTIONAL: Output struct 'bkgd' contains background information required
 % as input for TL-AD codes
 
-% Note, Marieu's 'h' is elevation while mine is depth, so the sign of h is
-% negated compared to eqn 17.  To make things simple, switch to their
-% convention here then switch back to my convention at the end of the
-% function
-h=-hin;
-
-% add ghost points
+% Add ghost points. Note here, Marieu's 'h' is elevation while mine is
+% depth, so the sign of h is negated compared to eqn 17.  To make things
+% simple, switch to their convention here then switch back to my convention
+% at the end of the function
 nxin=length(qin);
+nx=nxin+1;
+q=zeros(nx,1);
+h=zeros(nx,1);
 if(ghost==+1)
-  q=[qin; qin(nxin)];
-  h=[hin; hin(nxin)];
+  q(1:nxin)=qin;
+  q(nxin+1)=qin(nxin);
+  h(1:nxin)=-hin;
+  h(nxin+1)=-hin(nxin);
 else
-  q=[qin(1); qin];
-  h=[hin(1); hin];
+  q(1)=qin(1);
+  q(2:(nxin+1))=qin;
+  h(1)=-hin(1);
+  h(2:(nxin+1))=-hin;
 end
-
-% grid
-nx=length(q);
 x=([1:nx]-1)*dx;
 
-% local bed celerity a, eqn (21), using centered difference
-a(2:nx-1)=2*(q(3:nx)-q(1:nx-2))./(h(3:nx)-h(1:nx-2));
-a(1)=(q(2)-q(1))/(h(2)-h(1));
-a(nx)=(q(nx)-q(nx-1))/(h(nx)-h(nx-1));
-
-% replace with 3rd order polynomial in cases where h has low slope, or where
-% there is a local min/max in h
-a_orig=a;
+% flag potentially-bad points: where h has low slope, or where there is a
+% local min/max in h
 dhmin=0.01;
 i_interp=find(abs(h(3:nx)-h(1:nx-2))<dhmin)+1;  % low slope
-if(abs(h(2   )-h(1 ))<dhmin) i_interp=union(i_interp,1); end  % low slope, boundary
-if(abs(h(nx)-h(nx-1))<dhmin) i_interp=union(nx,1); end  % low slope, boundary
-i_interp=union(i_interp,find(sign(h(3:nx)-h(2:nx-1))==sign(h(1:nx-2)-h(2:nx-1)))+1);  % min/max
+if(abs(h(2   )-h(1 ))<dhmin) i_interp=union(i_interp, 1); end  % low slope, boundary
+if(abs(h(nx)-h(nx-1))<dhmin) i_interp=union(i_interp,nx); end  % low slope, boundary
+i_interp = union(i_interp,...
+                 find(sign(h(3:nx)-h(2:nx-1))==sign(h(1:nx-2)-h(2:nx-1)))+1);  % min/max
+i_nointerp=setdiff(1:nx,i_interp);
+
+% local bed celerity a, eqn (21), using centered difference for the valid
+% points not flagged above
+for i=i_nointerp(:)'
+  if(i==1)
+    a(i)=(q(i+1)-q(i))/(h(i+1)-h(i));
+  elseif(i==nx)
+    a(i)=(q(i)-q(i-1))/(h(i)-h(i-1));
+  else
+    a(i)=2*(q(i+1)-q(i-1))./(h(i+1)-h(i-1));
+  end
+end
+
+% v1: Replace the potentially-bad points with 3rd order polynomial.  This
+% version uses matlab's polyfit/polyval.
 warning off
 for j=i_interp(:)'
-  ind=unique(min(nx,max(1,j+[-2 -1 +1 +2])));
-  ind=setdiff(ind,j);
-  pa=polyfit(ind,a_orig(ind),length(ind)-1);  % 3rd order polynomial
+  ind=setdiff(1:nx,[j i_interp(:)']);
+  thisdx=x(j)-x(ind);
+  [~,isort]=sort(abs(thisdx),'ascend');
+  ind=ind(isort(1:4));  % four nearest points
+  pa=polyfit(ind,a(ind),length(ind)-1);  % 3rd order polynomial
   a(j)=polyval(pa,j);  % interpolate
 end
 warning on
 
+% v2: Replace the potentially-bad points with 3rd order polynomial.  This
+% version uses polynomial regression written out in matrix form.  This is
+% verified to give the same result as v1 above (polyval/polyfit), but makes
+% it easier to write the TL code.  Commented out of NL code after verifying
+% that it matches the polyval/polyfit version.  Verification used duck94
+% offshore bar migration case (Oct 4, 1994).
+a2=a;
+for j=i_interp(:)'
+  ind=setdiff(1:nx,[j i_interp(:)']);
+  thisdx=x(j)-x(ind);
+  [~,isort]=sort(abs(thisdx),'ascend');
+  ind=ind(isort(1:4));  % four nearest valid points
+  ind=setdiff(ind,j);
+  norder=length(ind)-1;
+  X=zeros(length(ind));
+  for n=0:norder
+    X(:,norder-n+1)=ind.^n;
+  end
+  Xi=pinv(X);  % note Xi is constant, not TL-dependent
+  pa = Xi*a(ind)';
+  a2(j)=0;
+  for n=0:norder
+    a2(j) = a2(j) + pa(n+1)*j^(norder-n);
+  end
+end
+if(max(abs(a2-a))>.01*max(abs(a)))
+  error('mismatched polynomial regression solutions, should not happen')
+end
+
 % interpolate to get q at predictor time step dt/2, eqn 20
 xp=x-a*dt/2;
-qp=nan(nx,1);
+qp=zeros(nx,1);
 for i=1:nx
   i0=max(find(x<xp(i)));
   if(isempty(i0)) % extrapolate, x<x(1)
-    x0=x(1)-dx;
-    q0=2*q(2)-q(1);
-    qp(i)=q0+(q(1)-q0)/dx*(xp(i)-x0);
+    qp(i)=q(1)+(q(2)-q(1))/dx*(xp(i)-x(1));
   elseif(i0==nx)  % extrapolate, x>x(nx)
-    x1=x(i0)+dx;
-    q1=2*q(i0)-q(i0-1);
-    qp(i)=q(i0)+(q1-q(i0))/dx*(xp(i)-x(i0));
+    qp(i)=q(nx)+(q(nx)-q(nx-1))/dx*(xp(i)-x(nx));
   else  % interpolate
     qp(i)=q(i0)+(q(i0+1)-q(i0))/dx*(xp(i)-x(i0));
   end
@@ -103,7 +142,7 @@ dh2(1) = h(2)-h(1);
 dh2(nx) = h(nx)-h(nx-1);
 dh3(1:nx-1) = beta*(h(2:nx)-h(1:nx-1));
 dh3(nx) = beta*(h(nx)-h(nx-1));
-dh=nan(nx,1);
+dh=zeros(nx,1);
 for i=2:nx-1
   if(dh1(i)>0 & dh2(i)>0 & dh3(i)>0)
     dh(i)=min([dh1(i) dh2(i) dh3(i)]);
@@ -117,19 +156,13 @@ dh(1)=dh(2);
 dh(nx)=dh(nx-1);
 
 % h at time step t+dt, eqn 17.  Output is on the staggered grid
-hp=nan(nx-1,1);
+hp=zeros(nx-1,1);
 hp(1:nx-1) = .5*(h(1:nx-1)+h(2:nx)) ...
     + .125*(dh(1:nx-1)-dh(2:nx)) ...
     - dt/dx*(qp(2:nx)-qp(1:nx-1));
 
 % output is supposed to be on the staggered grid, so interpolate q accordingly
 qpout=.5*(qp(1:nx-1)+qp(2:nx));
-
-% % OLD: interpolate to non-staggered grid
-% hpp=nan(nx,1);
-% hpp(2:nx-1) = .5*(hp(1:nx-2)+hp(2:nx-1));
-% hpp(1) = 1.5*hp(1) - .5*hp(2);
-% hpp(nx) = 1.5*hp(nx) - .5*hp(nx-1);
 
 % revert the result to h=depth instead of h=elevation (see start of code
 % where this was flipped)
@@ -138,8 +171,8 @@ hpout=-hp;
 % if requested, save info for use in TL-AD codes
 if(nargout==3)
   bkgd=struct;
-  bkgd.a_orig  =a_orig  ;
   bkgd.i_interp=i_interp;
+  bkgd.i_nointerp=i_nointerp;
   bkgd.q       =q       ;
   bkgd.qin     =qin     ;
   bkgd.qp      =qp      ;
