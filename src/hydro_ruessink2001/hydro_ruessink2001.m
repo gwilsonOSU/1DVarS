@@ -29,7 +29,7 @@ function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_d
 % wkspc : struct containing all NL variables, used for TL-AD models
 %
 
-[g,alpha,beta,nu,rho,hmin,gammaType]=hydroParams();
+[g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
 
 h(h<hmin)=hmin;  % min depth constraint
 
@@ -40,6 +40,14 @@ tauw=tauw(:,2);  % for compatibility
 nx=length(x);
 dx=diff(x(1:2));
 
+if(strcmp(betaType,'const'))
+  beta=beta0*ones(nx,1);
+elseif(strcmp(betaType,'none'))
+  beta=zeros(nx,1);
+end
+if(strcmp(betaType,'none'))
+  Dr=zeros(nx,1);
+end
 if(~exist('dgamma'))
   dgamma=zeros(nx,1);  % for compatibility
 end
@@ -111,8 +119,19 @@ for i=2:nx
   denoms=cg(i)*cos(theta(i));
   Ew(i)=(nums1-nums2)/denoms;
 
-  if(beta>0)
-    Dr(i-1)=2*g*Er(i-1)*sin(beta)/c(i-1);
+  % roller
+  if(~strcmp(betaType,'none'))
+    if(strcmp(betaType,'rafati21'))  % rafati et al. (2021) variable-beta
+      if(k(i-1)*h(i-1)<0.45)
+        beta(i-1)=0.1;
+      else
+        beta(i-1) = 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1);
+        if(beta(i-1)>0.1)
+          beta(i-1)=0.1;
+        end
+      end
+    end
+    Dr(i-1)=2*g*Er(i-1)*sin(beta(i-1))/c(i-1);
     Er(i)=(2*Er(i-1)*c(i-1)*cos(theta(i-1))+dx*(Db(i-1)-Dr(i-1)))/(2*c(i)*cos(theta(i)));
     if(Er(i)<0)
       Er(i)=0;
@@ -133,7 +152,7 @@ theta=theta(:);
 H=H(:);
 
 % radiation stress gradient
-if(beta>0)  % roller
+if(~strcmp(betaType,'none'))
   dSxydx = -sin(theta)./c.*Dr/rho;
 else
   dSxydx=-sin(theta)./c.*Db/rho;
@@ -194,7 +213,16 @@ bkgd.dSxydx=dSxydx;
 bkgd.Fy=Fy;
 bkgd.vbar=real(v);
 bkgd.detady=detady;
-
+bkgd.beta=beta;
+bkgd.gammaType=gammaType; % hydroParams.m
+bkgd.betaType=betaType;   % hydroParams.m
+bkgd.g    =g    ;         % hydroParams.m
+bkgd.alpha=alpha;         % hydroParams.m
+bkgd.beta0=beta0;         % hydroParams.m
+bkgd.nu   =nu   ;         % hydroParams.m
+bkgd.rho  =rho  ;         % hydroParams.m
+bkgd.hmin =hmin ;         % hydroParams.m
+ 
 % optional, if user only wants the struct
 if(nargout==1)
   H=bkgd;

@@ -4,7 +4,7 @@ function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw,ad_detady,ad_dgamma]=
 % directly from output of hydro_ruessink2001.m
 %
 
-[g,alpha,beta,nu,rho,hmin,gammaType]=hydroParams();
+[g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
 
 % break out the bkgd vars
 Ew   =bkgd.Ew;  % convert back from W/m2
@@ -31,6 +31,7 @@ Hm=bkgd.Hm;
 Qb=bkgd.Qb;
 ka_drag=bkgd.ka_drag;
 detady=bkgd.detady;
+beta=bkgd.beta;
 
 h(h<hmin)=hmin;  % min depth constraint
 
@@ -75,6 +76,7 @@ ad_detady=zeros(nx,1);
 ad_L0=0;
 ad_c1=0;
 ad_omega=0;
+ad_beta=zeros(nx,1);
 
 % % TEST: look at a specific variable
 % ad_theta=zeros(nx,1);
@@ -142,7 +144,7 @@ ad_detady = ad_detady + g*h.*ad_Fy;
 ad_Fy=0;
 
 %b5 % radiation stress gradient
-if(beta>0)
+if(~strcmp(betaType,'none'))
   %1   tl_dSxydx = -cos(theta)./c.*Dr/rho.*tl_theta ...
   %       +sin(theta)./c.^2.*Dr/rho.*tl_c ...
   %       -sin(theta)./c.*tl_Dr/rho;
@@ -175,44 +177,70 @@ for i=nx:-1:2
     ad_H(i)=0;
   end
 
-  % b3f
-  if(beta>0)
-
-    %b3f2 term 4
-    nums1=2*Er(i-1)*c(i-1)*cos(theta(i-1));
-    nums2=dx*(Db(i-1)-Dr(i-1));
+  % roller
+  if(~strcmp(betaType,'none'))
+    nums=2*Er(i-1)*c(i-1)*cos(theta(i-1))+dx*(Db(i-1)-Dr(i-1));
     denoms=2*c(i)*cos(theta(i));
-    %5   tl_Er(i)=(tl_nums1+tl_nums2)/denoms ...
-    %            - (nums1+nums2)/denoms^2*tl_denoms;
-    ad_nums1 =ad_nums1 + 1/denoms              *ad_Er(i);
-    ad_nums2 =ad_nums2 + 1/denoms              *ad_Er(i);
-    ad_denoms=ad_denoms- (nums1+nums2)/denoms^2*ad_Er(i);
-    ad_Er(i)=0;
-    %4   tl_denoms=2*tl_c(i)*cos(theta(i)) ...
-    %             - 2*c(i)*sin(theta(i))*tl_theta(i);
+    ad_nums=0;  % init AD for this gridpoint
+    ad_denoms=0;  % init AD for this gridpoint
+    if(Er(i)<0)
+      % r5a tl_Er(i)=0;
+      ad_Er(i)=0;
+    else
+      % r5b tl_Er(i) = tl_nums/denoms - nums/denoms^2*tl_denoms;
+      ad_nums  =ad_nums  + 1/denoms     *ad_Er(i);
+      ad_denoms=ad_denoms- nums/denoms^2*ad_Er(i);
+      ad_Er(i)=0;
+    end
+    %r4 tl_denoms = ...
+    %     + 2*tl_c(i)*cos(theta(i)) ...
+    %     - 2*c(i)*sin(theta(i))*tl_theta(i);
     ad_c(i)    =ad_c(i)    + 2*cos(theta(i))     *ad_denoms;
     ad_theta(i)=ad_theta(i)- 2*c(i)*sin(theta(i))*ad_denoms;
     ad_denoms=0;
-    %3   tl_nums2=dx*(tl_Db(i-1)-tl_Dr(i-1));
-    ad_Db(i-1)=ad_Db(i-1)+ dx*ad_nums2;
-    ad_Dr(i-1)=ad_Dr(i-1)- dx*ad_nums2;
-    ad_nums2=0;
-    %2   tl_nums1=2*tl_Er(i-1)*c(i-1)*cos(theta(i-1)) ...
-    %            + 2*Er(i-1)*tl_c(i-1)*cos(theta(i-1)) ...
-    %            - 2*Er(i-1)*c(i-1)*sin(theta(i-1))*tl_theta(i-1);
-    ad_Er(i-1)   =ad_Er(i-1)   + 2*c(i-1)*cos(theta(i-1))        *ad_nums1;
-    ad_c(i-1)    =ad_c(i-1)    + 2*Er(i-1)*cos(theta(i-1))       *ad_nums1;
-    ad_theta(i-1)=ad_theta(i-1)- 2*Er(i-1)*c(i-1)*sin(theta(i-1))*ad_nums1;
-    ad_nums1=0;
-  
-    % %b3f1 term 3
-    % tl_Dr(i-1)=2*g*tl_Er(i-1)*sin(beta)/c(i-1) ...
-    %     - 2*g*Er(i-1)*sin(beta)/c(i-1)^2*tl_c(i-1);
-    ad_Er(i-1)=ad_Er(i-1)+ 2*g*sin(beta)/c(i-1)          *ad_Dr(i-1);
-    ad_c(i-1) =ad_c(i-1) - 2*g*Er(i-1)*sin(beta)/c(i-1)^2*ad_Dr(i-1);
+    %r3 tl_nums = ...
+    %     + 2*tl_Er(i-1)*c(i-1)*cos(theta(i-1)) ...
+    %     + 2*Er(i-1)*tl_c(i-1)*cos(theta(i-1)) ...
+    %     - 2*Er(i-1)*c(i-1)*sin(theta(i-1))*tl_theta(i-1) ...
+    %     + dx*(tl_Db(i-1)-tl_Dr(i-1));
+    ad_Er(i-1)   =ad_Er(i-1)   + 2*c(i-1)*cos(theta(i-1))        *ad_nums;
+    ad_c(i-1)    =ad_c(i-1)    + 2*Er(i-1)*cos(theta(i-1))       *ad_nums;
+    ad_theta(i-1)=ad_theta(i-1)- 2*Er(i-1)*c(i-1)*sin(theta(i-1))*ad_nums;
+    ad_Db(i-1)   =ad_Db(i-1)   + dx                              *ad_nums;
+    ad_Dr(i-1)   =ad_Dr(i-1)   - dx                              *ad_nums;
+    ad_nums=0;
+    %r2 tl_Dr(i-1) = ...
+    %     + 2*g*tl_Er(i-1)*sin(beta(i-1))/c(i-1) ...
+    %     + 2*g*Er(i-1)*cos(beta(i-1))/c(i-1)*tl_beta(i-1) ...
+    %     - 2*g*Er(i-1)*sin(beta(i-1))/c(i-1)^2*tl_c(i-1);
+    ad_Er(i-1)  =ad_Er(i-1)  + 2*g*sin(beta(i-1))/c(i-1)          *ad_Dr(i-1);
+    ad_beta(i-1)=ad_beta(i-1)+ 2*g*Er(i-1)*cos(beta(i-1))/c(i-1)  *ad_Dr(i-1);
+    ad_c(i-1)   =ad_c(i-1)   - 2*g*Er(i-1)*sin(beta(i-1))/c(i-1)^2*ad_Dr(i-1);
     ad_Dr(i-1)=0;
-
-  end
+    if(strcmp(betaType,'rafati21'))  % rafati et al. (2021) variable-beta
+      if(k(i-1)*h(i-1)<0.45)
+        %r1a tl_beta(i-1)=0;
+        ad_beta(i-1)=0;
+      else
+        if(beta(i-1)==0.1)  % limiter was hit
+          % tl_beta(i-1)=0;
+          ad_beta(i-1)=0;
+        else
+          %r1b tl_beta(i-1) = ...
+          %     + 0.03*tl_k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
+          %     + 0.03*k(i-1)*tl_h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
+          %     + 0.03*k(i-1)*h(i-1)*(tl_h(i-1)-tl_H(i-1))/H(i-1) ...
+          %     - 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1)^2*tl_H(i-1);
+          ad_k(i-1)=ad_k(i-1)+ 0.03*h(i-1)*(h(i-1)-H(i-1))/H(i-1)         *ad_beta(i-1);
+          ad_h(i-1)=ad_h(i-1)+ 0.03*k(i-1)*(h(i-1)-H(i-1))/H(i-1)         *ad_beta(i-1);
+          ad_h(i-1)=ad_h(i-1)+ 0.03*k(i-1)*h(i-1)/H(i-1)                  *ad_beta(i-1);
+          ad_H(i-1)=ad_H(i-1)- 0.03*k(i-1)*h(i-1)/H(i-1)                  *ad_beta(i-1);
+          ad_H(i-1)=ad_H(i-1)- 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1)^2*ad_beta(i-1);
+          ad_beta(i-1)=0;
+        end
+      end
+    end
+  end  % roller
 
   %b3e % term 2
   nums1=cg(i-1)*Ew(i-1)*cos(theta(i-1));
@@ -400,3 +428,13 @@ ad_omega = ad_omega + sum(2*omega/g./(tanh(k.*h)+k.*h.*sech(k.*h).^2).*ad_k);
 ad_k=0;
 
 ad_tauw(:,2)=ad_tauw;  % for compatibility reasons
+
+if(strcmp(betaType,'const') | strcmp(betaType,'none'))
+  ad_beta=zeros(nx,1);
+end
+if(strcmp(betaType,'none'))
+  ad_Dr=zeros(nx,1);
+end
+if(~exist('dgamma'))
+  ad_dgamma=zeros(nx,1);
+end

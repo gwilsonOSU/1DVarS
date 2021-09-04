@@ -6,7 +6,7 @@ function [tl_H,tl_theta,tl_v,tl_k,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,
 % directly from output of hydro_ruessink2001.m
 %
 
-[g,alpha,beta,nu,rho,hmin,gammaType]=hydroParams();
+[g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
 
 % break out the bkgd vars
 Ew   =bkgd.Ew;  % convert back from W/m2
@@ -33,6 +33,7 @@ Hm=bkgd.Hm;
 Qb=bkgd.Qb;
 ka_drag=bkgd.ka_drag;
 detady=bkgd.detady;
+beta=bkgd.beta;
 
 h(h<hmin)=hmin;  % min depth constraint
 
@@ -42,6 +43,16 @@ dx=diff(x(1:2));
 %-----------------------------
 % begin tangent-linear code
 %-----------------------------
+
+if(strcmp(betaType,'const') | strcmp(betaType,'none'))
+  tl_beta=zeros(nx,1);
+end
+if(strcmp(betaType,'none'))
+  tl_Dr=zeros(nx,1);
+end
+if(~exist('dgamma'))
+  tl_dgamma=zeros(nx,1);
+end
 
 tl_tauw=tl_tauw(:,2);
 
@@ -147,28 +158,43 @@ for i=2:nx
   tl_Ew(i) = (tl_nums1-tl_nums2)/denoms ...
             - (nums1-nums2)/denoms^2*tl_denoms;
 
-  if(beta>0)
-
-    % term 3
-    % Dr(i-1)=2*rho*g*Er(i-1)*sin(beta)/c(i-1);
-    tl_Dr(i-1)=2*g*tl_Er(i-1)*sin(beta)/c(i-1) ...
-        - 2*g*Er(i-1)*sin(beta)/c(i-1)^2*tl_c(i-1);
-
-    % term 4
-    nums1=2*Er(i-1)*c(i-1)*cos(theta(i-1));
-    nums2=dx*(Db(i-1)-Dr(i-1));
+  % roller
+  if(~strcmp(betaType,'none'))
+    if(strcmp(betaType,'rafati21'))  % rafati et al. (2021) variable-beta
+      if(k(i-1)*h(i-1)<0.45)
+        tl_beta(i-1)=0;
+      else
+        if(beta(i-1)==0.1)  % limiter was hit
+          tl_beta(i-1)=0;
+        else
+          tl_beta(i-1) = ...
+              + 0.03*tl_k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
+              + 0.03*k(i-1)*tl_h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
+              + 0.03*k(i-1)*h(i-1)*(tl_h(i-1)-tl_H(i-1))/H(i-1) ...
+              - 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1)^2*tl_H(i-1);
+        end
+      end
+    end
+    nums=2*Er(i-1)*c(i-1)*cos(theta(i-1))+dx*(Db(i-1)-Dr(i-1));
     denoms=2*c(i)*cos(theta(i));
-    tl_nums1=2*tl_Er(i-1)*c(i-1)*cos(theta(i-1)) ...
-             + 2*Er(i-1)*tl_c(i-1)*cos(theta(i-1)) ...
-             - 2*Er(i-1)*c(i-1)*sin(theta(i-1))*tl_theta(i-1);
-    tl_nums2=dx*(tl_Db(i-1)-tl_Dr(i-1));
-    tl_denoms=2*tl_c(i)*cos(theta(i)) ...
-              - 2*c(i)*sin(theta(i))*tl_theta(i);
-    % Er(i)=(nums1+nums2)/denoms;
-    tl_Er(i)=(tl_nums1+tl_nums2)/denoms ...
-             - (nums1+nums2)/denoms^2*tl_denoms;
-
-  end
+    tl_Dr(i-1) = ...
+        + 2*g*tl_Er(i-1)*sin(beta(i-1))/c(i-1) ...
+        + 2*g*Er(i-1)*cos(beta(i-1))/c(i-1)*tl_beta(i-1) ...
+        - 2*g*Er(i-1)*sin(beta(i-1))/c(i-1)^2*tl_c(i-1);
+    tl_nums = ...
+        + 2*tl_Er(i-1)*c(i-1)*cos(theta(i-1)) ...
+        + 2*Er(i-1)*tl_c(i-1)*cos(theta(i-1)) ...
+        - 2*Er(i-1)*c(i-1)*sin(theta(i-1))*tl_theta(i-1) ...
+        + dx*(tl_Db(i-1)-tl_Dr(i-1));
+    tl_denoms = ...
+        + 2*tl_c(i)*cos(theta(i)) ...
+        - 2*c(i)*sin(theta(i))*tl_theta(i);
+    if(Er(i)<0)
+      tl_Er(i)=0;
+    else
+      tl_Er(i) = tl_nums/denoms - nums/denoms^2*tl_denoms;
+    end
+  end  % roller
 
   % H(i)=sqrt(8/rho/g*Ew(i));
   if(Ew(i)==0)
@@ -183,7 +209,7 @@ tl_H=tl_H(:);
 tl_theta=tl_theta(:);
 
 % radiation stress gradient
-if(beta>0)
+if(~strcmp(betaType,'none'))
   % dSxydx = -sin(theta)./c.*Dr/rho;
   tl_dSxydx = -cos(theta)./c.*Dr/rho.*tl_theta ...
       +sin(theta)./c.^2.*Dr/rho.*tl_c ...
