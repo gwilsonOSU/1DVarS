@@ -111,7 +111,7 @@ if(doDubarbierHack)
 end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
-Dr(Dr==0)=min(Dr(Dr>0));
+Dr(Dr==0)=min([0; Dr(Dr>0)]);
 delta=zeros(nx,1);
 for i=1:nx
   if(Dr(i)==0)
