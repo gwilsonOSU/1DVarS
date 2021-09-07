@@ -1,4 +1,4 @@
-function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
+function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauwin,detady,dgamma)
 %
 % [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
 %
@@ -31,19 +31,17 @@ function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_d
 
 [g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
 
-h(h<hmin)=hmin;  % min depth constraint
-
-tauw2d=tauw;
-tauw=tauw(:,2);  % for compatibility
-
 % grid
 nx=length(x);
 dx=diff(x(1:2));
 
+h(h<hmin)=hmin;  % min depth constraint
+
+tauw=tauwin(:,2);  % for compatibility
+
+beta=zeros(nx,1);  % init
 if(strcmp(betaType,'const'))
   beta=beta0*ones(nx,1);
-elseif(strcmp(betaType,'none'))
-  beta=zeros(nx,1);
 end
 if(strcmp(betaType,'none'))
   Dr=zeros(nx,1);
@@ -51,48 +49,70 @@ end
 if(~exist('dgamma'))
   dgamma=zeros(nx,1);  % for compatibility
 end
-
-% dispersion
-for i=1:nx
-  k(i)=fzero(@(k)omega^2-g*k.*tanh(k.*h(i)),omega./sqrt(g*h(i)),optimset('Display','off'));
-end
-k=k(:);
-c=max(0,real(omega./k));
-n=.5*(1+2*k.*h./sinh(2*k.*h));
-cg=n.*c;
-refconst=sin(theta0)/c(1);
-
-% gamma can be either calculated based on deep water wave steepness (s0)
-% following Battjes and Stive (1985) (also used by Ruessink et al., 2001),
-% or based on the empirical fit obtained for duck94 by Ruessink et
-% al. (2003).
 if(gammaType==2001)
   L0=g/(2*pi*(omega/2/pi)^2);
   s0=H0/L0;
-  gamma=0.5+0.4*tanh(33*s0);
-  gamma=ones(nx,1)*gamma;
-elseif(gammaType==2003)
-  gamma=0.76*k.*h+0.29;
+  gamma=0.5+0.4*tanh(33*s0)*ones(nx,1);
+else
+  gamma=zeros(nx,1);  % init
 end
-gamma=gamma+dgamma;
 
-% refraction
-theta=asin(c.*refconst);
+% init all variables for explicit stepping scheme
+Ew   =zeros(nx,1);
+Er   =zeros(nx,1);
+Db   =zeros(nx,1);
+Dr   =zeros(nx,1);
+H    =zeros(nx,1);
+Hm   =zeros(nx,1);
+Sxx  =zeros(nx,1);
+eta  =zeros(nx,1);
+htot =zeros(nx,1);
+theta=zeros(nx,1);
+n    =zeros(nx,1);
+Qb   =zeros(nx,1);
 
-% stepping, explicit scheme
-Ew=zeros(nx,1);
-Er=zeros(nx,1);
-Db=zeros(nx,1);
-Dr=zeros(nx,1);
+% wave dispersion, calculated without consideration of wave-induced setup
+k=zeros(nx,1);
+for i=1:nx
+  k(i)=fzero(@(k)omega^2-g*k*tanh(k*h(i)),omega/sqrt(g*h(i)),optimset('Display','off'));
+end
+kh=k.*h;
+c=max(0,real(omega./k));
+n=.5*(1+2*kh./sinh(2*kh));
+cg=n.*c;
+
+% init variables at offshore boundary
 Ew(1)=rho*g/8*H0^2;
 Er(1)=0;
 H(1)=H0;
-theta(1)=theta0; %asin(c(1).*refconst);
+theta(1)=theta0;
+term1=(cos(theta(1))^2+1)*cg(1)/c(1)-.5;
+term2=cos(theta(1))^2;
+Sxx(1)=Ew(1)*term1 + 2*Er(1)*term2;
+eta(1)=0;
+htot(1)=h(1)+eta(1);
+
+% wave refraction, calculated without setup
+refconst=sin(theta0)/c(1);
+theta=asin(c.*refconst);
+
+% explicit forward stepping for wave propagation
 for i=2:nx
 
+  khtot=k(i-1)*htot(i-1);
+
+  % gamma can be either calculated based on deep water wave steepness (s0)
+  % following Battjes and Stive (1985) (also used by Ruessink et al., 2001),
+  % or based on the empirical fit obtained for duck94 by Ruessink et
+  % al. (2003).
+  if(gammaType==2003)
+    gamma(i-1)=0.76*khtot+0.29;
+  end
+  gamma(i-1)=gamma(i-1)+dgamma(i-1);
+
   % max wave height
-  tharg=gamma(i-1)/0.88.*k(i-1).*h(i-1);
-  Hm(i-1)=0.88./k(i-1).*tanh(tharg);
+  tharg=gamma(i-1)/0.88*khtot;
+  Hm(i-1)=0.88/k(i-1)*tanh(tharg);
 
   % fraction of breaking waves, non-implicit approximation from SWAN code
   B=H(i-1)/Hm(i-1);
@@ -114,18 +134,19 @@ for i=2:nx
   c1=alpha/4*rho*g*(omega/2/pi);
   Db(i-1)=c1*Qb(i-1)*Hm(i-1)^2;
 
+  % update wave energy
   nums1=cg(i-1)*Ew(i-1)*cos(theta(i-1));
   nums2=Db(i-1)*dx;
   denoms=cg(i)*cos(theta(i));
   Ew(i)=(nums1-nums2)/denoms;
 
-  % roller
+  % update roller energy
   if(~strcmp(betaType,'none'))
     if(strcmp(betaType,'rafati21'))  % rafati et al. (2021) variable-beta
-      if(k(i-1)*h(i-1)<0.45)
+      if(khtot<0.45)
         beta(i-1)=0.1;
       else
-        beta(i-1) = 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1);
+        beta(i-1) = 0.03*khtot*(htot(i-1)-H(i-1))/H(i-1);
         if(beta(i-1)>0.1)
           beta(i-1)=0.1;
         end
@@ -138,24 +159,24 @@ for i=2:nx
     end
   end
 
+  % update wave height
   if(Ew(i)<.001)
     Ew(i)=.001;
   end
   H(i)=sqrt(8/rho/g*Ew(i));
 
+  % update wave induced setup
+  Sxx(i)=Ew(i)*((cos(theta(i))^2+1)*cg(i)/c(i)-.5)+2*Er(i)*cos(theta(i))^2;
+  eta(i)=eta(i-1)+(Sxx(i-1)-Sxx(i))/g/htot(i-1)/rho;
+  htot(i)=h(i)+eta(i);
+
 end
-c=c(:);
-cg=cg(:);
-k=k(:);
-n=n(:);
-theta=theta(:);
-H=H(:);
 
 % radiation stress gradient
 if(~strcmp(betaType,'none'))
   dSxydx = -sin(theta)./c.*Dr/rho;
 else
-  dSxydx=-sin(theta)./c.*Db/rho;
+  dSxydx = -sin(theta)./c.*Db/rho;
 end
 dSxydx(dSxydx==0)=1e-6;  % avoid singularity in TL model
 
@@ -163,24 +184,24 @@ dSxydx(dSxydx==0)=1e-6;  % avoid singularity in TL model
 
 % total force = radiation stress gradient + wind stress + pressure gradient,
 % m2/s2 units
-Fy=dSxydx+tauw/rho+g*h.*detady;
+Fy=dSxydx+tauw/rho+g*htot.*detady;
 
-% v1: analytical solution, no mixing
+% first pass: analytical solution for longshore current, no mixing
 a=1.16;  % empirical constant
-Cd=0.015*(ka_drag./h).^(1/3);
-urms=1.416*H.*omega./(4*sinh(k.*h));
+Cd=0.015*(ka_drag./htot).^(1/3);
+urms=1.416*H.*omega./(4*sinh(k.*htot));
 v2 = sqrt( (a*Cd.*urms).^4 + 4*(Cd.*Fy).^2 )./(2*Cd.^2) - (a*urms).^2/2;
 v=sqrt(v2).*sign(-Fy);
 
 % mixing operator
 A=zeros(nx);
 for i=2:nx-1
-  A(i,i+[-1:1])=[1 -2 1]/dx^2*nu*h(i);
+  A(i,i+[-1:1])=[1 -2 1]/dx^2*nu*htot(i);
 end
-A(1,1:2)=0; %[-2 1]/dx^2*nu*h(1);
-A(nx,nx-1:nx)=[1 -2]/dx^2*nu*h(nx);
+A(1,1:2)=0; %[-2 1]/dx^2*nu*htot(1);
+A(nx,nx-1:nx)=[1 -2]/dx^2*nu*htot(nx);
 
-% v2: nonlinear solution with mixing
+% second pass: nonlinear solution for longshore current, with mixing
 v0=v;
 opt=optimset('Display','off');
 v = fsolve(@(v)Fy + Cd.*urms.*v.*sqrt(a^2+(v./urms).^2) - A*v,v0,opt);
@@ -189,11 +210,14 @@ v=real(v);
 % outputs struct
 bkgd.x=x;
 bkgd.h=h;
+bkgd.htot=htot;
+bkgd.eta=eta;
 bkgd.H0     =H0     ;
 bkgd.theta0 =theta0 ;
 bkgd.omega  =omega  ;
 bkgd.ka_drag=ka_drag;
-bkgd.tauw   =tauw2d ;
+bkgd.tauw   =tauw;
+bkgd.tauwin=tauwin;
 bkgd.Ew   =Ew;
 bkgd.Er   =Er;
 bkgd.Db=Db;
@@ -210,10 +234,16 @@ bkgd.dgamma=dgamma;
 bkgd.Hm=Hm;
 bkgd.Qb=Qb;
 bkgd.dSxydx=dSxydx;
+bkgd.Sxx=Sxx;
+bkgd.Cd=Cd;
+bkgd.a=a;
+bkgd.A=A;
+bkgd.urms=urms;
 bkgd.Fy=Fy;
 bkgd.vbar=real(v);
 bkgd.detady=detady;
 bkgd.beta=beta;
+bkgd.refconst=refconst;
 bkgd.gammaType=gammaType; % hydroParams.m
 bkgd.betaType=betaType;   % hydroParams.m
 bkgd.g    =g    ;         % hydroParams.m
@@ -222,7 +252,7 @@ bkgd.beta0=beta0;         % hydroParams.m
 bkgd.nu   =nu   ;         % hydroParams.m
 bkgd.rho  =rho  ;         % hydroParams.m
 bkgd.hmin =hmin ;         % hydroParams.m
- 
+
 % optional, if user only wants the struct
 if(nargout==1)
   H=bkgd;

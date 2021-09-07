@@ -1,53 +1,35 @@
-function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw,ad_detady,ad_dgamma]=ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,bkgd)%,invar)
-%
-% AD-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
-% directly from output of hydro_ruessink2001.m
-%
+function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauwin,ad_detady,ad_dgamma]=ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,bkgd)
 
 [g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
 
 % break out the bkgd vars
-Ew   =bkgd.Ew;  % convert back from W/m2
-Er   =bkgd.Er;
-Db=bkgd.Db;
-Dr=bkgd.Dr;
-c    =bkgd.c    ;
-cg   =bkgd.cg   ;
-k    =bkgd.k    ;
-h    =bkgd.h    ;
-n    =bkgd.n    ;
-theta=bkgd.theta;
-omega=bkgd.omega;
-x    =bkgd.x    ;
-H    =bkgd.Hrms ;
-dSxydx=bkgd.dSxydx;
-Fy=bkgd.Fy;
-v=bkgd.vbar;
-H0=bkgd.H0;
-theta0=bkgd.theta0;
-gamma=bkgd.gamma;
-dgamma=bkgd.dgamma;
-Hm=bkgd.Hm;
-Qb=bkgd.Qb;
-ka_drag=bkgd.ka_drag;
-detady=bkgd.detady;
+fld=fields(bkgd);
+for i=1:length(fld)
+  eval([fld{i} '=bkgd.' fld{i} ';']);
+end
 beta=bkgd.beta;
+gamma=bkgd.gamma;
+H=Hrms;
+v=vbar;
 
 h(h<hmin)=hmin;  % min depth constraint
 
 nx=length(x);
 dx=diff(x(1:2));
 
-%-----------------------------
-% begin AD code
-%-----------------------------
+%---------------------------------------------
+% init AD
+%---------------------------------------------
 
-% init ad vars
 ad_h=zeros(nx,1);
+ad_htot=zeros(nx,1);
+ad_eta=zeros(nx,1);
+ad_Sxx=zeros(nx,1);
 ad_H0=0;
 ad_theta0=0;
 ad_ka_drag=0;
 ad_tauw=zeros(nx,1);
+ad_tauwin=zeros(nx,2);
 ad_Cd=zeros(nx,1);
 ad_urms=zeros(nx,1);
 ad_Fy=zeros(nx,1);
@@ -69,7 +51,6 @@ ad_B=0;
 ad_tharg=0;
 ad_gamma=zeros(nx,1);
 ad_dgamma=zeros(nx,1);
-ad_refconst=0;
 ad_s0=0;
 ad_n=zeros(nx,1);
 ad_detady=zeros(nx,1);
@@ -78,127 +59,160 @@ ad_c1=0;
 ad_omega=0;
 ad_beta=zeros(nx,1);
 
-% % TEST: look at a specific variable
-% ad_theta=zeros(nx,1);
-% ad_v=zeros(nx,1);
-% ad_k=zeros(nx,1);
-% ad_Ew=zeros(nx,1);
-% ad_Er=zeros(nx,1);
-% ad_Dr=zeros(nx,1);
-% % tl_H=eval(['tl_' outvar]);
-% eval(['ad_' invar '=ad_H;']);
-% if(~strcmp(invar,'H'))
-%   ad_H=zeros(nx,1);
-% end
+%---------------------------------------------
+% begin AD
+%---------------------------------------------
 
-%b7 % bottom stress model following Ruessink et al. (2001), Feddersen et
-% % al. (2000).  To get TL model, differentiate the eqn for v (i.e., the
-% % fsolve() line in waveModel.m) on both sides, then solve for tl_v
-a=1.16;  % empirical constant
-Cd=0.015*(ka_drag./h).^(1/3);
-urms=1.416*H*omega./(4*sinh(k.*h));
+% bottom stress model following Ruessink et al. (2001), Feddersen et
+% al. (2000).  To get TL model, differentiate the eqn for v (i.e., the
+% fsolve() line in waveModel.m) on both sides, then solve for tl_v
 B=a^2+(v./urms).^2;
 dens = -urms.*Cd - v.^2.*Cd./urms./B;
-
-% mixing operator
-A=zeros(nx);
-for i=2:nx-1  % define mixing operator
-  A(i,i+[-1:1])=[1 -2 1]/dx^2*nu*h(i);
-end
-A(1,1:2)=0; %[-2 1]/dx^2*nu*h(1);
-A(nx,nx-1:nx)=[1 -2]/dx^2*nu*h(nx);
 if(nu==0)
-  %4   tl_v=tl_N./dens;
-  ad_N=ad_N+ad_v./dens;
+  %67a1 tl_v=tl_N./dens;
+  ad_N = ad_N + ad_v./dens;
   ad_v=0;
 else
-  %4   tl_v = inv(diag(dens)+A)*tl_N;
+  %67b1 tl_v = inv(diag(dens)+A)*tl_N;
   ad_N = ad_N + inv(diag(dens)+A)'*ad_v;
   ad_v=0;
 end
-%3 tl_N = tl_Fy./sqrt(B) + tl_urms.*(v.*Cd-v.^3.*Cd./(urms.^2.*B)) + tl_Cd.*v.*urms;
+%66 tl_N = tl_Fy./sqrt(B) + tl_urms.*(v.*Cd-v.^3.*Cd./(urms.^2.*B)) + tl_Cd.*v.*urms;
 ad_Fy  =ad_Fy  + 1./sqrt(B)                    .*ad_N;
 ad_urms=ad_urms+ (v.*Cd-v.^3.*Cd./(urms.^2.*B)).*ad_N;
 ad_Cd  =ad_Cd  + v.*urms                       .*ad_N;
 ad_N=0;
-%2 tl_urms=1.416*omega*( tl_H./(4*sinh(k.*h)) ...
-%                       -H./(4*sinh(k.*h).^2).*cosh(k.*h).*( tl_k.*h+k.*tl_h ) ) ...
-%         + 1.416*H./(4*sinh(k.*h))*tl_omega;
-ad_H=ad_H+ 1.416*omega./(4*sinh(k.*h))                    .*ad_urms;
-ad_k=ad_k- 1.416*omega*H./(4*sinh(k.*h).^2).*cosh(k.*h).*h.*ad_urms;
-ad_h=ad_h- 1.416*omega*H./(4*sinh(k.*h).^2).*cosh(k.*h).*k.*ad_urms;
-ad_omega = ad_omega + sum(1.416*H./(4*sinh(k.*h)).*ad_urms);
+%65 tl_urms=1.416*omega*( tl_H./(4*sinh(k.*htot)) ...
+%                       -H./(4*sinh(k.*htot).^2).*cosh(k.*htot).*( tl_k.*htot+k.*tl_htot ) ) ...
+%         + 1.416*H./(4*sinh(k.*htot))*tl_omega;
+ad_H=ad_H+ 1.416*omega./(4*sinh(k.*htot))                 .*ad_urms;
+ad_k=ad_k- 1.416*omega*H./(4*sinh(k.*htot).^2).*cosh(k.*htot).*htot.*ad_urms;
+ad_htot=ad_htot- 1.416*omega*H./(4*sinh(k.*htot).^2).*cosh(k.*htot).*k.*ad_urms;
+ad_omega = ad_omega + sum(1.416*H./(4*sinh(k.*htot)).*ad_urms);
 ad_urms=0;
-%1 tl_Cd=0.015*(1/3)*(ka_drag./h).^(-2/3).*(-ka_drag./h.^2.*tl_h+tl_ka_drag./h);
-coef=0.015*(1/3)*(ka_drag./h).^(-2/3);
-ad_h      =ad_h      - coef.*ka_drag./h.^2.*ad_Cd;
-ad_ka_drag=ad_ka_drag+ sum(coef./h            .*ad_Cd);
+%64 tl_Cd=0.015*(1/3)*(ka_drag./htot).^(-2/3).*(-ka_drag./htot.^2.*tl_htot+tl_ka_drag./htot);
+coef=0.015*(1/3)*(ka_drag./htot).^(-2/3);
+ad_hhtot  =ad_htot   - coef.*ka_drag./htot.^2.*ad_Cd;
+ad_ka_drag=ad_ka_drag+ sum(coef./htot        .*ad_Cd);
 ad_Cd=0;
 
-%b6 % total force = radiation stress gradient + wind stress
-%1 tl_Fy = tl_dSxydx + tl_tauw/rho + g*tl_h.*detady + g*h.*tl_detady;
+% total force = radiation stress gradient + wind stress + pressure gradient,
+% m2/s2 units
+%63 tl_Fy = ...
+%     + tl_dSxydx ...
+%     + tl_tauw/rho ...
+%     + g*tl_htot.*detady ...
+%     + g*htot.*tl_detady;
 ad_dSxydx=ad_dSxydx+ad_Fy;
 ad_tauw  =ad_tauw  +ad_Fy/rho;
 ad_h = ad_h + g*detady.*ad_Fy;
 ad_detady = ad_detady + g*h.*ad_Fy;
 ad_Fy=0;
 
-%b5 % radiation stress gradient
+% radiation stress gradient
 if(~strcmp(betaType,'none'))
-  %1   tl_dSxydx = -cos(theta)./c.*Dr/rho.*tl_theta ...
-  %       +sin(theta)./c.^2.*Dr/rho.*tl_c ...
-  %       -sin(theta)./c.*tl_Dr/rho;
+  %62a1 tl_dSxydx = ...
+  %     - cos(theta)./c.*Dr/rho.*tl_theta ...
+  %     + sin(theta)./c.^2.*Dr/rho.*tl_c ...
+  %     - sin(theta)./c/rho.*tl_Dr;
   ad_theta=ad_theta-cos(theta)./c.*Dr/rho   .*ad_dSxydx;
   ad_c    =ad_c    +sin(theta)./c.^2.*Dr/rho.*ad_dSxydx;
   ad_Dr   =ad_Dr   -sin(theta)./c/rho       .*ad_dSxydx;
   ad_dSxydx=0;
 else
-  %1   tl_dSxydx = -cos(theta)./c.*Db/rho.*tl_theta ...
-  %       +sin(theta)./c.^2.*Db/rho.*tl_c ...
-  %       -sin(theta)./c.*tl_Db/rho;
+  %62b1 tl_dSxydx = ...
+  %     - cos(theta)./c.*Db/rho.*tl_theta ...
+  %     + sin(theta)./c.^2.*Db/rho.*tl_c ...
+  %     - sin(theta)./c/rho.*tl_Db;
   ad_theta=ad_theta-cos(theta)./c.*Db/rho   .*ad_dSxydx;
   ad_c    =ad_c    +sin(theta)./c.^2.*Db/rho.*ad_dSxydx;
   ad_Db   =ad_Db   -sin(theta)./c/rho       .*ad_dSxydx;
   ad_dSxydx=0;
 end
 
-refconst=sin(theta0)/c(1);
-
-% %b3 stepping, explicit scheme
+% explicit forward stepping for wave propagation
 for i=nx:-1:2
+  khtot=k(i-1)*htot(i-1);
 
-  % b3g
-  if(Ew(i)==0)
-    %   tl_H(i)=0;
-    ad_H(i)=0;
-  else
-    %   tl_H(i)=.5./sqrt(8/rho/g*Ew(i))*8/rho/g.*tl_Ew(i);
-    ad_Ew(i)=ad_Ew(i)+.5./sqrt(8/rho/g*Ew(i))*8/rho/g.*ad_H(i);
-    ad_H(i)=0;
+  % init AD constants for this loop iteration
+  ad_term1=0;
+  ad_term2=0;
+  ad_khtot=0;
+  ad_refconst=0;
+
+  % update wave angle
+  %61 tl_theta(i) = 1/sqrt(1-(c(i)*refconst)^2)*( refconst*tl_c(i) + tl_refconst*c(i) );
+  ad_c(i)    =ad_c(i)    + 1/sqrt(1-(c(i)*refconst)^2)*refconst*ad_theta(i);
+  ad_refconst=ad_refconst+ 1/sqrt(1-(c(i)*refconst)^2)*c(i)    *ad_theta(i);
+  ad_theta(i)=0;
+
+  % update wave induced setup
+  term1=(cos(theta(i))^2+1)*cg(i)/c(i)-.5;
+  term2=cos(theta(i))^2;
+  %60 tl_htot(i) = tl_h(i) + tl_eta(i);
+  ad_h(i)  =ad_h(i)  + ad_htot(i);
+  ad_eta(i)=ad_eta(i)+ ad_htot(i);
+  ad_htot(i)=0;
+  %59 tl_eta(i) = ...
+  %     + tl_eta(i-1) ...
+  %     + (tl_Sxx(i-1)-tl_Sxx(i))/g/h(i-1)/rho ...
+  %     - (Sxx(i-1)-Sxx(i))/g/h(i-1)^2/rho*tl_h(i-1);
+  ad_eta(i-1)=ad_eta(i-1)+ 1                           *ad_eta(i);
+  ad_Sxx(i-1)=ad_Sxx(i-1)+ 1/g/h(i-1)/rho              *ad_eta(i);
+  ad_Sxx(i)  =ad_Sxx(i)  - 1/g/h(i-1)/rho              *ad_eta(i);
+  ad_h(i-1)  =ad_h(i-1)  - (Sxx(i-1)-Sxx(i))/g/h(i-1)^2/rho*ad_eta(i);
+  ad_eta(i)=0;
+  %58 tl_Sxx(i) = ...
+  %     + tl_Ew(i)*term1 ...
+  %     + Ew(i)*tl_term1 ...
+  %     + 2*tl_Er(i)*term2 ...
+  %     + 2*Er(i)*tl_term2;
+  ad_Ew(i) =ad_Ew(i) + term1  *ad_Sxx(i);
+  ad_term1=ad_term1+ Ew(i)  *ad_Sxx(i);
+  ad_Er(i)=ad_Er(i)+ 2*term2*ad_Sxx(i);
+  ad_term2=ad_term2+ 2*Er(i)*ad_Sxx(i);
+  ad_Sxx(i)=0;
+  %57 tl_term2 = 2*cos(theta(i))*sin(theta(i))*tl_theta(i);
+  ad_theta(i)=ad_theta(i)+ 2*cos(theta(i))*sin(theta(i))*ad_term2;
+  ad_term2=0;
+  %56 tl_term1 = ...
+  %     - 2*cos(theta(i))*sin(theta(i))*cg(i)/c(i)*tl_theta(i) ...
+  %     + (cos(theta(i))^2+1)*tl_cg(i)/c(i) ...
+  %     - (cos(theta(i))^2+1)*cg(i)/c(i)^2*tl_c(i);
+  ad_theta(i)=ad_theta(i)- 2*cos(theta(i))*sin(theta(i))*cg(i)/c(i)*ad_term1;
+  ad_cg(i)   =ad_cg(i)   + (cos(theta(i))^2+1)/c(i)                *ad_term1;
+  ad_c(i)    =ad_c(i)    - (cos(theta(i))^2+1)*cg(i)/c(i)^2        *ad_term1;
+  ad_term1=0;
+
+  % update wave height
+  %55 tl_H(i) = .5/sqrt(8/rho/g*Ew(i))*8/rho/g*tl_Ew(i);
+  ad_Ew(i)=ad_Ew(i)+ .5/sqrt(8/rho/g*Ew(i))*8/rho/g*ad_H(i);
+  ad_H(i)=0;
+  if(Ew(i)<.001)
+    %54 tl_Ew(i)=0;
+    ad_Ew(i)=0;
   end
 
-  % roller
+  % update roller energy
   if(~strcmp(betaType,'none'))
     nums=2*Er(i-1)*c(i-1)*cos(theta(i-1))+dx*(Db(i-1)-Dr(i-1));
     denoms=2*c(i)*cos(theta(i));
-    ad_nums=0;  % init AD for this gridpoint
-    ad_denoms=0;  % init AD for this gridpoint
     if(Er(i)<0)
-      % r5a tl_Er(i)=0;
+      %53a1 tl_Er(i)=0;
       ad_Er(i)=0;
     else
-      % r5b tl_Er(i) = tl_nums/denoms - nums/denoms^2*tl_denoms;
+      %53b1 tl_Er(i) = tl_nums/denoms - nums/denoms^2*tl_denoms;
       ad_nums  =ad_nums  + 1/denoms     *ad_Er(i);
       ad_denoms=ad_denoms- nums/denoms^2*ad_Er(i);
       ad_Er(i)=0;
     end
-    %r4 tl_denoms = ...
+    %52 tl_denoms = ...
     %     + 2*tl_c(i)*cos(theta(i)) ...
     %     - 2*c(i)*sin(theta(i))*tl_theta(i);
     ad_c(i)    =ad_c(i)    + 2*cos(theta(i))     *ad_denoms;
     ad_theta(i)=ad_theta(i)- 2*c(i)*sin(theta(i))*ad_denoms;
     ad_denoms=0;
-    %r3 tl_nums = ...
+    %51 tl_nums = ...
     %     + 2*tl_Er(i-1)*c(i-1)*cos(theta(i-1)) ...
     %     + 2*Er(i-1)*tl_c(i-1)*cos(theta(i-1)) ...
     %     - 2*Er(i-1)*c(i-1)*sin(theta(i-1))*tl_theta(i-1) ...
@@ -209,7 +223,7 @@ for i=nx:-1:2
     ad_Db(i-1)   =ad_Db(i-1)   + dx                              *ad_nums;
     ad_Dr(i-1)   =ad_Dr(i-1)   - dx                              *ad_nums;
     ad_nums=0;
-    %r2 tl_Dr(i-1) = ...
+    %50 tl_Dr(i-1) = ...
     %     + 2*g*tl_Er(i-1)*sin(beta(i-1))/c(i-1) ...
     %     + 2*g*Er(i-1)*cos(beta(i-1))/c(i-1)*tl_beta(i-1) ...
     %     - 2*g*Er(i-1)*sin(beta(i-1))/c(i-1)^2*tl_c(i-1);
@@ -218,223 +232,297 @@ for i=nx:-1:2
     ad_c(i-1)   =ad_c(i-1)   - 2*g*Er(i-1)*sin(beta(i-1))/c(i-1)^2*ad_Dr(i-1);
     ad_Dr(i-1)=0;
     if(strcmp(betaType,'rafati21'))  % rafati et al. (2021) variable-beta
-      if(k(i-1)*h(i-1)<0.45)
-        %r1a tl_beta(i-1)=0;
+      if(khtot<0.45)
+        %49a1 tl_beta(i-1)=0;
         ad_beta(i-1)=0;
       else
-        if(beta(i-1)==0.1)  % limiter was hit
-          % tl_beta(i-1)=0;
-          ad_beta(i-1)=0;
-        else
-          %r1b tl_beta(i-1) = ...
-          %     + 0.03*tl_k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
-          %     + 0.03*k(i-1)*tl_h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
-          %     + 0.03*k(i-1)*h(i-1)*(tl_h(i-1)-tl_H(i-1))/H(i-1) ...
-          %     - 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1)^2*tl_H(i-1);
-          ad_k(i-1)=ad_k(i-1)+ 0.03*h(i-1)*(h(i-1)-H(i-1))/H(i-1)         *ad_beta(i-1);
-          ad_h(i-1)=ad_h(i-1)+ 0.03*k(i-1)*(h(i-1)-H(i-1))/H(i-1)         *ad_beta(i-1);
-          ad_h(i-1)=ad_h(i-1)+ 0.03*k(i-1)*h(i-1)/H(i-1)                  *ad_beta(i-1);
-          ad_H(i-1)=ad_H(i-1)- 0.03*k(i-1)*h(i-1)/H(i-1)                  *ad_beta(i-1);
-          ad_H(i-1)=ad_H(i-1)- 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1)^2*ad_beta(i-1);
+        %49b1 tl_beta(i-1) = ...
+        %     + 0.03*tl_khtot*(htot(i-1)-H(i-1))/H(i-1) ...
+        %     + 0.03*khtot*(tl_htot(i-1)-tl_H(i-1))/H(i-1) ...
+        %     - 0.03*khtot*(htot(i-1)-H(i-1))/H(i-1)^2*tl_H(i-1);
+        ad_khtot    =ad_khtot    + 0.03*(htot(i-1)-H(i-1))/H(i-1)        *ad_beta(i-1);
+        ad_htot(i-1)=ad_htot(i-1)+ 0.03*khtot/H(i-1)                     *ad_beta(i-1);
+        ad_H(i-1)   =ad_H(i-1)   - 0.03*khtot/H(i-1)                     *ad_beta(i-1);
+        ad_H(i-1)   =ad_H(i-1)   - 0.03*khtot*(htot(i-1)-H(i-1))/H(i-1)^2*ad_beta(i-1);
+        ad_beta(i-1)=0;
+        if(beta(i-1)>0.1)
+          %49b1a1 tl_beta(i-1)=0;
           ad_beta(i-1)=0;
         end
       end
     end
   end  % roller
 
-  %b3e % term 2
+  % update wave energy
   nums1=cg(i-1)*Ew(i-1)*cos(theta(i-1));
   nums2=Db(i-1)*dx;
-  denoms=cg(i)*cos(theta(i));
-  %4 tl_Ew(i) = (tl_nums1-tl_nums2)/denoms ...
-  %           - (nums1-nums2)/denoms^2*tl_denoms;
+  denoms=cg(i-1)*cos(theta(i-1));
+  %48 tl_Ew(i) = ...
+  %     + (tl_nums1-tl_nums2)/denoms ...
+  %     - (nums1-nums2)/denoms^2*tl_denoms;
   ad_nums1 =ad_nums1 + 1/denoms              *ad_Ew(i);
   ad_nums2 =ad_nums2 - 1/denoms              *ad_Ew(i);
   ad_denoms=ad_denoms- (nums1-nums2)/denoms^2*ad_Ew(i);
   ad_Ew(i)=0;
-  %3 tl_denoms=tl_cg(i)*cos(theta(i)) ...
-  %           - cg(i)*sin(theta(i))*tl_theta(i);
-  ad_cg(i)   =ad_cg(i)   + cos(theta(i))      *ad_denoms;
-  ad_theta(i)=ad_theta(i)- cg(i)*sin(theta(i))*ad_denoms;
+  %47 tl_denoms = ...
+  %     + tl_cg(i-1)*cos(theta(i-1)) ...
+  %     - cg(i-1)*sin(theta(i-1))*tl_theta(i-1);
+  ad_cg(i-1)   =ad_cg(i-1)   + cos(theta(i-1))        *ad_denoms;
+  ad_theta(i-1)=ad_theta(i-1)- cg(i-1)*sin(theta(i-1))*ad_denoms;
   ad_denoms=0;
-  %2 tl_nums2=tl_Db(i-1)*dx;
-  ad_Db(i-1)=ad_Db(i-1)+ad_nums2*dx;
+  %46 tl_nums2=tl_Db(i-1)*dx;
+  ad_Db(i-1)=ad_Db(i-1)+dx*ad_nums2;
   ad_nums2=0;
-  %1 tl_nums1=tl_cg(i-1)*Ew(i-1)*cos(theta(i-1)) ...
-  %          + cg(i-1)*tl_Ew(i-1)*cos(theta(i-1)) ...
-  %          - cg(i-1)*Ew(i-1)*sin(theta(i-1))*tl_theta(i-1);
+  %45 tl_nums1 = ...
+  %     + tl_cg(i-1)*Ew(i-1)*cos(theta(i-1)) ...
+  %     + cg(i-1)*tl_Ew(i-1)*cos(theta(i-1)) ...
+  %     - cg(i-1)*Ew(i-1)*sin(theta(i-1))*tl_theta(i-1);
   ad_cg(i-1)   =ad_cg(i-1)   + Ew(i-1)*cos(theta(i-1))        *ad_nums1;
   ad_Ew(i-1)   =ad_Ew(i-1)   + cg(i-1)*cos(theta(i-1))        *ad_nums1;
   ad_theta(i-1)=ad_theta(i-1)- cg(i-1)*Ew(i-1)*sin(theta(i-1))*ad_nums1;
   ad_nums1=0;
 
-  %b3d % term 1
-  c1=alpha/4*rho*g*(omega/2/pi);
-  %1 tl_Db(i-1)=c1*tl_Qb(i-1)*Hm(i-1)^2 ...
-  %     + 2*c1*Qb(i-1)*Hm(i-1)*tl_Hm(i-1) ...
-  %     + tl_c1*Qb(i-1)*Hm(i-1)^2;
-  ad_Qb(i-1)=ad_Qb(i-1)+ c1*Hm(i-1)^2        *ad_Db(i-1);
-  ad_Hm(i-1)=ad_Hm(i-1)+ 2*c1*Qb(i-1)*Hm(i-1)*ad_Db(i-1);
-  ad_c1 = ad_c1 + ad_Db(i-1)*Qb(i-1)*Hm(i-1)^2;
-  ad_Db(i-1)=0;
-  % tl_c1=alpha/4*rho*g/2/pi*tl_omega;
-  ad_omega = ad_omega+alpha/4*rho*g/2/pi*ad_c1;
-  ad_c1=0;
-
-  %b3c % fraction of breaking waves, non-implicit approximation from SWAN code
+  % fraction of breaking waves, non-implicit approximation from SWAN code
   B=H(i-1)/Hm(i-1);
   if(B<=.5)
     Qo=0;
   else
     Qo=(2*B-1)^2;
   end
+  c1=alpha/4*rho*g*(omega/2/pi);
+  %44 tl_Db(i-1) = ...
+  %     + tl_c1*Qb(i-1)*Hm(i-1)^2 ...
+  %     + c1*tl_Qb(i-1)*Hm(i-1)^2 ...
+  %     + 2*c1*Qb(i-1)*Hm(i-1)*tl_Hm(i-1);
+  ad_c1     =ad_c1     + Qb(i-1)*Hm(i-1)^2   *ad_Db(i-1);
+  ad_Qb(i-1)=ad_Qb(i-1)+ c1*Hm(i-1)^2        *ad_Db(i-1);
+  ad_Hm(i-1)=ad_Hm(i-1)+ 2*c1*Qb(i-1)*Hm(i-1)*ad_Db(i-1);
+  ad_Db(i-1)=0;
+  %43 tl_c1 = alpha/4*rho*g*tl_omega/2/pi;
+  ad_omega=ad_omega+alpha/4*rho*g/2/pi*ad_c1;
+  ad_c1=0;
   if(B<=.2)
-    %3a   tl_Qb(i-1)=0;
+    %42a1 tl_Qb(i-1)=0;
     ad_Qb(i-1)=0;
   elseif(.2<B<=1)
     args=(Qo-1)/B^2;
     nums=Qo-exp(args);
     dens=B^2-exp(args);
-    Qb(i-1)=Qo-B^2*nums/dens;
-    %3d   tl_Qb(i-1)=tl_Qo-2*B*tl_B*nums/dens ...
-    %       -B^2*tl_nums/dens + B^2*nums/dens^2*tl_dens;
-    ad_Qo  =ad_Qo  +                 ad_Qb(i-1);
+    %42b4 tl_Qb(i-1) = ...
+    %     + tl_Qo ...
+    %     - 2*B*nums/dens*tl_B ...
+    %     - B^2*tl_nums/dens ...
+    %     + B^2*nums/dens^2*tl_dens;
+    ad_Qo  =ad_Qo  + 1              *ad_Qb(i-1);
     ad_B   =ad_B   - 2*B*nums/dens  *ad_Qb(i-1);
     ad_nums=ad_nums- B^2/dens       *ad_Qb(i-1);
     ad_dens=ad_dens+ B^2*nums/dens^2*ad_Qb(i-1);
     ad_Qb(i-1)=0;
-    %3c   tl_dens=2*B*tl_B-exp(args)*tl_args;
+    %42b3 tl_dens = 2*B*tl_B - exp(args)*tl_args;
     ad_B   =ad_B   + 2*B      *ad_dens;
     ad_args=ad_args- exp(args)*ad_dens;
     ad_dens=0;
-    %3b   tl_nums=tl_Qo-exp(args)*tl_args;
-    ad_Qo  =ad_Qo  +           ad_nums;
+    %42b2 tl_nums = tl_Qo ...
+    %           - exp(args)*tl_args;
+    ad_Qo  =ad_Qo  + 1        *ad_nums;
     ad_args=ad_args- exp(args)*ad_nums;
     ad_nums=0;
-    %3a   tl_args=tl_Qo/B^2-2*(Qo-1)/B^3*tl_B;
+    %42b1 tl_args = ...
+    %     + tl_Qo/B^2 ...
+    %     - 2*(Qo-1)/B^3*tl_B;
     ad_Qo=ad_Qo+ 1/B^2       *ad_args;
     ad_B =ad_B - 2*(Qo-1)/B^3*ad_args;
     ad_args=0;
   else
-    %3a   tl_Qb(i-1)=0;
+    %42c1 tl_Qb(i-1)=0;
     ad_Qb(i-1)=0;
   end
   if(B<=.5)
-    %2a   tl_Qo=0;
+    Qo=0;
+    %41a1 tl_Qo=0;
     ad_Qo=0;
   else
-    %2a   tl_Qo=2*(2*B-1).*2*tl_B;
-    ad_B=ad_B+2*(2*B-1).*2*ad_Qo;
+    Qo=(2*B-1)^2;
+    %41b1 tl_Qo=2*(2*B-1)*2*tl_B;
+    ad_B=ad_B+ 2*(2*B-1)*2*ad_Qo;
     ad_Qo=0;
   end
-  %1 tl_B=tl_H(i-1)/Hm(i-1)-H(i-1)/Hm(i-1)^2*tl_Hm(i-1);
+  %40 tl_B = ...
+  %     + tl_H(i-1)/Hm(i-1) ...
+  %     - H(i-1)/Hm(i-1)^2*tl_Hm(i-1);
   ad_H(i-1) =ad_H(i-1) + 1/Hm(i-1)       *ad_B;
   ad_Hm(i-1)=ad_Hm(i-1)- H(i-1)/Hm(i-1)^2*ad_B;
   ad_B=0;
 
-  %b3b % max wave height
-  tharg=gamma(i-1)/0.88.*k(i-1).*h(i-1);
-  %2 tl_Hm(i-1)=0.88*( -1./k(i-1).^2.*tanh(tharg).*tl_k(i-1) ...
-  %              + 1./k(i-1).*sech(tharg).^2.*tl_tharg );
-  ad_k(i-1)=ad_k(i-1)- 0.88./k(i-1).^2.*tanh(tharg).*ad_Hm(i-1);
-  ad_tharg =ad_tharg + 0.88./k(i-1).*sech(tharg).^2.*ad_Hm(i-1);
+  % max wave height
+  tharg=gamma(i-1)/0.88.*khtot;
+  %39 tl_Hm(i-1) = 0.88*( -1/k(i-1)^2*tanh(tharg)*tl_k(i-1) ...
+  %                     + 1/k(i-1)*sech(tharg)^2*tl_tharg );
+  ad_k(i-1)=ad_k(i-1)- 0.88*1/k(i-1)^2*tanh(tharg)*ad_Hm(i-1);
+  ad_tharg =ad_tharg + 0.88/k(i-1)*sech(tharg)^2  *ad_Hm(i-1);
   ad_Hm(i-1)=0;
-  %1 tl_tharg=gamma(i-1)/0.88*( tl_k(i-1).*h(i-1) + k(i-1)*tl_h(i-1) ) ...
-  %          + tl_gamma(i-1)/0.88.*k(i-1).*h(i-1);
-  ad_k(i-1)=ad_k(i-1)+ gamma(i-1)/0.88*h(i-1)     *ad_tharg;
-  ad_h(i-1)=ad_h(i-1)+ gamma(i-1)/0.88*k(i-1)     *ad_tharg;
-  ad_gamma(i-1) =ad_gamma(i-1) + 1/0.88.*k(i-1).*h(i-1)*ad_tharg;
+  %38 tl_tharg=gamma(i-1)/0.88*tl_khtot ...
+  %          + tl_gamma(i-1)/0.88*khtot;
+  ad_khtot=ad_khtot+ gamma(i-1)/0.88*ad_tharg;
+  ad_gamma(i-1)=ad_gamma(i-1)+ 1/0.88*khtot   *ad_tharg;
   ad_tharg=0;
 
-  %b3a % refraction
-  %1 tl_theta(i)=1./sqrt(1-(c(i).*refconst).^2).*( refconst.*tl_c(i) + tl_refconst.*c(i) );
-  coef=1./sqrt(1-(c(i).*refconst).^2);
-  ad_c(i)    =ad_c(i)    + coef.*refconst.*ad_theta(i);
-  ad_refconst=ad_refconst+ coef.*c(i)    .*ad_theta(i);
-  ad_theta(i)=0;
+  % gamma can be either calculated based on deep water wave steepness (s0)
+  % following Battjes and Stive (1985) (also used by Ruessink et al., 2001),
+  % or based on the empirical fit obtained for duck94 by Ruessink et
+  % al. (2003).
+  %37 tl_gamma(i-1) = tl_gamma(i-1) + tl_dgamma(i-1);
+  ad_gamma(i-1) =ad_gamma(i-1) + ad_gamma(i-1);
+  ad_dgamma(i-1)=ad_dgamma(i-1)+ ad_gamma(i-1);
+  ad_gamma(i-1)=0;
+  if(gammaType==2003)
+    %36a1 tl_gamma(i-1) = 0.76*tl_khtot;
+    ad_khtot=ad_khtot+0.76*ad_gamma(i-1);
+    ad_gamma(i-1)=0;
+  end
 
-end  % end of stepping scheme loop
+  % define khtot for convenience
+  % tl_khtot = ...
+  %     + tl_k(i-1)*htot(i-1) ...
+  %     + k(i-1)*tl_htot(i-1);
+  ad_k(i-1)   =ad_k(i-1)   + htot(i-1)*ad_khtot;
+  ad_htot(i-1)=ad_htot(i-1)+ k(i-1)   *ad_khtot;
+  ad_khtot=0;
 
-%b3? init variables for stepping scheme
-%8 tl_theta(1)=tl_theta0;
-ad_theta0=ad_theta0+ad_theta(1);
-ad_theta(1)=0;
-%7 tl_H(1)=tl_H0;
-ad_H0=ad_H0+ad_H(1);
-ad_H(1)=0;
-%6 tl_Er(1)=0;
-ad_Er(1)=0;
-%5 tl_Ew(1)=rho*g/8*2*H0*tl_H0;
-ad_H0=ad_H0+rho*g/8*2*H0*ad_Ew(1);
-ad_Ew(1)=0;
-%4 tl_Dr=zeros(nx,1);
-ad_Dr=zeros(nx,1);
-%3 tl_Db=zeros(nx,1);
-ad_Db=zeros(nx,1);
-%2 tl_Er=zeros(nx,1);
-ad_Er=zeros(nx,1);
-%1 tl_Ew=zeros(nx,1);
-ad_Ew=zeros(nx,1);
-
-%b2 gamma can be either calculated based on deep water wave steepness (s0)
-% following Battjes and Stive (1985) (also used by Ruessink et al., 2001),
-% or based on the empirical fit obtained for duck94 by Ruessink et
-% al. (2003).
-% tl_gamma=tl_gamma+tl_dgamma;
-ad_dgamma=ad_dgamma+ad_gamma;  % do not clear ad_gamma b/c it's an incremental-add
-if(gammaType==2001)
-  L0=g/(2*pi*(omega/2/pi)^2);
-  s0=H0/L0;
-  %2 tl_gamma=0.4*sech(33*s0).^2.*33*tl_s0;
-  ad_s0=ad_s0+0.4*sech(33*s0).^2.*33*sum(ad_gamma);
-  ad_gamma=0;
-  %1 tl_s0=tl_H0/L0-H0/L0^2*tl_L0;
-  ad_H0=ad_H0+ad_s0/L0;
-  ad_L0=ad_L0-H0/L0^2*ad_s0;
-  ad_s0=0;
-  %0 tl_L0 = -2*2*pi*g/omega^3*tl_omega;
-  ad_omega = ad_omega-2*2*pi*g/omega^3*ad_L0;
-  ad_L0=0;
-elseif(gammaType==2003)
-  % tl_gamma = 0.76*tl_k.*h + 0.76*k.*tl_h;
-  ad_k = ad_k + 0.76*h.*ad_gamma;
-  ad_h = ad_h + 0.76*k.*ad_gamma;
-  ad_gamma=0;
 end
 
-%b1 % dispersion
-%5 tl_refconst=cos(theta0)/c(1)*tl_theta0-sin(theta0)/c(1)^2*tl_c(1);
+% wave refraction, calculated without setup
+% tl_theta=1./sqrt(1-(c.*refconst).^2).*( refconst.*tl_c + tl_refconst.*c );
+ad_c       =ad_c       + 1./sqrt(1-(c.*refconst).^2).*refconst.*ad_theta;
+ad_refconst=ad_refconst+ 1./sqrt(1-(c.*refconst).^2).*c       .*ad_theta;
+ad_theta=0;
+% tl_refconst = ...
+%     + cos(theta0)/c(1)*tl_theta0 ...
+%     - sin(theta0)/c(1)^2*tl_c(1);
+ad_theta0=ad_theta0+ cos(theta0)/c(1)  *sum(ad_refconst);
+ad_c(1)  =ad_c(1)  - sin(theta0)/c(1)^2*sum(ad_refconst);
+ad_refconst=0;
+
+% init variables at offshore boundary
+term1=(cos(theta(1))^2+1)*cg(1)/c(1)-.5;
+term2=cos(theta(1))^2;
+%30 tl_refconst = ...
+%     + cos(theta0)/c(1)*tl_theta0 ...
+%     - sin(theta0)/c(1)^2*tl_c(1);
 ad_theta0=ad_theta0+ cos(theta0)/c(1)  *ad_refconst;
 ad_c(1)  =ad_c(1)  - sin(theta0)/c(1)^2*ad_refconst;
 ad_refconst=0;
-%4 tl_cg=tl_n.*c+n.*tl_c;
+%29 tl_htot(1) = tl_h(1) + tl_eta(1);
+ad_h(1)  =ad_h(1)  + ad_htot(1);
+ad_eta(1)=ad_eta(1)+ ad_htot(1);
+ad_htot(1)=0;
+%28 tl_eta(1)=0;
+ad_eta(1)=0;
+%27 tl_Sxx(1) = ...
+%     + tl_Ew(1)*term1 ...
+%     + Ew(1)*tl_term1 ...
+%     + 2*tl_Er(1)*term2 ...
+%     + 2*Er(1)*tl_term2;
+ad_Ew(1) =ad_Ew(1) + term1  *ad_Sxx(1);
+ad_term1=ad_term1+ Ew(1)  *ad_Sxx(1);
+ad_Er(1)=ad_Er(1)+ 2*term2*ad_Sxx(1);
+ad_term2=ad_term2+ 2*Er(1)*ad_Sxx(1);
+ad_Sxx(1)=0;
+%26 tl_term2 = -2*cos(theta(1))*sin(theta(1))*tl_theta(1);
+ad_theta(1)=ad_theta(1)- 2*cos(theta(1))*sin(theta(1))*ad_term2;
+ad_term2=0;
+%25 tl_term1 = ...
+%     - 2*cos(theta(1))*sin(theta(1))*tl_theta(1)*cg(1)/c(1) ...
+%     + (cos(theta(1))^2+1)*tl_cg(1)/c(1) ...
+%     - (cos(theta(1))^2+1)*cg(1)/c(1)^2*tl_c(1);
+ad_theta(1)=ad_theta(1)- 2*cos(theta(1))*sin(theta(1))*cg(1)/c(1)*ad_term1;
+ad_cg(1)   =ad_cg(1)   + (cos(theta(1))^2+1)/c(1)                *ad_term1;
+ad_c(1)    =ad_c(1)    - (cos(theta(1))^2+1)*cg(1)/c(1)^2        *ad_term1;
+ad_term1=0;
+%24 tl_theta(1)=tl_theta0;
+ad_theta0 = ad_theta0 + ad_theta(1);
+ad_theta(1)=0;
+%23 tl_H(1)=tl_H0;
+ad_H0=ad_H0+ad_H(1);
+ad_H(1)=0;
+%22 tl_Er(1)=0;
+ad_Er(1)=0;
+%21 tl_Ew(1)=rho*g/8*2*H0*tl_H0;
+ad_H0=ad_H0+rho*g/8*2*H0*ad_Ew(1);
+ad_Ew(1)=0;
+
+% wave dispersion, calculated without consideration of wave-induced setup
+kh=k.*h;
+ad_kh=0;  % init AD
+%35 tl_cg = tl_n.*c + n.*tl_c;
 ad_n=ad_n+ c.*ad_cg;
 ad_c=ad_c+ n.*ad_cg;
 ad_cg=0;
-%3 tl_n = tl_k.*h./sinh(2*k.*h) + k.*tl_h./sinh(2*k.*h) ...
-%        - k.*h./sinh(2*k.*h).^2.*cosh(2*k.*h)*2.*(tl_k.*h+k.*tl_h);
-coef=k.*h./sinh(2*k.*h).^2.*cosh(2*k.*h)*2;
-ad_k=ad_k+ (h./sinh(2*k.*h) - coef.*h).*ad_n;
-ad_h=ad_h+ (k./sinh(2*k.*h) - coef.*k).*ad_n;
+%34 tl_n = tl_kh./sinh(2*kh) ...
+%     - kh./sinh(2*kh).^2.*cosh(2*kh)*2.*tl_kh;
+ad_kh=ad_kh+ 1./sinh(2*kh)                      .*ad_n;
+ad_kh=ad_kh- kh./sinh(2*kh).^2.*cosh(2*kh)*2.*ad_n;
 ad_n=0;
-%2 tl_c=-omega./k.^2.*tl_k + tl_omega./k;
-ad_k=ad_k-omega./k.^2.*ad_c;
-ad_omega = ad_omega + sum(ad_c./k);
+%33 tl_c = ...
+%     + tl_omega./k ...
+%     - omega./k.^2.*tl_k;
+ad_omega =ad_omega + sum(1./k.*ad_c);
+ad_k=ad_k- omega./k.^2.*ad_c;
 ad_c=0;
-%1 tl_k=-tl_h.*k.^2.*sech(k.*h).^2./(tanh(k.*h)+k.*h.*sech(k.*h).^2) ...
-%     + 2*omega/g./(tanh(k.*h)+k.*h.*sech(k.*h).^2)*tl_omega;
-ad_h=ad_h-ad_k.*k.^2.*sech(k.*h).^2./(tanh(k.*h)+k.*h.*sech(k.*h).^2);
-ad_omega = ad_omega + sum(2*omega/g./(tanh(k.*h)+k.*h.*sech(k.*h).^2).*ad_k);
+%32 tl_k = ...
+%     - tl_h.*k.^2.*sech(kh).^2./(tanh(kh)+kh.*sech(kh).^2) ...
+%     + 2*omega/g./(tanh(kh)+kh.*sech(kh).^2).*tl_omega;
+ad_h=ad_h- k.^2.*sech(kh).^2./(tanh(kh)+kh.*sech(kh).^2).*ad_k;
+ad_omega    =ad_omega + sum(2*omega/g./(tanh(kh)+kh.*sech(kh).^2).*ad_k);
 ad_k=0;
 
-ad_tauw(:,2)=ad_tauw;  % for compatibility reasons
+% init all variables for explicit stepping scheme
+%20 tl_Qb   =zeros(nx,1);
+%15 tl_theta=zeros(nx,1);
+%14 tl_htot =zeros(nx,1);
+%13 tl_eta  =zeros(nx,1);
+%12 tl_H    =zeros(nx,1);
+%12 tl_Dr   =zeros(nx,1);
+%11 tl_Db   =zeros(nx,1);
+%10 tl_Er   =zeros(nx,1);
+%9 tl_Ew   =zeros(nx,1);
+ad_Qb   =zeros(nx,1);
+ad_theta=zeros(nx,1);
+ad_htot =zeros(nx,1);
+ad_eta  =zeros(nx,1);
+ad_Sxx  =zeros(nx,1);
+ad_Hm   =zeros(nx,1);
+ad_H    =zeros(nx,1);
+ad_Dr   =zeros(nx,1);
+ad_Db   =zeros(nx,1);
+ad_Er   =zeros(nx,1);
+ad_Ew   =zeros(nx,1);
 
-if(strcmp(betaType,'const') | strcmp(betaType,'none'))
-  ad_beta=zeros(nx,1);
-end
-if(strcmp(betaType,'none'))
-  ad_Dr=zeros(nx,1);
+if(gammaType==2001)
+  L0=g/(2*pi*(omega/2/pi)^2);
+  s0=H0/L0;
+  %8a1 tl_gamma=0.4*sech(33*s0).^2.*33*tl_s0*ones(nx,1);
+  ad_s0=ad_s0+ 0.4*sech(33*s0).^2.*33*nx;
+else
+  %8b1 tl_gamma=zeros(nx,1);  % init
+  ad_gamma=zeros(nx,1);  % init
 end
 if(~exist('dgamma'))
-  ad_dgamma=zeros(nx,1);
+  %7a1 tl_dgamma=zeros(nx,1);  % for compatibility
+  ad_dgamma=zeros(nx,1);  % for compatibility
 end
+if(strcmp(betaType,'none'))
+  %6a1 tl_Dr=zeros(nx,1);
+  ad_Dr=zeros(nx,1);
+end
+if(strcmp(betaType,'const'))
+  %5a1 tl_beta=zeros(nx,1);
+  ad_beta=zeros(nx,1);
+end
+%4 tl_beta=zeros(nx,1);  % init
+ad_beta=zeros(nx,1);  % init
+
+% tl_tauw=tl_tauwin(:,2);  % for compatibility
+ad_tauwin(:,2)=ad_tauwin(:,2)+ad_tauw;
+ad_tauw=0;
+
