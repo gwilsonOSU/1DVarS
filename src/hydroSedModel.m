@@ -94,8 +94,8 @@ end
 
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
 % prior to calculation of undertow (udelta).  TODO, need TL-AD code
-% warning('no TL-AD model exists for this optional code yet')
 if(doDubarbierHack)
+  warning('no TL-AD model exists for this optional code yet')
   lambda=1.57;
   xb=lambda*2*pi./kabs;
   for i=1:nx

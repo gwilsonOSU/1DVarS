@@ -31,7 +31,7 @@ clear
 %--------------------------------------
 
 % optional flags
-doassim=1;   % use assimilation to correct hydro errors
+doassim=0;   % use assimilation to correct hydro errors
 doadjoint=0; % include a sensitivity analysis for sed transport inputs
 
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
