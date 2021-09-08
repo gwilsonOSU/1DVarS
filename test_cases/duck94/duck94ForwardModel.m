@@ -321,7 +321,7 @@ for i=1:length(mea)  % loop over 3h sampling intervals
     % disp(['    timestamp ' num2str(n) ' of ' num2str(10)])
     thisobs=struct;
     clear dnum_est
-    vname='vHh';
+    vname='uvHh';
     for k=1:length(vname)  % for each data type
       % disp(['      variable ' vname(k)])
       this=getfield(mea(i),vname(k));
@@ -365,7 +365,7 @@ elseif(strcmp(sedmodel,'vanderA'))
   params.m=20;  % vanderA 11; hsu et al. 11.  Just scales everything up
   warning('test code, using params.m=20')
   params.xi=1.7;  % ??? tuning parameter, O(1) according to Kranenburg (2013).  VDA pg. 35 says 1.7
-  params.alpha=8.2;  % comes in eqn 27-28, not the same as eqn 19.  Default 8.2
+  params.alpha=16; %8.2;  % comes in eqn 27-28, not the same as eqn 19.  Default 8.2
   params_std=[5e-3 .2 2 .5 2];
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   params.alphab=1.6;
@@ -491,7 +491,7 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   % plot results for this time step
   lw=1.5;
   clf
-  subplot(221), hold on
+  subplot(321), hold on
   plot(grid.xFRF,grid.h,'g','linewidth',lw)
   plot(grid.xFRF,out(n).h,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).h.ind),obs(n).h.d,'ko')
@@ -500,20 +500,24 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   set(gca,'ydir','r')
   legend('initial, n=1',['n=' num2str(n) ' of ' num2str(length(obs))],'observed')
   ylabel('h [m]')
-  subplot(222), hold on
+  subplot(322), hold on
   plot(grid.xFRF,out(n).Hrms,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).H.ind),obs(n).H.d,'ko')
   ylabel('H_{rms} [m]')
-  subplot(223), hold on
+  subplot(323), hold on
   plot(grid.xFRF,out(n).Q,'b','linewidth',lw)  % out(n).hp-modelinput.h+tide
   ylabel('Q [m^2/s]')
   ylim([-1 1]*5e-4)
-  subplot(224), hold on
+  subplot(324), hold on
   plot(grid.xFRF,out(n).vbar,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).v.ind),obs(n).v.d,'ko')
   ylabel('v [m/s]')
-  for j=1:4
-    subplot(2,2,j)
+  subplot(325), hold on
+  plot(grid.xFRF,out(n).udelta(:,1),'b','linewidth',lw)
+  plot(grid.xFRF(obs(n).u.ind),obs(n).u.d,'ko')
+  ylabel('u [m/s]')
+  for j=1:5
+    subplot(3,2,j)
     box on
     xlim([100 400])
     ax=axis;
@@ -526,7 +530,7 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
     plot(grid.xFRF(ishore)*[1 1],ax(3:4),'k--')
     axis(ax)
   end
-  subplot(221)
+  subplot(321)
   title(['yday ' num2str(obs(n).dnum_est-datenum(1994,1,0)) ...
         ', ' datestr(obs(n).dnum_est) 'EST'])
   pause(.01)

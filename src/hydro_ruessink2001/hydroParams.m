@@ -17,5 +17,5 @@ gammaType=2003;
 % set constant beta=beta0 for all gridpoints, or 'rafati21' to compute
 % x-dependent beta based on Rafati et al., (2021) eqn 10, which they
 % recommended for duck94 simulations
-betaType='rafati21';
+betaType='const';
 beta0=0.1;
