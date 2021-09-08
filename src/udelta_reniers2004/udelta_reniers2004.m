@@ -23,7 +23,7 @@ physicalConstants;
 
 % other fixed params
 kappa=0.4;  % von karman
-fdelta=3;   % stated in text (after eqn 16)
+fdelta=3;   % default of 3 stated in text (after eqn 16)
 nintegral=100;  % number of gridpionts for sigma-integration
 
 % derived params.  See notes here:
