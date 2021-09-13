@@ -1,9 +1,93 @@
 function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
     ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
-    ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hp,bkgd)
-%
-% AD-code for tl_hydroSedModel.m
-%
+    ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hpout,bkgd)
+
+nx=length(bkgd(1).x);
+
+% init AD
+ad_H0=0;
+ad_theta0=0;
+ad_omega=0;
+ad_ka_drag=0;
+ad_dgamma=zeros(nx,1);
+ad_tau_wind=zeros(nx,1);
+ad_detady=zeros(nx,1);
+ad_d50=zeros(nx,1);
+ad_d90=zeros(nx,1);
+ad_h=zeros(nx,1);
+ad_hp=zeros(nx,bkgd(1).nsubsteps+1);
+ad_params.fv =0;
+if(strcmp(bkgd.sedmodel,'dubarbier'))
+  ad_params.Cw   =0;
+  ad_params.Cc   =0;
+  ad_params.Cf   =0;
+  ad_params.Ka   =0;
+elseif(strcmp(bkgd.sedmodel,'vanderA'))
+  ad_params.n    =0;
+  ad_params.m    =0;
+  ad_params.xi   =0;
+  ad_params.alpha=0;
+elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
+  ad_params.alphab=0;
+  ad_params.facua =0;
+end
+
+%---------------------------------------
+% begin AD
+%---------------------------------------
+
+% drop initial condition from hpout
+for n=bkgd(1).nsubsteps:-1:1
+  % tl_hpout(:,n)=tl_hp(:,n+1);
+  ad_hp(:,n+1) = ad_hp(:,n+1) + ad_hpout(:,n);
+  ad_hpout(:,n)=0;
+end
+
+% sub-stepping loop
+for n=bkgd(1).nsubsteps:-1:1
+
+  [ad_hp1,ad_H01,ad_theta01,ad_omega1,ad_ka_drag1,ad_dgamma1,...
+   ad_tau_wind1,ad_detady1,ad_d501,ad_d901,ad_params1] = ...
+      ad_hydroSedModel_main(ad_Hrms(:,n),ad_vbar(:,n),ad_theta(:,n),...
+                            ad_kabs(:,n),ad_Qx(:,n),ad_hp(:,n+1),bkgd(n));
+
+  ad_hp(:,n) = ad_hp(:,n) + ad_hp1;
+  ad_H0 = ad_H0 + ad_H01;
+  ad_theta0 = ad_theta0 + ad_theta01;
+  ad_omega = ad_omega + ad_omega1;
+  ad_ka_drag = ad_ka_drag + ad_ka_drag1;
+  ad_dgamma = ad_dgamma + ad_dgamma1;
+  ad_tau_wind = ad_tau_wind + ad_tau_wind1;
+  ad_detady = ad_detady + ad_detady1;
+  ad_d50 = ad_d50 + ad_d501;
+  ad_d90 = ad_d90 + ad_d901;
+  ad_params.fv = ad_params.fv + ad_params1.fv;
+  if(strcmp(bkgd.sedmodel,'dubarbier'))
+    ad_params.Cw   =ad_params.Cw + ad_params1.Cw;
+    ad_params.Cc   =ad_params.Cc + ad_params1.Cc;
+    ad_params.Cf   =ad_params.Cf + ad_params1.Cf;
+    ad_params.Ka   =ad_params.Ka + ad_params1.Ka;
+  elseif(strcmp(bkgd.sedmodel,'vanderA'))
+    ad_params.n    =ad_params.n     + ad_params1.n    ;
+    ad_params.m    =ad_params.m     + ad_params1.m    ;
+    ad_params.xi   =ad_params.xi    + ad_params1.xi   ;
+    ad_params.alpha=ad_params.alpha + ad_params1.alpha;
+  elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
+    ad_params.alphab=ad_params.alphab+ad_params1.alphab;
+    ad_params.facua =ad_params.facua +ad_params1.facua ;
+  end
+
+end  % substepping loop
+% tl_hp(:,1) = tl_h;  % init t=0
+ad_h = ad_h + ad_hp(:,1);
+ad_hp(:,1)=0;
+
+end  % end wrapper function (for sub-stepping loop logic)
+
+% begin main function, for single time step
+function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
+    ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
+    ad_hydroSedModel_main(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hp,bkgd)
 
 physicalConstants;
 
@@ -45,7 +129,7 @@ ad_w1=zeros(nx,1);
 ad_Dr=zeros(nx,1);
 ad_kvec=zeros(nx,2);
 ad_tanbeta=zeros(nx,1);
-ad_Q=zeros(nx,1);
+ad_Qx=zeros(nx,1);
 ad_dQdx=zeros(nx,1);
 ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
@@ -69,14 +153,6 @@ end
 if(doMarieu)
   ad_qp=zeros(nx,1);
 end
-
-% % TEST: redefine input var
-% eval(['ad_' invar '=ad_Q;'])
-% if(~strcmp(invar,'Q'))
-%   ad_Q=zeros(nx,1);
-% end
-% % TL: tl_hp=zeros(nx,1);
-% ad_hp=zeros(nx,1);
 
 % special case dt=0: in this case we are done since there is no morphology
 % upate to compute.  Skip over all the morphology stuff.
@@ -329,3 +405,5 @@ ad_Dr=0;
 % min depth constraint
 % tl_h(imask)=0;
 ad_h(imask)=0;
+
+end  % main function

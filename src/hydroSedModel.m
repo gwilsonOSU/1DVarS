@@ -1,11 +1,10 @@
-function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
-    hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,...
-                  dgamma,...
-                  d50,d90,params,sedmodel,dt)
+function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
+    hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,...
+                  d50,d90,params,sedmodel,dt,nsubsteps)
 %
-% [Hrms,vbar,theta,kabs,Q,hp,wkspc]=hydroSedModel(x,h,H0,theta0,omega,ka_drag,...
-%                                                 dgamma,...
-%                                                 tau_wind,detady,d50,d90,sedparams,sedmodel,dt)
+% [Hrms,vbar,theta,kabs,Q,hp,wkspc]=hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,...
+%                                                 tau_wind,detady,d50,d90,sedparams,...
+%                                                 sedmodel,dt,nsubsteps)
 %
 % Main front-end code for hydrodynamics and sediment transport
 %
@@ -28,6 +27,10 @@ function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
 %            corresponding codes qtrans_*.m and note their differing 'param'
 %            struct, to be passed in here as part of 'params'
 % dt       : time step (s) for integrating Exner equation to obtain update hp
+% nsubsteps: number of sub-steps to divide integration over dt, for
+%            numerical stability.  Each substep uses the same boundary
+%            conditions and input params, but bathymetry and hydrodynamcs
+%            are updated over time
 %
 % OUTPUTS:
 %
@@ -36,10 +39,44 @@ function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
 % theta: wave angle, rads
 % kabs : scalar wavenumber, rad/m
 % Q    : cross-shore sediment flux, m2/s
-% hp   : bathymetry updated after time step dt
+% hp   : bathymetry for each sub-timestep (0,1,...,nsubsteps)
 % wkspc: all internal variables used in model; this is for passing as a
 %        background state to TL-AD codes
 %
+
+if(~exist('nsubsteps'))
+  nsubsteps=1;
+end
+
+% sub-stepping loop
+hp(:,1) = h;  % init t=0
+for n=1:nsubsteps
+  % disp(['hydroSedModel substep ' num2str(n) ' of ' num2str(nsubsteps)])
+  [Hrms(:,n),vbar(:,n),theta(:,n),kabs(:,n),...
+   Qx(:,n),hp(:,n+1),workspc(n)] = ...
+      hydroSedModel_main(x,hp(:,n),H0,theta0,omega,ka_drag,tau_wind,detady,...
+                         dgamma,d50,d90,params,sedmodel,dt/nsubsteps);
+  workspc(n).nsubsteps=nsubsteps;
+end
+
+% drop initial condition from hpout
+for n=1:nsubsteps
+  hpout(:,n)=hp(:,n+1);
+end
+
+% undocumented feature: If user just wants the workspace struct.  Can be
+% useful in some cases.  Is also very useful for extracting output from the
+% final time step.
+if(nargout==1)
+  Hrms=workspc;
+end
+
+end  % end wrapper function (for sub-stepping loop logic)
+
+% begin main function, for single time step
+function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
+    hydroSedModel_main(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,...
+                  d50,d90,params,sedmodel,dt)
 
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)
@@ -272,7 +309,4 @@ for i=1:length(vname)
   end
 end
 
-% optional, if user only wants the struct
-if(nargout==1)
-  Hrms=workspc;
-end
+end  % main function for single time step

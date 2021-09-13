@@ -18,12 +18,7 @@
 % a) Assimilate data to correct hydrodynamics (waves and currents).
 %    Doing so results in a much better sediment transport prediction.
 %
-% b) Include adjoint sensitivity analysis after each time step.  This could
-%    be used to look for the most-sensitive model input parameters w.r.t.
-%    morphology change.
-%
 addpath(genpath('../../src'))  % hydroSedModel.m, and dependencies
-% addpath ./data/tools
 clear
 
 %--------------------------------------
@@ -32,7 +27,7 @@ clear
 
 % optional flags
 doassim=0;   % use assimilation to correct hydro errors
-doadjoint=0; % include a sensitivity analysis for sed transport inputs
+nsubsteps=5;  % number of time-sub-steps for hydroSedModel.m
 
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
 % al. (1998) four standard test cases.  All but case 'b' are offshore bar
@@ -397,6 +392,9 @@ modelinput.CH0=0.25^2;
 modelinput.Ctheta0=deg2rad(10)^2;
 modelinput.Cka=0.005^2;
 
+% TEST
+modelinput.Cgamma=0*modelinput.Cgamma;
+
 %--------------------------------------
 % Time loop of model runs
 %--------------------------------------
@@ -459,25 +457,21 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
 
   % Run model to step forward in time.  This takes the initial 'modelinput'
   % struct, and produces a new 'fcst' struct containing a forecast valid for
-  % the current time step.
+  % the current time step.  In the case of doassim=1, it also produces a
+  % posterior struct that includes updated covariances.
   dt=diff([obs(n+[0:1]).dnum_est])*24*60*60;
-  mfact=1;
-  dtm=dt/mfact;  % sub-divide into mfact time steps to avoid instability
-  for nn=1:mfact
-    if(mfact>1)
-      disp(['  sub-step ' num2str(nn) ' of ' num2str(mfact)])
-    end
-
-    % Forecast step.  Depending on user input flag 'doassim', this can either be
-    % a pure forecast for t=t(n)+dtm, or it can be an assimilative update
-    % for t(n) followed by a forecast for t(n)+dtm.  For the latter case,
-    % see README for a description of the forecast-assimilation scheme.
-    if(~doassim) % v1: without assimilation
-      fcst=hydroSedModel(modelinput.x,modelinput.h,modelinput.H0,modelinput.theta0,modelinput.omega,modelinput.ka_drag,modelinput.tauw,modelinput.detady,modelinput.dgamma,modelinput.d50,modelinput.d90,modelinput.params,sedmodel,dtm);
-    else % v2: assimilate data to correct hydro model
-      [posterior,fcst]=assim_1dh(modelinput,thisobs,dt,0,1);          
-    end
-    modelinput.h=fcst.hp;
+  if(~doassim) % v1: without assimilation
+    fcst = hydroSedModel(modelinput.x,modelinput.h,...
+                         modelinput.H0,modelinput.theta0,modelinput.omega,...
+                         modelinput.ka_drag,modelinput.tauw,modelinput.detady,...
+                         modelinput.dgamma,...
+                         modelinput.d50,modelinput.d90,...
+                         modelinput.params,sedmodel,...
+                         dt,nsubsteps);
+    fcst=fcst(end);  % only keep final substep
+  else % v2: assimilate data to correct hydro model
+    posterior=assim_1dh(modelinput,thisobs,0,dt,nsubsteps);
+    % TODO: what to do about substep outputs
   end
 
   % Remove tide again.  We want to keep h in navd88 except when running the
@@ -485,35 +479,38 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   fcst.h =fcst.h -tide;
   fcst.hp=fcst.hp-tide;
 
-  % save the result in an array
-  out(n)=fcst;
+  % Use the forecast bathymetry as input for the next time step t(n+1)
+  modelinput.h=fcst.hp(:,end);
+  if(doassim)
+    modelinput.Chs(1:nx, 1:nx) = posterior.Chsp(1:nx, 1:nx);
+  end
 
   % plot results for this time step
   lw=1.5;
   clf
   subplot(321), hold on
   plot(grid.xFRF,grid.h,'g','linewidth',lw)
-  plot(grid.xFRF,out(n).h,'b','linewidth',lw)
+  plot(grid.xFRF,fcst.h,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).h.ind),obs(n).h.d,'ko')
-  plot(grid.xFRF,modelinput.h-tide -sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
-  plot(grid.xFRF,modelinput.h - tide +sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
+  plot(grid.xFRF,modelinput.h-sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
+  plot(grid.xFRF,modelinput.h+sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
   set(gca,'ydir','r')
   legend('initial, n=1',['n=' num2str(n) ' of ' num2str(length(obs))],'observed')
   ylabel('h [m]')
   subplot(322), hold on
-  plot(grid.xFRF,out(n).Hrms,'b','linewidth',lw)
+  plot(grid.xFRF,fcst.Hrms,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).H.ind),obs(n).H.d,'ko')
   ylabel('H_{rms} [m]')
   subplot(323), hold on
-  plot(grid.xFRF,out(n).Q,'b','linewidth',lw)  % out(n).hp-modelinput.h+tide
+  plot(grid.xFRF,fcst.Q,'b','linewidth',lw)
   ylabel('Q [m^2/s]')
   ylim([-1 1]*5e-4)
   subplot(324), hold on
-  plot(grid.xFRF,out(n).vbar,'b','linewidth',lw)
+  plot(grid.xFRF,fcst.vbar,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).v.ind),obs(n).v.d,'ko')
   ylabel('v [m/s]')
   subplot(325), hold on
-  plot(grid.xFRF,out(n).udelta(:,1),'b','linewidth',lw)
+  plot(grid.xFRF,fcst.udelta(:,1),'b','linewidth',lw)
   plot(grid.xFRF(obs(n).u.ind),obs(n).u.d,'ko')
   ylabel('u [m/s]')
   for j=1:5
@@ -522,7 +519,7 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
     xlim([100 400])
     ax=axis;
     if(j==1)
-      [~,ishore]=min(abs(out(n).h+tide));
+      [~,ishore]=min(abs(fcst.h+tide));
       plot(ax(1:2),-[1 1]*tide,'k--')
     else
       plot(ax(1:2),[0 0],'k--')
@@ -535,24 +532,7 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
         ', ' datestr(obs(n).dnum_est) 'EST'])
   pause(.01)
 
-  % Optional: having done the forward model simulation, now do the adjoint
-  % sensitivity analysis for the sediment transport model.
-  if(doadjoint)
-    if(~strcmp(sedmodel,'vanderA'))
-      error('need to implement adjoint calculation for models other than vanderA')
-    end
-    eparam=1;  % set to 1 to get sensitivity for each gridpoint, not summed over gridpoints
-    [ad_d50(:,n),ad_d90(:,n),ad_h(:,n),ad_Hrms(:,n),ad_kabs(:,n),ad_omega(n),ad_udelta(:,:,n),ad_ws(:,n),ad_param(:,n)] = ...
-     ad_qtrans_vanderA(ones(nx,1),fcst.bkgd_qtrans,eparam);
-  end
-
-  % Use the forecast bathymetry as input for the next time step t(n+1)
-  modelinput.h=out(n).hp;
-  if(doassim)
-    modelinput.Chs(1:nx, 1:nx) = posterior.Chsp(1:nx, 1:nx);
-  end
+  % save the result in an array
+  out(n)=fcst;
 
 end
-
-
-

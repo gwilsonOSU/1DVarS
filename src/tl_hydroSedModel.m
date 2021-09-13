@@ -1,13 +1,27 @@
+function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout] = ...
+    tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_dgamma,...
+                     tl_tau_wind,tl_detady,tl_d50,tl_d90,tl_params,bkgd)
+
+% sub-stepping loop
+tl_hp(:,1) = tl_h;  % init t=0
+for n=1:bkgd(1).nsubsteps
+  [tl_Hrms(:,n),tl_vbar(:,n),tl_theta(:,n),tl_kabs(:,n),tl_Qx(:,n),tl_hp(:,n+1)] = ...
+      tl_hydroSedModel_main(tl_hp(:,n),tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_dgamma,...
+                            tl_tau_wind,tl_detady,tl_d50,tl_d90,tl_params,bkgd(n));
+end
+
+% drop initial condition from hpout
+for n=1:bkgd(1).nsubsteps
+  tl_hpout(:,n)=tl_hp(:,n+1);
+end
+
+end  % end wrapper function (for sub-stepping loop logic)
+
+% begin main function, for single time step
 function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hp] = ...
-    tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,...
+    tl_hydroSedModel_main(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,...
                      tl_dgamma,...
                      tl_tau_wind,tl_detady,tl_d50,tl_d90,tl_params,bkgd)
-%
-% TL-code for hydroSedModel.m
-%
-% note, 'bkgd' struct should be taken from last output of
-% hydroSedModel.m, this contains all the NL calculated variables
-%
 
 physicalConstants;
 
@@ -18,10 +32,6 @@ for i=1:length(fld)
 end
 
 nx=length(h);
-
-%----------------------------------------
-% begin TL code
-%----------------------------------------
 
 % min depth constraint
 h(imask)=hmin;
@@ -147,3 +157,6 @@ end  % catch for special case dt==0
 
 % % TEST
 % eval(['tl_Q=tl_' outvar ';']);
+
+end  % main function
+
