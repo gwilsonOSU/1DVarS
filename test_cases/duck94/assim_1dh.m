@@ -12,14 +12,14 @@ end
 nitermax=500;
 
 % unpack some variables for convenience
-Chs=prior.Chs;
+Ch=prior.Ch;
+Cs=prior.Cs;
 Cgamma=prior.Cgamma;
 CH0=prior.CH0;
 Ctheta0=prior.Ctheta0;
 Cka=prior.Cka;
 x=prior.x;
 nx=length(prior.x);
-Ch=Chs(1:nx,1:nx);
 
 if(strcmp(prior.sedmodel,'vanderA'))
   ns=5;
@@ -39,11 +39,11 @@ for i=1:length(fld)
   end
 end
 
-% create an empty params struct for convenience
-params_zero=struct;
-for i=1:ns
-  params_zero=setfield(params_zero,sedParamList{i},0);
-end
+% % create an empty params struct for convenience
+% params_zero=struct;
+% for i=1:ns
+%   params_zero=setfield(params_zero,sedParamList{i},0);
+% end
 
 % initialize bkgd hydro model state at t=0 using the prior.  Note, assume
 % dgamma=0 in prior.  Note this does not forecast morphology, it's just
@@ -101,9 +101,9 @@ for n=1:nitermax
   % to delta-perturbations of observation X.  These are rows of C*M'*L'.
   %
   clear R_* r_*
-  r_H=zeros(2*nx+ns+3,length(obs.H.ind));
-  r_v=zeros(2*nx+ns+3,length(obs.v.ind));
-  r_h=zeros(2*nx+ns+3,length(obs.h.ind));
+  r_H=zeros(2*nx+3,length(obs.H.ind));
+  r_v=zeros(2*nx+3,length(obs.v.ind));
+  r_h=zeros(2*nx+3,length(obs.h.ind));
   R_HH=zeros(length(obs.H.ind),length(obs.H.ind));
   R_Hv=zeros(length(obs.H.ind),length(obs.v.ind));
   R_Hh=zeros(length(obs.H.ind),length(obs.h.ind));
@@ -136,7 +136,7 @@ for n=1:nitermax
         ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,bkgd);
 
     % multiply into covariances to get the matrix of representers C*M'
-    r_H(:,i)=[Chs*[ad_h; zeros(ns,1)]; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
+    r_H(:,i)=[Ch*ad_h; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
 
     % apply TL model and measure it to get representer matrix, M*C*M'
     % [tl_H,tl_v,tl_theta] = ...
@@ -174,7 +174,7 @@ for n=1:nitermax
         ad_hydro_ruessink2001(zz1,zz1,comb,zz1,zz1,zz1,zz1,bkgd);
 
     % multiply into covariances to get the matrix of representers C*M'
-    r_v(:,i)=[Chs*[ad_h; zeros(ns,1)]; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
+    r_v(:,i)=[Ch*ad_h; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
 
     % apply TL model and measure it to get representer matrix, M*C*M'
     % [tl_H,tl_v,tl_theta] = ...
@@ -215,7 +215,7 @@ for n=1:nitermax
     ad_h(obs.h.ind(i))=1;  % comb
 
     % multiply into covariances to get the matrix of representers C*M'
-    r_h(:,i)=[Chs*[ad_h; zeros(ns,1)]; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
+    r_h(:,i)=[Ch*ad_h; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
 
     % apply TL model and measure it to get representer matrix, M*C*M'
     % [tl_H,tl_v,tl_theta] = ...
@@ -260,11 +260,10 @@ for n=1:nitermax
   % u0=update;
   posterior=prior;
   posterior.h = prior.h + update(0*nx+[1:nx]);
-  % note, sed param updates would be update(1*nx+[1:ns])
-  posterior.dgamma = prior.dgamma + update(1*nx+ns+[1:nx]);
-  posterior.H0=prior.H0+update(2*nx+ns+1);
-  posterior.theta0=prior.theta0+update(2*nx+ns+2);
-  posterior.ka_drag=prior.ka_drag+update(2*nx+ns+3);
+  posterior.dgamma = prior.dgamma + update(1*nx+[1:nx]);
+  posterior.H0=prior.H0+update(2*nx+1);
+  posterior.theta0=prior.theta0+update(2*nx+2);
+  posterior.ka_drag=prior.ka_drag+update(2*nx+3);
   posterior.ka_drag=max(1e-4,posterior.ka_drag);  % limiter on ka_drag
   bkgd0=bkgd;
 
@@ -285,8 +284,8 @@ for n=1:nitermax
     clf
     subplot(221), hold on
     plot(prior.x,prior.h,'r')
-    plot(prior.x,prior.h-sqrt(diag(prior.Chs(1:nx,1:nx))),'r--')
-    plot(prior.x,prior.h+sqrt(diag(prior.Chs(1:nx,1:nx))),'r--')
+    plot(prior.x,prior.h-sqrt(diag(prior.Ch)),'r--')
+    plot(prior.x,prior.h+sqrt(diag(prior.Ch)),'r--')
     plot(posterior.x,posterior.h,'b')
     % plot(posterior.x,posterior.h-posterior.hErr,'b--')
     % plot(posterior.x,posterior.h+posterior.hErr,'b--')
@@ -319,7 +318,7 @@ for n=1:nitermax
   end
 
   % check for convergence
-  eps=sum((bkgd0.h-bkgd.h).^2)/trace(prior.Chs(1:nx,1:nx));
+  eps=sum((bkgd0.h-bkgd.h).^2)/trace(prior.Ch);
   if(CH0>0)
     eps=eps+(bkgd0.H0-bkgd.H0)^2/prior.CH0;
   end
@@ -335,35 +334,22 @@ for n=1:nitermax
 
 end  % outer loop iterations
 
-% update sediment parameters from the final outer-loop NL model run
-posterior0=posterior;
-for fld=fields(bkgd)'
-  fld=cell2mat(fld);
-  posterior=setfield(posterior,fld,getfield(bkgd,fld));
-end
-for i=1:ns
-  posterior.params=setfield(posterior.params,...
-                            sedParamList{i},...
-                            getfield(posterior.params,sedParamList{i})+update(nx+i));
-end
-posterior.h=posterior0.h;  % exception: bkgd version has hmin cutoff
-
-% calculate posterior covariances
-C2=blkdiag(Chs,Cgamma,CH0,Ctheta0,Cka)-CMt*inv(R+Cd)*CMt';
+% finalize posterior covariances
+C2=blkdiag(Ch,Cgamma,CH0,Ctheta0,Cka)-CMt*inv(R+Cd)*CMt';
 if(min(diag(C2))<0)
   warning('C2 has negatives on diagonal!  Enforcing positive definiteness')
   C2 = .5*(C2 + C2');  % symmetric
   [V,D]=eig(C2);
   keyboard;
 end
-
-posterior.Chs=C2(1:(nx+ns),1:(nx+ns));
-posterior.Cgamma=C2(1*nx+ns+[1:nx],1*nx+ns+[1:nx]);
-posterior.CH0    =C2(2*nx+ns+1);
-posterior.Ctheta0=C2(2*nx+ns+2);
-posterior.Cka    =C2(2*nx+ns+3);
+posterior.Ch=C2(1:nx,1:nx);
+posterior.Cgamma =C2(1*nx+[1:nx],1*nx+[1:nx]);
+posterior.CH0    =C2(2*nx+1);
+posterior.Ctheta0=C2(2*nx+2);
+posterior.Cka    =C2(2*nx+3);
 
 % forecast hp for the next obs-time t+dt
+posterior0=posterior;
 disp('running deterministic forecast')
 bkgd = hydroSedModel(posterior.x,posterior.h,...
                      posterior.H0,posterior.theta0,posterior.omega,...
@@ -378,11 +364,11 @@ posterior.h=posterior0.h;  % exception: bkgd version has hmin cutoff
 % sediment transport parameters.  This will facilitate parameter corrections
 % in future analysis cycles
 if(~doCovUpdate)  % skip this step
-  disp('not calculating forecast covariance Chsp')
+  disp('not calculating forecast covariance Chp')
   return;
 end
 disp('propagating forecast covariance')
-Chsp=zeros(nx+ns);
+Chp=zeros(nx);
 
 parfor i=1:nx
   % disp(['  gridpoint ' num2str(i) ' of ' num2str(nx)])
@@ -398,23 +384,23 @@ parfor i=1:nx
    ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
       ad_hydroSedModel(zz,zz,zz,zz,zz,comb,bkgd);
 
-  % convert sediment transport params from struct to vector
+  % apply covariance to model inputs
+  phi=C2*[ad_h; ad_dgamma; ad_H0; ad_theta0; ad_ka_drag];
+  ad_h=phi(1:nx);
+  ad_dgamma =phi(nx+[1:nx]);
+  ad_H0     =phi(2*nx+1);
+  ad_theta0 =phi(2*nx+2);
+  ad_ka_drag=phi(2*nx+3);
+
+  % apply covariance to sed params
   ad_pp=zeros(ns,1);  % init
   for j=1:ns
     ad_pp(j)=getfield(ad_params,sedParamList{j});  
   end
-
-  % apply the full posterior covariance matrix to the adjoint vector, then
-  % re-package the outputs for input to TL model
-  phi=C2*[ad_h; ad_pp; ad_dgamma; ad_H0; ad_theta0; ad_ka_drag];
-  ad_h=phi(1:nx);
+  ad_pp = Cs*ad_pp;
   for j=1:ns
-    ad_params=setfield(ad_params,sedParamList{j},phi(nx+j));
+    ad_params=setfield(ad_params,sedParamList{j},ad_pp(j));
   end
-  ad_dgamma =phi(nx+ns+[1:nx]);
-  ad_H0     =phi(2*nx+ns+1);
-  ad_theta0 =phi(2*nx+ns+2);
-  ad_ka_drag=phi(2*nx+ns+3);
 
   % tangent linear run, I*C*I'
   [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Q,tl_hp] = ...
@@ -432,56 +418,7 @@ parfor i=1:nx
                      bkgd);
 
   % extract the forecast bathy covariance for this gridpoint
-  Chsp(:,i)=[tl_hp(:,end); phi(nx+[1:ns])];
+  Chp(:,i)=tl_hp(:,end);
 
 end  % loop over gridpoints
-for i=1:ns
-
-  % note, an adjoint model run is not required here since the sediment
-  % transport params are an input not an output
-  ad_h=zeros(nx,1);
-  ad_dgamma=zeros(nx,1);
-  ad_H0=0;
-  ad_theta0=0;
-  ad_ka_drag=0;
-  ad_omega=0;
-  ad_tau_wind=zeros(nx,2);
-  ad_detady=zeros(nx,1);
-  ad_d50=zeros(nx,1);
-  ad_d90=zeros(nx,1);
-  ad_pp=zeros(ns,1);
-  ad_pp(i)=1;  % delta function
-
-  % apply the full posterior covariance matrix to the adjoint vector, then
-  % re-package the outputs for input to TL model
-  phi=C2*[ad_h; ad_pp; ad_dgamma; ad_H0; ad_theta0; ad_ka_drag];
-  ad_h=phi(1:nx);
-  ad_params=struct;
-  for j=1:ns
-    ad_params=setfield(ad_params,sedParamList{j},phi(nx+j));
-  end
-  ad_dgamma =phi(nx+ns+[1:nx]);
-  ad_H0     =phi(nx+ns+nx+1);
-  ad_theta0 =phi(nx+ns+nx+2);
-  ad_ka_drag=phi(nx+ns+nx+3);
-
-  % tangent linear run, I*C*I'
-  [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Q,tl_hp] = ...
-      tl_hydroSedModel(ad_h,...
-                       ad_H0,...
-                       ad_theta0,...
-                       0*ad_omega,...
-                       ad_ka_drag,...
-                       ad_dgamma,...
-                       0*ad_tau_wind,...
-                       0*ad_detady,...
-                       0*ad_d50,...
-                       0*ad_d90,...
-                       ad_params,...
-                       bkgd);
-
-  % extract the forecast bathy covariance for this gridpoint
-  Chsp(:,nx+i)=[tl_hp(:,end); phi(nx+[1:ns])];
-
-end  % loop over sed params
-posterior.Chsp=Chsp;
+posterior.Chp=Chp;

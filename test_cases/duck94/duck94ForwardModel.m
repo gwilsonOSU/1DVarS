@@ -387,7 +387,8 @@ xx=meshgrid(grid.xFRF);
 sig_h=0.01*exp(-3*(grid.xFRF-200).^2/150^2);  % minimal h-correction
 Ch0=diag(sig_h)*exp(-3*(xx-xx').^2/50^2)*diag(sig_h);
 modelinput.Cgamma=.1^2*exp(-3*(xx-xx').^2/25^2);
-modelinput.Chs=blkdiag(Ch0,diag(params_std.^2));
+modelinput.Ch=Ch0
+modelinput.Cs=diag(params_std.^2);
 modelinput.CH0=0.25^2;
 modelinput.Ctheta0=deg2rad(10)^2;
 modelinput.Cka=0.005^2;
@@ -480,7 +481,7 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   % Use the forecast bathymetry as input for the next time step t(n+1)
   modelinput.h=fcst.hp(:,end);
   if(doassim)
-    modelinput.Chs(1:nx, 1:nx) = fcst.Chsp(1:nx, 1:nx);
+    modelinput.Ch = fcst.Chp;
   end
 
   % plot results for this time step
@@ -490,8 +491,8 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   plot(grid.xFRF,grid.h,'g','linewidth',lw)
   plot(grid.xFRF,fcst.h,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).h.ind),obs(n).h.d,'ko')
-  plot(grid.xFRF,modelinput.h-sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
-  plot(grid.xFRF,modelinput.h+sqrt(diag(modelinput.Chs(1:nx,1:nx))),'r--')
+  plot(grid.xFRF,modelinput.h-sqrt(diag(fcst.Chp(1:nx,1:nx))),'r--')
+  plot(grid.xFRF,modelinput.h+sqrt(diag(fcst.Chp(1:nx,1:nx))),'r--')
   set(gca,'ydir','r')
   legend('initial, n=1',['n=' num2str(n) ' of ' num2str(length(obs))],'observed')
   ylabel('h [m]')
