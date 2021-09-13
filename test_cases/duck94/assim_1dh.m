@@ -340,7 +340,9 @@ if(min(diag(C2))<0)
   warning('C2 has negatives on diagonal!  Enforcing positive definiteness')
   C2 = .5*(C2 + C2');  % symmetric
   [V,D]=eig(C2);
-  keyboard;
+  D=diag(D);
+  D(D<0)=0;  % enforce +ve def
+  C2=V*diag(D)*V';
 end
 posterior.Ch=C2(1:nx,1:nx);
 posterior.Cgamma =C2(1*nx+[1:nx],1*nx+[1:nx]);
