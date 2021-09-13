@@ -25,7 +25,7 @@ ip=ip+1;
 im=im+1;
 
 % calculate upwind finite differences
-tl_dqpdx=nan(nx+2,1);
+tl_dqpdx=zeros(nx+2,1);
 tl_dqpdx(ip)=(tl_qp(ip)-tl_qp(ip-1))./(xp(ip)-xp(ip-1));
 tl_dqpdx(im)=(tl_qp(im+1)-tl_qp(im))./(xp(im+1)-xp(im));
 

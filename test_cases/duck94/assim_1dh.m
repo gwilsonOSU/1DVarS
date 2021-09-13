@@ -119,16 +119,21 @@ for n=1:nitermax
   % (r_* matrices), and (b) sensitivity of observations of type Y (R_*
   % matrices)
   for i=1:length(obs.H.ind)
-    zz1=zeros(nx,1);
-    comb=zz1;
-    comb(obs.H.ind(i))=1;  % data functional (delta-fn, aka identity matrix)
+    ad_H    =zeros(nx,1);
+    ad_theta=zeros(nx,1);
+    ad_v    =zeros(nx,1);
+    ad_k    =zeros(nx,1);
+    ad_Ew   =zeros(nx,1);
+    ad_Er   =zeros(nx,1);
+    ad_Dr   =zeros(nx,1);
+    ad_H(obs.H.ind(i))=1;  % comb
 
     % I*M', where M is the TL model and I is identity
     % [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
     %  ad_tauw,ad_detady,ad_d50,ad_d90,ad_params] = ...
     %     ad_hydroSedModel(comb,0*comb,0*comb,0*comb,0*comb,0*comb,bkgd);
     [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw,ad_detady,ad_dgamma] = ...
-        ad_hydro_ruessink2001(comb,zz1,zz1,zz1,zz1,zz1,zz1,bkgd);
+        ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,bkgd);
 
     % multiply into covariances to get the matrix of representers C*M'
     r_H(:,i)=[Chs*[ad_h; zeros(ns,1)]; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
@@ -152,9 +157,14 @@ for n=1:nitermax
   % compute representers for longshore current, same operations as for wave
   % height in previous block of code
   for i=1:length(obs.v.ind)
-    zz1=zeros(nx,1);
-    comb=zz1;
-    comb(obs.v.ind(i))=1;  % data functional (delta-fn, aka identity matrix)
+    ad_H    =zeros(nx,1);
+    ad_theta=zeros(nx,1);
+    ad_v    =zeros(nx,1);
+    ad_k    =zeros(nx,1);
+    ad_Ew   =zeros(nx,1);
+    ad_Er   =zeros(nx,1);
+    ad_Dr   =zeros(nx,1);
+    ad_v(obs.v.ind(i))=1;  % comb
 
     % I*M', where M is the TL model and I is identity
     % [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
@@ -187,7 +197,14 @@ for n=1:nitermax
 
     % I*M', where M is the TL model and I is identity.  No need to run a model
     % since h is a static parameter in the model
-    ad_h=zeros(nx,1); ad_h(obs.h.ind(i))=1;
+    ad_H    =zeros(nx,1);
+    ad_theta=zeros(nx,1);
+    ad_v    =zeros(nx,1);
+    ad_k    =zeros(nx,1);
+    ad_Ew   =zeros(nx,1);
+    ad_Er   =zeros(nx,1);
+    ad_Dr   =zeros(nx,1);
+    ad_h    =zeros(nx,1);
     ad_H0=0;
     ad_theta0=0;
     ad_omega=0;
@@ -195,6 +212,7 @@ for n=1:nitermax
     ad_tauw=zeros(nx,2);
     ad_detady=zeros(nx,1);
     ad_dgamma=zeros(nx,1);
+    ad_h(obs.h.ind(i))=1;  % comb
 
     % multiply into covariances to get the matrix of representers C*M'
     r_h(:,i)=[Chs*[ad_h; zeros(ns,1)]; Cgamma*ad_dgamma; CH0*ad_H0; Ctheta0*ad_theta0; Cka*ad_ka_drag];
@@ -236,10 +254,10 @@ for n=1:nitermax
   % compute the update.  Ignore sediment params in this update
   hedge=1; %tanh(n/5);  % reduce magnitude of update for 1st few iterations
   update=hedge*CMt*inv(R+Cd)*(d-Lu);
-  if(n>1)
-    update=.5*(u0+update);
-  end
-  u0=update;
+  % if(n>1)
+  %   update=.5*(u0+update);
+  % end
+  % u0=update;
   posterior=prior;
   posterior.h = prior.h + update(0*nx+[1:nx]);
   % note, sed param updates would be update(1*nx+[1:ns])
@@ -323,31 +341,38 @@ for fld=fields(bkgd)'
   fld=cell2mat(fld);
   posterior=setfield(posterior,fld,getfield(bkgd,fld));
 end
-posterior.h=posterior0.h;  % bkgd version has hmin cutoff
 for i=1:ns
   posterior.params=setfield(posterior.params,...
                             sedParamList{i},...
                             getfield(posterior.params,sedParamList{i})+update(nx+i));
 end
+posterior.h=posterior0.h;  % exception: bkgd version has hmin cutoff
 
 % calculate posterior covariances
 C2=blkdiag(Chs,Cgamma,CH0,Ctheta0,Cka)-CMt*inv(R+Cd)*CMt';
+if(min(diag(C2))<0)
+  warning('C2 has negatives on diagonal!  Enforcing positive definiteness')
+  C2 = .5*(C2 + C2');  % symmetric
+  [V,D]=eig(C2);
+  keyboard;
+end
+
 posterior.Chs=C2(1:(nx+ns),1:(nx+ns));
 posterior.Cgamma=C2(1*nx+ns+[1:nx],1*nx+ns+[1:nx]);
 posterior.CH0    =C2(2*nx+ns+1);
 posterior.Ctheta0=C2(2*nx+ns+2);
 posterior.Cka    =C2(2*nx+ns+3);
 
-% forecast h for the next obs-time t+dt
+% forecast hp for the next obs-time t+dt
 disp('running deterministic forecast')
-[posterior.Hrms,posterior.vbar,posterior.theta,...
- posterior.kabs,posterior.Q,posterior.hp,posterior.workspc] = ...
-    hydroSedModel(posterior.x,posterior.h,...
-                  posterior.H0,posterior.theta0,posterior.omega,...
-                  posterior.ka_drag,posterior.tauw,posterior.detady,...
-                  posterior.dgamma,...
-                  posterior.d50,posterior.d90,posterior.params,posterior.sedmodel,...
-                  dt,nsubsteps);
+bkgd = hydroSedModel(posterior.x,posterior.h,...
+                     posterior.H0,posterior.theta0,posterior.omega,...
+                     posterior.ka_drag,posterior.tauw,posterior.detady,...
+                     posterior.dgamma,...
+                     posterior.d50,posterior.d90,posterior.params,posterior.sedmodel,...
+                     dt,nsubsteps);
+posterior = mergestruct(posterior,bkgd);  % update all deterministic fields
+posterior.h=posterior0.h;  % exception: bkgd version has hmin cutoff
 
 % calculate covariance of the forecast bathymetry, and its covariance with
 % sediment transport parameters.  This will facilitate parameter corrections
@@ -357,9 +382,9 @@ if(~doCovUpdate)  % skip this step
   return;
 end
 disp('propagating forecast covariance')
-Chsp=nan(nx+ns);
+Chsp=zeros(nx+ns);
 
-for i=1:nx
+parfor i=1:nx
   % disp(['  gridpoint ' num2str(i) ' of ' num2str(nx)])
   if(floor(i/nx*10)>floor((i-1)/nx*10))
     disp([num2str(floor(i/nx*10)*10) '%'])
@@ -367,11 +392,11 @@ for i=1:nx
 
   % adjoint model acting on identity matrix
   zz=zeros(nx,1);
-  comb=zeros(nx,nsubsteps+1);
+  comb=zeros(nx,nsubsteps);
   comb(i,end)=1;  % data functional (delta-fn, aka identity matrix)
   [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
    ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...
-      ad_hydroSedModel(zz,zz,zz,zz,zz,comb,fcst);
+      ad_hydroSedModel(zz,zz,zz,zz,zz,comb,bkgd);
 
   % convert sediment transport params from struct to vector
   ad_pp=zeros(ns,1);  % init
@@ -404,7 +429,7 @@ for i=1:nx
                      0*ad_d50,...
                      0*ad_d90,...
                      ad_params,...
-                     fcst);
+                     bkgd);
 
   % extract the forecast bathy covariance for this gridpoint
   Chsp(:,i)=[tl_hp(:,end); phi(nx+[1:ns])];
@@ -453,7 +478,7 @@ for i=1:ns
                        0*ad_d50,...
                        0*ad_d90,...
                        ad_params,...
-                       fcst);
+                       bkgd);
 
   % extract the forecast bathy covariance for this gridpoint
   Chsp(:,nx+i)=[tl_hp(:,end); phi(nx+[1:ns])];

@@ -129,7 +129,7 @@ ad_w1=zeros(nx,1);
 ad_Dr=zeros(nx,1);
 ad_kvec=zeros(nx,2);
 ad_tanbeta=zeros(nx,1);
-ad_Qx=zeros(nx,1);
+ad_Q=zeros(nx,1);
 ad_dQdx=zeros(nx,1);
 ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
@@ -250,7 +250,7 @@ elseif(strcmp(bkgd.sedmodel,'vanderA'))
   % tl_Q=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,...
   %                        tl_udelta_w,tl_ws,tl_params,bkgd_qtrans);
   [ad1_d50,ad1_d90,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,...
-   ad1_udelta_w,ad1_delta,ad1_ws,ad1_params] = ...
+   ad1_udelta_w,ad1_ws,ad1_params] = ...
       ad_qtrans_vanderA(ad_Q,bkgd_qtrans);
   ad_d50   =ad_d50   +ad1_d50   ;
   ad_d90   =ad_d90   +ad1_d90   ;
@@ -260,7 +260,6 @@ elseif(strcmp(bkgd.sedmodel,'vanderA'))
   ad_kabs  =ad_kabs  +ad1_kabs  ;
   ad_omega =ad_omega +ad1_omega ;
   ad_udelta_w=ad_udelta_w+ad1_udelta_w;
-  ad_delta =ad_delta +ad1_delta;
   ad_params.n    =ad_params.n    +ad1_params.n    ;
   ad_params.m    =ad_params.m    +ad1_params.m    ;
   ad_params.xi   =ad_params.xi   +ad1_params.xi   ;

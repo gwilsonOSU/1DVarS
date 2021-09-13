@@ -84,13 +84,13 @@ tl_ws=tl_ws_brownLawler(tl_d50,d50);
 % Reniers et al. (2004) model for velocity at top of boundary layer
 if(strcmp(bkgd.sedmodel,'dubarbier') | strcmp(bkgd.sedmodel,'vanderA'))
   tl_udelta=zeros(nx,2);
-  tl_delta=zeros(nx,1);
+  tl_delta_bl=zeros(nx,1);
   for i=1:nx
     if(Dr(i)==0)
       tl_udelta(i,:)=[0 0];
-      tl_delta(i)=0;
+      tl_delta_bl(i)=0;
     else
-      [tl_udelta(i,:),tl_delta(i)] = ...
+      [tl_udelta(i,:),tl_delta_bl(i)] = ...
           tl_udelta_reniers2004(tl_ubarvec(i,:),tl_kvec(i,:),...
                                 tl_omega,tl_h(i),tl_Hrms(i),tl_detady(i),...
                                 tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,...
@@ -124,7 +124,7 @@ elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
                                 tl_Dr,tl_params,bkgd_qtrans);
 elseif(strcmp(bkgd.sedmodel,'vanderA'))  % van Der A et al. (2013)
   tl_Q=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,...
-                         tl_udelta_w,tl_delta,tl_ws,tl_params,bkgd_qtrans);
+                         tl_udelta_w,tl_ws,tl_params,bkgd_qtrans);
 end
 
 % mitigate transport discontinuity at the shoreline

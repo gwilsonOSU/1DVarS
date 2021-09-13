@@ -56,6 +56,8 @@ for n=1:nsubsteps
    Qx(:,n),hp(:,n+1),workspc(n)] = ...
       hydroSedModel_main(x,hp(:,n),H0,theta0,omega,ka_drag,tau_wind,detady,...
                          dgamma,d50,d90,params,sedmodel,dt/nsubsteps);
+end
+for n=1:nsubsteps
   workspc(n).nsubsteps=nsubsteps;
 end
 
@@ -149,13 +151,12 @@ end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
 Dr(Dr==0)=min([0; Dr(Dr>0)]);
-delta=zeros(nx,1);
 for i=1:nx
   if(Dr(i)==0)
     udelta(i,:)=[0 0];
-    delta(i)=0;
+    delta_bl(i)=.2;
   else
-    [udelta(i,:),delta(i),udel_bkgd(i)]= ...
+    [udelta(i,:),delta_bl(i),udel_bkgd(i)]= ...
         udelta_reniers2004(ubar(i,:),k(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
                            tau_wind(i,:),Dr(i),params.fv,d50(i));
@@ -178,7 +179,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
                             omega,theta,ubar,Dr,params);
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   [Q,bkgd_qtrans] = ...
-      qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta_w,delta,ws,params);
+      qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta_w,ws,params);
 end
 Q=real(Q);
 

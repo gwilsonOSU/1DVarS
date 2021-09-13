@@ -1,6 +1,6 @@
-function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,param)
+function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 %
-% [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,param)
+% [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 %
 % Calculates transport following van der A (2013)
 %
@@ -17,7 +17,6 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,p
 % kabs  : wavenumber, scalar, rad/m
 % omega : wave frequency, rad/m
 % udelta: near-bed mean velocity, m/s
-% delta : height for near-bed velocity, m
 % ws    : sediment settling velocity, m/s
 % param.{alpha,xi,m,n}: tuning parameters struct
 %        alpha: phase lag effect, eqns (24)-(28).  Default 8.2
@@ -41,18 +40,19 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,p
 % this wrapper loop serves to handle vector inputs
 nx=length(h);
 for i=1:nx
-  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),param);
+  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),param);
 end
 qs=qs(:);
 
 end  % end of wrapper function, start of main function
 
-function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,Hrms,kabs,omega,udelta,delta,ws,param)
+function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 
 physicalConstants;
 
 % fixed constants
 nt=1000;  % for calculation of intra-wave velocity
+delta=0.2;  % fixed delta=0.2m, per VDA paper
 
 % derived params
 Hmo=Hrms*1.4;
