@@ -27,7 +27,7 @@ clear
 
 % optional flags
 doassim=1;   % use assimilation to correct hydro errors
-nsubsteps=1;  % number of time-sub-steps for hydroSedModel.m
+nsubsteps=3;  % number of time-sub-steps for hydroSedModel.m
 
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
 % al. (1998) four standard test cases.  All but case 'b' are offshore bar
@@ -472,7 +472,6 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
     verb=1; figure(2)
     doCovUpdate=1;
     fcst=assim_1dh(modelinput,thisobs,dt,verb,doCovUpdate,nsubsteps);
-    % TODO: what to do about substep outputs
   end
 
   % Remove tide again.  We want to keep h in navd88 except when running the
@@ -483,6 +482,10 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
   % Use the forecast bathymetry as input for the next time step t(n+1)
   modelinput.h=fcst.hp(:,end);
   if(doassim)
+    if(min(diag(fcst.Chp))<0)
+      warning('fcst.Chp has negatives on diagonal!  Enforcing positive definiteness')
+      fcst.Chp = forcePosDef(fcst.Chp);
+    end
     modelinput.Ch = fcst.Chp;
   end
 
