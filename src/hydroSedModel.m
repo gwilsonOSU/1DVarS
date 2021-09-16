@@ -160,6 +160,7 @@ for i=1:nx
         udelta_reniers2004(ubar(i,:),k(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
                            tau_wind(i,:),Dr(i),params.fv,d50(i));
+    udel_bkgd=udel_bkgd(:);
   end
 end
 

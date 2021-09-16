@@ -147,3 +147,4 @@ if(nargout>4)
     workspc=setfield(workspc,vname{i},eval(vname{i}));
   end
 end
+workspc=workspc(:);

@@ -32,7 +32,7 @@ nsubsteps=1;  % number of time-sub-steps for hydroSedModel.m
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
 % al. (1998) four standard test cases.  All but case 'b' are offshore bar
 % migration events.
-duck94Case='c';
+duck94Case='b';
 
 % sediment model: uncomment one of the following...
 % sedmodel='dubarbier';
@@ -374,7 +374,8 @@ end
 % step, others will remain constant for all time steps.
 modelinput=grid;  % initialize: x,h,xFRF
 modelinput.ka_drag=0.0125;  % tuned by Ruessink et al. (2001)
-modelinput.d50=nan(nx,1);
+modelinput.d50=zeros(nx,1);
+modelinput.d90=zeros(nx,1);
 modelinput.d50(grid.xFRF<150)=400e-6;  % shoreface coarse sand, Birkemeier et al. (1985)
 modelinput.d90(grid.xFRF<150)=400e-6;  % shoreface coarse sand
 modelinput.d50(grid.xFRF>=150)=180e-6; % Dubarbier et al. (2015) used 170um here, but 180 is from Birkemeier et al. (1985)
@@ -468,8 +469,9 @@ for n=1:(length(obs)-1)  % note: recommend to start at n=140 for case-b testing
                          dt,nsubsteps);
     fcst=fcst(end);  % only keep final substep
   else % v2: assimilate data to correct hydro model
-    figure(2)
-    fcst=assim_1dh(modelinput,thisobs,1,dt,nsubsteps);
+    verb=1; figure(2)
+    doCovUpdate=1;
+    fcst=assim_1dh(modelinput,thisobs,dt,verb,doCovUpdate,nsubsteps);
     % TODO: what to do about substep outputs
   end
 

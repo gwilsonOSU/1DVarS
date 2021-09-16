@@ -43,6 +43,7 @@ for i=1:nx
   [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),param);
 end
 qs=qs(:);
+workspc=workspc(:);
 
 end  % end of wrapper function, start of main function
 
@@ -346,5 +347,6 @@ if(nargout>1)
     workspc=setfield(workspc,vname{i},eval(vname{i}));
   end
 end
+workspc=workspc(:);
 
 end  % end of main function
