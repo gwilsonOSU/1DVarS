@@ -2,11 +2,19 @@ function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
     hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,...
                   d50,d90,params,sedmodel,dt,nsubsteps)
 %
-% [Hrms,vbar,theta,kabs,Q,hp,wkspc]=hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,...
-%                                                 tau_wind,detady,d50,d90,sedparams,...
-%                                                 sedmodel,dt,nsubsteps)
+% RECOMMENDED-USAGE: struct output
 %
-% Main front-end code for hydrodynamics and sediment transport
+% out = hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,...
+%                     tau_wind,detady,d50,d90,sedparams,...
+%                     sedmodel,dt,nsubsteps)
+%
+% ALTERNATIVE-USAGE: individual variables output
+%
+% [Hrms,vbar,theta,kabs,Q,hp,out]=hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,...
+%                                               tau_wind,detady,d50,d90,sedparams,...
+%                                               sedmodel,dt,nsubsteps)
+%
+% PURPOSE: Main front-end code for hydrodynamics and sediment transport
 %
 % INPUTS:
 %
@@ -34,14 +42,16 @@ function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
 %
 % OUTPUTS:
 %
+% out: all internal variables used in model; this is for passing as a
+%      background state to TL-AD codes.  The variables listed below are
+%      included in this struct.  If you use nsubsteps>1, then 'out' will be
+%      an array of structs, one for each time step.
 % Hrms : rms wave height, m
 % vbar : longshore current, m/s
 % theta: wave angle, rads
 % kabs : scalar wavenumber, rad/m
 % Q    : cross-shore sediment flux, m2/s
 % hp   : bathymetry for each sub-timestep (0,1,...,nsubsteps)
-% wkspc: all internal variables used in model; this is for passing as a
-%        background state to TL-AD codes
 %
 
 if(~exist('nsubsteps'))
@@ -66,9 +76,8 @@ for n=1:nsubsteps
   hpout(:,n)=hp(:,n+1);
 end
 
-% undocumented feature: If user just wants the workspace struct.  Can be
-% useful in some cases.  Is also very useful for extracting output from the
-% final time step.
+% handle output format: user may request to get just the struct
+% (nargout==1), or they may want individual variables (nargout>1).
 if(nargout==1)
   Hrms=workspc;
 end

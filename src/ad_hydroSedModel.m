@@ -17,17 +17,17 @@ ad_d90=zeros(nx,1);
 ad_h=zeros(nx,1);
 ad_hp=zeros(nx,bkgd(1).nsubsteps+1);
 ad_params.fv =0;
-if(strcmp(bkgd.sedmodel,'dubarbier'))
+if(strcmp(bkgd(1).sedmodel,'dubarbier'))
   ad_params.Cw   =0;
   ad_params.Cc   =0;
   ad_params.Cf   =0;
   ad_params.Ka   =0;
-elseif(strcmp(bkgd.sedmodel,'vanderA'))
+elseif(strcmp(bkgd(1).sedmodel,'vanderA'))
   ad_params.n    =0;
   ad_params.m    =0;
   ad_params.xi   =0;
   ad_params.alpha=0;
-elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
+elseif(strcmp(bkgd(1).sedmodel,'soulsbyVanRijn'))
   ad_params.alphab=0;
   ad_params.facua =0;
 end
@@ -62,17 +62,17 @@ for n=bkgd(1).nsubsteps:-1:1
   ad_d50 = ad_d50 + ad_d501;
   ad_d90 = ad_d90 + ad_d901;
   ad_params.fv = ad_params.fv + ad_params1.fv;
-  if(strcmp(bkgd.sedmodel,'dubarbier'))
+  if(strcmp(bkgd(1).sedmodel,'dubarbier'))
     ad_params.Cw   =ad_params.Cw + ad_params1.Cw;
     ad_params.Cc   =ad_params.Cc + ad_params1.Cc;
     ad_params.Cf   =ad_params.Cf + ad_params1.Cf;
     ad_params.Ka   =ad_params.Ka + ad_params1.Ka;
-  elseif(strcmp(bkgd.sedmodel,'vanderA'))
+  elseif(strcmp(bkgd(1).sedmodel,'vanderA'))
     ad_params.n    =ad_params.n     + ad_params1.n    ;
     ad_params.m    =ad_params.m     + ad_params1.m    ;
     ad_params.xi   =ad_params.xi    + ad_params1.xi   ;
     ad_params.alpha=ad_params.alpha + ad_params1.alpha;
-  elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
+  elseif(strcmp(bkgd(1).sedmodel,'soulsbyVanRijn'))
     ad_params.alphab=ad_params.alphab+ad_params1.alphab;
     ad_params.facua =ad_params.facua +ad_params1.facua ;
   end
@@ -187,10 +187,13 @@ if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   ad_hp1=0;
   ad_qp1=0;
 else
-  % tl_qp=nan(nx,1);
+  % tl_qp=zeros(nx,1);
+  ad_qp=zeros(nx,1);
   % tl_dh=tl_dQdx*dt;  % use ddx_upwind() result
+  ad_dQdx = ad_dQdx + dt*ad_dh;
+  ad_dh=0;
   % tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
-  ad_Qx = tl_ddx_upwind(ad_dQdx,x,Qx,horig);
+  ad_Qx = ad_ddx_upwind(ad_dQdx,x,Qx,horig);
 end
 
 % rotate output from wave-following coords to cartesian

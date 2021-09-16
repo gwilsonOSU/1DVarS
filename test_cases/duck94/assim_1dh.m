@@ -353,14 +353,13 @@ posterior.Cka    =C2(2*nx+3);
 % forecast hp for the next obs-time t+dt
 posterior0=posterior;
 disp('running deterministic forecast')
-keyboard;
 bkgd = hydroSedModel(posterior.x,posterior.h,...
                      posterior.H0,posterior.theta0,posterior.omega,...
                      posterior.ka_drag,posterior.tauw,posterior.detady,...
                      posterior.dgamma,...
                      posterior.d50,posterior.d90,posterior.params,posterior.sedmodel,...
                      dt,nsubsteps);
-posterior = mergestruct(posterior,bkgd);  % update all deterministic fields
+posterior = mergestruct(posterior,bkgd(end));  % update all deterministic fields, keeping only final substep
 posterior.h=posterior0.h;  % exception: bkgd version has hmin cutoff
 
 % calculate covariance of the forecast bathymetry, and its covariance with
@@ -380,8 +379,8 @@ parfor i=1:nx
   end
 
   % adjoint model acting on identity matrix
-  zz=zeros(nx,1);
-  comb=zeros(nx,nsubsteps);
+  zz=zeros(nx,nsubsteps);
+  comb=zz;
   comb(i,end)=1;  % data functional (delta-fn, aka identity matrix)
   [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_dgamma,...
    ad_tau_wind,ad_detady,ad_d50,ad_d90,ad_params] = ...

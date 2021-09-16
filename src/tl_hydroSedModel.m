@@ -143,11 +143,11 @@ if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   [tl_hp1,tl_qp1]=tl_dhdt_marieu2007(tl_Qx,tl_h,bkgd_marieu_step1);
   [tl_hp,tl_qp]=tl_dhdt_marieu2007(tl_qp1,tl_hp1,bkgd_marieu_step2);
   tl_dh=tl_hp-tl_h;
-  tl_dQdx=nan(nx,1);
+  tl_dQdx=zeros(nx,1);
 else
   tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
   tl_dh=tl_dQdx*dt;  % use ddx_upwind() result
-  tl_qp=nan(nx,1);
+  tl_qp=zeros(nx,1);
 end
 tl_dh=tl_dh.*wgt;   % apply damping near shore
 tl_dh(isnan(dh))=0;
