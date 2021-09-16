@@ -19,8 +19,7 @@ end  % end wrapper function (for sub-stepping loop logic)
 
 % begin main function, for single time step
 function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hp] = ...
-    tl_hydroSedModel_main(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,...
-                     tl_dgamma,...
+    tl_hydroSedModel_main(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_dgamma,...
                      tl_tau_wind,tl_detady,tl_d50,tl_d90,tl_params,bkgd)
 
 physicalConstants;
@@ -54,11 +53,12 @@ tl_h(imask)=0;
 % 1DH wave and longshore current balance
 % [Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma);
 [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
-    tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,...
-                  bkgd.hydro_bkgd);
+    tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,...
+                          tl_tau_wind,tl_detady,tl_dgamma,...
+                          bkgd.hydro_bkgd);
 
 % special case dt=0: in this case we are done since there is no morphology
-% upate to compute
+% update to compute
 if(dt==0)
   tl_Qx=zeros(nx,1);
   tl_hp=tl_h;
@@ -154,9 +154,6 @@ tl_dh(isnan(dh))=0;
 tl_hp = tl_h + tl_dh;
 
 end  % catch for special case dt==0
-
-% % TEST
-% eval(['tl_Q=tl_' outvar ';']);
 
 end  % main function
 
