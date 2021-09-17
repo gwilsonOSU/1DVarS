@@ -629,20 +629,24 @@ coef=.5/sqrt(ucrvec(1)^2+ucrvec(2)^2);
 ad_ucrvec(1)=ad_ucrvec(1)+ coef*2*ucrvec(1)*ad_ucrabs;
 ad_ucrvec(2)=ad_ucrvec(2)+ coef*2*ucrvec(2)*ad_ucrabs;
 ad_ucrabs=0;
-%5 tl_ucrvec(2) = tl_udelta(2);
-ad_udelta(2) = ad_udelta(2) + ad_ucrvec(2);
-ad_ucrvec(2)=0;
-%5 tl_utrvec(2) = -tl_udelta(2);
-ad_udelta(2) = ad_udelta(2) - ad_utrvec(2);
-ad_utrvec(2)=0;
-%5 tl_ucrvec(1) = tl_utildecr(1) + tl_udelta(1);
-ad_utildecr(1)=ad_utildecr(1)+ ad_ucrvec(1);
-ad_udelta(1)  =ad_udelta(1)  + ad_ucrvec(1);
-ad_ucrvec(1)=0;
-%5 tl_utrvec(1) = -tl_utildetr(1) + tl_udelta(1);
-ad_utildetr(1)=ad_utildetr(1)- ad_utrvec(1);
-ad_udelta(1)  =ad_udelta(1)  + ad_utrvec(1);
+
+%5b_orig tl_utrvec = tl_utildetr*[-1 0] + tl_udelta;
+%5b_rewrite1 tl_utrvec(1) = -tl_utildetr + tl_udelta(1);
+ad_utildetr =ad_utildetr - ad_utrvec(1);
+ad_udelta(1)=ad_udelta(1)+ ad_utrvec(1);
 ad_utrvec(1)=0;
+%5b_rewrite2 tl_utrvec(2) = + tl_udelta(2);
+ad_udelta(2)=ad_udelta(2)+ad_utrvec(2);
+ad_utrvec(2)=0;
+%5a_orig tl_ucrvec = tl_utildecr*[+1 0] + tl_udelta;
+%5a_rewrite1 tl_ucrvec(1) = + tl_utildecr + tl_udelta(1);
+ad_utildecr =ad_utildecr + ad_ucrvec(1);
+ad_udelta(1)=ad_udelta(1)+ ad_ucrvec(1);
+ad_ucrvec(1)=0;
+%5a_rewrite2 tl_ucrvec(2) = + tl_udelta(2);
+ad_udelta(2)=ad_udelta(2)+ad_ucrvec(2);
+ad_ucrvec(2)=0;
+
 %4 tl_fwdt = tl_alpha*fd ...
 %        + alpha*tl_fd ...
 %        - tl_alpha*fwt ...
@@ -872,8 +876,8 @@ ad_Dstar=0;
 % % NL model crest/trough
 [~,ic]=max(uw);
 [~,it]=min(uw);
-%2 tl_uhatt = tl_uw(it);
-ad_uw(it)=ad_uw(it)+ad_uhatt;
+%2 tl_uhatt = -tl_uw(it);
+ad_uw(it)=ad_uw(it)-ad_uhatt;
 ad_uhatt=0;
 %1 tl_uhatc = tl_uw(ic);
 ad_uw(ic)=ad_uw(ic)+ad_uhatc;
