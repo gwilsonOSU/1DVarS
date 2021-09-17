@@ -129,8 +129,8 @@ k=cat(2,kabs(:).*cos(theta(:)),kabs(:).*sin(theta(:)));
 c=omega./kabs;
 
 % depth averaged mean flow, Nx2 vector, +'ve onshore
-ubar=-(Ew+2*Er)./(rho*c.*h);  % e.g., Dubarbier et al. (2015) eqn 8
-ubar=cat(2,ubar(:),vbar(:));
+ubarx=-(Ew+2*Er)./(rho*c.*h);  % e.g., Dubarbier et al. (2015) eqn 8
+ubar=cat(2,ubarx(:),vbar(:));
 
 % settling velocity: use Brown & Lawler.  TODO, for vanderA use 0.8*d50
 % here, per explanation on page 29

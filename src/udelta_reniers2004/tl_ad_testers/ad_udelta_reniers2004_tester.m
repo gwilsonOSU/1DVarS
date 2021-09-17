@@ -52,7 +52,7 @@ clear
 % inoutvar='Cb';
 % inoutvar='udelta';
 
-load ../../../waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
+load ~wilsongr/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
 waves=posterior;
 
 % choose a gridpoint and make a realistic background state
@@ -70,7 +70,7 @@ bkgd.fv    =.1;
 bkgd.d50   =200e-6;
 
 % bkgd NL state
-[udelta,udel_bkgd]=udelta_reniers2004(bkgd.ubar,...
+[udelta,~,udel_bkgd]=udelta_reniers2004(bkgd.ubar,...
                                       bkgd.k,...
                                       bkgd.omega,...
                                       bkgd.h,...
@@ -101,7 +101,7 @@ for i=1:n
                                   tl_tau_wind,tl_Dr,tl_fv,tl_d50,udel_bkgd);%,inoutvar);
   % AD model: g=AD*(TL*F)
   [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_d50] = ...
-      ad_udelta_reniers2004(tl_udelta,udel_bkgd);%,inoutvar);
+      ad_udelta_reniers2004(tl_udelta,0,udel_bkgd);%,inoutvar);
   g(:,i)=[ad_ubar(:);ad_k(:);ad_omega;ad_h;ad_Hrms;...
           ad_detady;ad_tau_wind(:);ad_Dr;ad_fv;ad_d50];
 end

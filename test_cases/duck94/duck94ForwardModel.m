@@ -32,7 +32,7 @@ nsubsteps=3;  % number of time-sub-steps for hydroSedModel.m
 % duck94 case: set this to a,b,c, or d...  These follow Gallagher et
 % al. (1998) four standard test cases.  All but case 'b' are offshore bar
 % migration events.
-duck94Case='b';
+duck94Case='c';
 
 % sediment model: uncomment one of the following...
 % sedmodel='dubarbier';

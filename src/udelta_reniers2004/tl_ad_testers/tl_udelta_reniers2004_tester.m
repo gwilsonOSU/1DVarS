@@ -3,7 +3,7 @@
 %
 clear
 
-load ../../../waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
+load ~wilsongr/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
 waves=posterior;
 
 % choose a gridpoint and make a realistic background state
@@ -21,7 +21,7 @@ bkgd.fv    =.1;
 bkgd.d50   =200e-6;
 
 % bkgd NL state
-[udelta,udel_bkgd]=udelta_reniers2004(bkgd.ubar,...
+[udelta,~,udel_bkgd]=udelta_reniers2004(bkgd.ubar,...
                                       bkgd.k,...
                                       bkgd.omega,...
                                       bkgd.h,...

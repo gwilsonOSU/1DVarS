@@ -338,11 +338,7 @@ end  % outer loop iterations
 C2=blkdiag(Ch,Cgamma,CH0,Ctheta0,Cka)-CMt*inv(R+Cd)*CMt';
 if(min(diag(C2))<0)
   warning('C2 has negatives on diagonal!  Enforcing positive definiteness')
-  C2 = .5*(C2 + C2');  % symmetric
-  [V,D]=eig(C2);
-  D=diag(D);
-  D(D<0)=0;  % enforce +ve def
-  C2=V*diag(D)*V';
+  C2 = forcePosDef(C2);
 end
 posterior.Ch=C2(1:nx,1:nx);
 posterior.Cgamma =C2(1*nx+[1:nx],1*nx+[1:nx]);
@@ -350,7 +346,10 @@ posterior.CH0    =C2(2*nx+1);
 posterior.Ctheta0=C2(2*nx+2);
 posterior.Cka    =C2(2*nx+3);
 
-% forecast hp for the next obs-time t+dt
+% forecast hp for the next obs-time t+dt.  Note: the output 'posterior' only
+% stores information from the final sub-step, while the 'bkgd' needs to
+% include all sub-steps since it will be used in TL-AD below for propagating
+% the covariance.
 posterior0=posterior;
 disp('running deterministic forecast')
 bkgd = hydroSedModel(posterior.x,posterior.h,...
@@ -367,11 +366,11 @@ posterior.h=posterior0.h;  % exception: bkgd version has hmin cutoff
 % in future analysis cycles
 if(~doCovUpdate)  % skip this step
   disp('not calculating forecast covariance Chp')
+  posterior.Chp = prior.Ch;
   return;
 end
 disp('propagating forecast covariance')
 Chp=zeros(nx);
-
 parfor i=1:nx
   % disp(['  gridpoint ' num2str(i) ' of ' num2str(nx)])
   if(floor(i/nx*10)>floor((i-1)/nx*10))
@@ -411,9 +410,9 @@ parfor i=1:nx
                      ad_theta0,...
                      0*ad_omega,...
                      ad_ka_drag,...
-                     ad_dgamma,...
                      0*ad_tau_wind,...
                      0*ad_detady,...
+                     ad_dgamma,...
                      0*ad_d50,...
                      0*ad_d90,...
                      ad_params,...

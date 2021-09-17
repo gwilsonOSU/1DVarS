@@ -58,7 +58,8 @@ tl_tauw=tl_tauw(:,2);
 
 % dispersion
 tl_k=-tl_h.*k.^2.*sech(k.*h).^2./(tanh(k.*h)+k.*h.*sech(k.*h).^2) ...
-     + 2*omega/g./(tanh(k.*h)+k.*h.*sech(k.*h).^2)*tl_omega;
+     + 2*omega/g./(tanh(k.*h) ...
+     + k.*h.*sech(k.*h).^2).*tl_omega;
 tl_c=-omega./k.^2.*tl_k + tl_omega./k;
 % n= .5* + k.*h./sinh(2*k.*h);
 tl_n = tl_k.*h./sinh(2*k.*h) + k.*tl_h./sinh(2*k.*h) ...
