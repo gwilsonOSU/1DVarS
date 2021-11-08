@@ -80,11 +80,12 @@ Ttu_param_vec = init;
 h_vec = init;
 k_vec = init;
 omega_vec = init;
+c_vec = init;
 
 cell_init = cell(1,length(upzc)-1);
 u_param = cell_init;
 t_param = cell_init;
-
+udelta_cell = cell_init;
 
 % loop to calculate other inputs and q
 for i = 1:(length(upzc)-1)
@@ -99,6 +100,7 @@ for i = 1:(length(upzc)-1)
     if r >= 0.9
         % udelta as mean of u at rough start of wave 
         udelta = [u_mean(upzc(i)),0];
+        udelta_cell{1,i} = udelta;
         
         % uhat, uhatc, and uhatt based on definitions
         uhat = sqrt(2*mean(wave_u.^2));
@@ -168,6 +170,7 @@ for i = 1:(length(upzc)-1)
         k_vec(1,i) = k;
         kabs = k;
         c = omega/k;
+        c_vec(1,i) = c;
         
         % calculate q
         q_vec(1,i) = qtrans_vanderA_onewave_ja(d50,d90,wsc,wst,udelta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,param);
@@ -209,7 +212,7 @@ for i = 1:(length(upzc)-1)
         Tt_vec(1,i) = NaN;
         Ttu_vec(1,i) = NaN;
         Tcu_vec(1,i) = NaN;
-        % q_vec(1,i) = NaN;
+        q_vec(1,i) = NaN;
         H_vec(1,i) = NaN;
         breaking(1,i) = NaN;
         q_param_vec(1,i) = NaN;
@@ -225,6 +228,8 @@ for i = 1:(length(upzc)-1)
         h_vec(1,i) = NaN;
         k_vec(1,i) = NaN;
         omega_vec(1,i) = NaN;
+        c_vec(1,i) = NaN;
+        udelta_cell{1,i} = [NaN NaN];
     end
 end
 
@@ -252,6 +257,7 @@ ylabel('transport (m^2/s)')
 yline(0)
 legend('inputs from data','parameterized inputs','breaking waves')
 
+%%
 % scatter q vs q
 figure(2)
 scatter(q_vec,q_param_vec,'k','filled')
@@ -263,12 +269,13 @@ xline(0,'--')
 title('transport calculated from parameterization vs transport calculated from field data')
 xlabel('transport based on inputs from field data (m^2/s)')
 ylabel('transport based on parameterized inputs (m^2/s)')
-x_trend = linspace(-limit,limit);
-y_trend = x_trend;
+x_onetoone = linspace(-limit,limit);
+y_onetoone = x_onetoone;
 hold on
-plot(x_trend,y_trend,'--k')
+plot(x_onetoone,y_onetoone,'--k')
 hold off
 
+%%
 % scatter data inputs v parameterized inputs
 data_inputs = [Tc_vec; uhat_vec; Tt_vec; uhatc_vec; Tcu_vec; uhatt_vec; Ttu_vec];
 param_inputs = [Tc_param_vec; uhat_param_vec; Tt_param_vec; uhatc_param_vec; Tcu_param_vec; uhatt_param_vec; Ttu_param_vec;];
@@ -282,25 +289,20 @@ for i = 1:7
     scatter(data_inputs(i,:),param_inputs(i,:),'k','filled')
     title(title_array(i))
     limit = max(abs([data_inputs(i,:) param_inputs(i,:)]));
-    if i == 7
-        ylim([-limit limit])
-        xlim([0 limit])
-    else
-        ylim([0 limit])
-        xlim([0 limit])
-    end
+    ylim([0 limit])
+    xlim([0 limit])
     yline(0,'--')
     xline(0,'--')
     xlabel('inputs from data')
     ylabel('parameterized inputs')
-    x_trend = linspace(-limit,limit);
-    y_trend = x_trend;
+    x_onetoone = linspace(-limit,limit);
+    y_onetoone = x_onetoone;
     hold on
-    plot(x_trend,y_trend,'--k')
+    plot(x_onetoone,y_onetoone,'--k')
     hold off
 end
 
-
+%%
 % plots a set of chosen waves
 k = [14    29    64    92   134   162   202   222   230];
 r = ceil(length(k)/2);
@@ -356,14 +358,103 @@ for j = 1:length(k)
     hold off
     yline(0)
     xline(t01,'--')
-    xline(wave_t(1)+Tc_param_vec(i),'--b')
+    % xline(wave_t(1)+Tc_param_vec(i),'--b')
     xline(wave_t(maxcrestidx),':')
-    xline(wave_t(1)+Tcu_param_vec(i),':b')
+    % xline(wave_t(1)+Tcu_param_vec(i),':b')
     xline(wave_t(mintroughidx+length(wave_t)-length(trough)),'-.')
-    xline(wave_t(1)+Tc_param_vec(i)+Ttu_param_vec(i),'-.b')
+    % xline(wave_t(1)+Tc_param_vec(i)+Ttu_param_vec(i),'-.b')
     title(['wave ' num2str(i)])
     if j==1
         legend('real velocity', 'real pressure','parameterized velocity')
     else
     end
 end
+
+%%
+% swaps inputs one at a time
+
+% rearranging inputs for grouping
+data_inputs_swap(1,:) = data_inputs(1,:);
+data_inputs_swap(2,:) = data_inputs(3,:);
+data_inputs_swap(3,:) = data_inputs(2,:);
+data_inputs_swap(4,:) = data_inputs(4,:);
+data_inputs_swap(5,:) = data_inputs(6,:);
+data_inputs_swap(6,:) = data_inputs(5,:);
+data_inputs_swap(7,:) = data_inputs(7,:);
+
+param_inputs_swap(1,:) = param_inputs(1,:);
+param_inputs_swap(2,:) = param_inputs(3,:);
+param_inputs_swap(3,:) = param_inputs(2,:);
+param_inputs_swap(4,:) = param_inputs(4,:);
+param_inputs_swap(5,:) = param_inputs(6,:);
+param_inputs_swap(6,:) = param_inputs(5,:);
+param_inputs_swap(7,:) = param_inputs(7,:);
+
+input_matrix = data_inputs_swap; % initializing w inputs from data
+
+q_vec_inputswap = zeros(5,236);
+for j = 1:5 
+    if j <= 2
+        input_matrix(j,:) = param_inputs_swap(j,:); % swaps Tc or Tt
+        input_matrix(j+5,:) = param_inputs_swap(j+5,:); % swaps Tcu or Ttu
+    else
+        input_matrix(j,:) = param_inputs_swap(j,:);
+    end
+    for i = 1:length(upzc)-2 
+        if ~isnan(c_vec(i)) == 1 % checking for NaN
+            % these two inputs don't change
+            udelta = udelta_cell{i};
+            c = c_vec(i);
+            
+            % inputs that might be swapped:
+            Tc = input_matrix(1,i);
+            Tt = input_matrix(2,i);
+            uhat = input_matrix(3,i);
+            uhatc = input_matrix(4,i);
+            uhatt = input_matrix(5,i);
+            Tcu = input_matrix(6,i);
+            Ttu = input_matrix(7,i);
+            
+            % calculate new q
+            q_vec_inputswap(j,i) = qtrans_vanderA_onewave_ja(d50,d90,wsc,wst,udelta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,param);
+        else
+            q_vec_inputswap(j,i) = NaN;
+        end
+    end
+    input_matrix = data_inputs_swap; % resets to data inputs after calculating q
+end
+
+title_array_swap = ["Tc and Tcu" "Tt and Ttu" "uhat" "uhatc" "uhatt"];
+
+figure(5)
+tiledlayout(3,2)
+
+for i = 1:5
+    nexttile
+    scatter(q_vec(1:end-1),q_vec_inputswap(i,:),'k','filled')
+    % limit = max(abs([q_vec(1:end-1) q_vec_inputswap(i,:)]));
+    limit = 1E-4;
+    ylim([-limit limit])
+    xlim([-limit limit])
+    yline(0,'--')
+    xline(0,'--')
+    title(title_array_swap(i))
+    xlabel('q - all inputs from data')
+    ylabel('q - one parameterized input')
+    x_onetoone = linspace(-limit,limit);
+    y_onetoone = x_onetoone;
+    hold on
+    plot(x_onetoone,y_onetoone,'--k')
+    hold off
+end
+
+%%
+
+figure(6)
+plot(x(1:end-1),q_vec(1:end-1),'-o',x(1:end-1),q_vec_inputswap(1,:),'-o',x(1:end-1),q_vec_inputswap(2,:),'-o',...
+    x(1:end-1),q_vec_inputswap(3,:),'-o',x(1:end-1),q_vec_inputswap(4,:),'-o',x(1:end-1),q_vec_inputswap(5,:),'-o')
+legend(["data",title_array_swap])
+title('net transport swapping one parameter at a time')
+xlabel('wave identifier')
+ylabel('transport (m^2/s)')
+yline(0)
