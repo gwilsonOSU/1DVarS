@@ -2,11 +2,10 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 %
 % [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 %
-% Calculates transport following van der A (2013)
+% Calculates transport following van der A (2013).  This version 
 %
 % The following effects are neglected:
-% - wave angle is not considered in calculating wave-related velocities.
-%   See TODO notes in comments, and there may be other places
+
 %
 % INPUTS:
 %
@@ -17,6 +16,9 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 % kabs  : wavenumber, scalar, rad/m
 % omega : wave frequency, rad/m
 % udelta: near-bed mean velocity, m/s
+%         Note: wave angle is assumed to be zero in this code.  To
+%         incorporate a nonzero wave angle, you should rotate udelta to
+%         align with the wave direction.
 % ws    : sediment settling velocity, m/s
 % param.{alpha,xi,m,n}: tuning parameters struct
 %        alpha: phase lag effect, eqns (24)-(28).  Default 8.2
@@ -26,7 +28,8 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 %
 % OUTPUTS:
 %
-% qs: total sediment transport flux in m2/s
+% qs: total sediment transport flux in m2/s.  A factor 1/(1-psed) is
+% included so qs is in terms of bed volume, not sediment volume.
 %
 % workspc: this is intended only for passing internally to
 % {tl,ad}_qtrans_vanderA.m, not for end-user.  Note it is a vector of
@@ -128,6 +131,16 @@ nlambda=neta;
 eta=ahat*meta*neta*(.275-.022*psihat^.42);
 lambda=ahat*mlambda*nlambda*(1.97-0.44*psihat^.21);
 
+% TEST: parameterization of Kranenburg et al. (2012) for boundary layer
+% streaming velocity.  Try using this to augment or replace the mean flow at
+% top of boundary layer.
+ks=.0082;  % Reniers et al. 2004, calibrated for Duck (Table 4)
+% U0 = uhat.^2./c.*( .345 + .7*(ahat/ks).^-.9 - .25./sinh(kabs.*h).^2*0 );
+U0 = 3/4*uhat.^2./c;  % longuet higgins 1958
+% udelta(1) = U0 + udelta(1);
+% udelta(1)=0;
+% udelta(2)=0;
+
 % shields parameter related parameters.  Requires solving a 5-eqn nonlinear
 % system, so this is done in its own code.
 udabs=sqrt(udelta(1)^2+udelta(2)^2);
@@ -147,7 +160,7 @@ else
 end
 fwdc=alpha*fd+(1-alpha)*fwc;  % eqn 18
 fwdt=alpha*fd+(1-alpha)*fwt;  % eqn 18
-ucrvec=utildecr*[+1 0]+udelta;  % eqn 12, TODO: wave angle?
+ucrvec=utildecr*[+1 0]+udelta;  % eqn 12.  Assumes x is wave direction.
 utrvec=utildetr*[-1 0]+udelta;  % eqn 13
 ucrabs=sqrt(ucrvec(1)^2+ucrvec(2)^2);
 utrabs=sqrt(utrvec(1)^2+utrvec(2)^2);
@@ -157,6 +170,7 @@ fwd = alpha*fd+(1-alpha)*fw;
 alphaw = 4/(3*pi);
 tauwRe = fwd*alphaw*uhat^3/2/c;
 streamingEffect = tauwRe/((s-1)*g*d50);  % eqns 15 and 22
+% streamingEffect=streamingEffect*0;  % TEST
 thetacx = abs(thetac)*ucrvec(1)/ucrabs + streamingEffect;  % eqn 15
 thetatx = abs(thetat)*utrvec(1)/utrabs + streamingEffect;  % eqn 15
 

@@ -3,7 +3,7 @@
 %
 clear
 
-load ../../../waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
+load ~wilsongr/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
 waves=posterior;
 
 % choose a gridpoint and make a realistic background state
@@ -18,7 +18,7 @@ phs=linspace(0,2*pi,1000);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
-n=10;
+n=5;
 F = eps*rand(4,n);  % 1st dim is number of tl input parameters
 for i=1:n
   % TL model: TL*F

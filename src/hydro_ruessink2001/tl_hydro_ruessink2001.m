@@ -1,6 +1,4 @@
-function [tl_H,tl_theta,tl_v,tl_k,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw,tl_detady,tl_dgamma,bkgd)%,outvar)
-%
-% [tl_H,tl_theta,tl_v,tl_k,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_detady,tl_dgamma,bkgd)
+function [tl_H,tl_theta,tl_v,tl_k,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw2d,tl_detady,tl_dgamma,bkgd);%,outvar)
 %
 % TL-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
 % directly from output of hydro_ruessink2001.m
@@ -54,12 +52,12 @@ if(~exist('dgamma'))
   tl_dgamma=zeros(nx,1);
 end
 
-tl_tauw=tl_tauw(:,2);
+tl_tauw=tl_tauw2d(:,2);  % for compatibility reasons
 
 % dispersion
 tl_k=-tl_h.*k.^2.*sech(k.*h).^2./(tanh(k.*h)+k.*h.*sech(k.*h).^2) ...
-     + 2*omega/g./(tanh(k.*h) ...
-     + k.*h.*sech(k.*h).^2).*tl_omega;
+     + 2*omega/g./( tanh(k.*h) ...
+     + k.*h.*sech(k.*h).^2 ).*tl_omega;
 tl_c=-omega./k.^2.*tl_k + tl_omega./k;
 % n= .5* + k.*h./sinh(2*k.*h);
 tl_n = tl_k.*h./sinh(2*k.*h) + k.*tl_h./sinh(2*k.*h) ...
@@ -80,7 +78,7 @@ if(gammaType==2001)
   gamma=0.5+0.4*tanh(33*s0);
   tl_gamma=0.4*sech(33*s0).^2.*33*tl_s0;
   gamma=ones(nx,1)*gamma;
-  tl_gamma=ones(nx,1)*gamma;
+  tl_gamma=ones(nx,1)*tl_gamma;
 elseif(gammaType==2003)
   gamma=0.76*k.*h+0.29;
   tl_gamma = 0.76*tl_k.*h + 0.76*k.*tl_h;
@@ -134,6 +132,7 @@ for i=2:nx
     tl_Qb(i-1)=tl_Qo-2*B*tl_B*nums/dens ...
         -B^2*tl_nums/dens + B^2*nums/dens^2*tl_dens;
   else
+    Qb(i-1)=1;
     tl_Qb(i-1)=0;
   end
 
@@ -182,17 +181,17 @@ for i=2:nx
         + 2*g*tl_Er(i-1)*sin(beta(i-1))/c(i-1) ...
         + 2*g*Er(i-1)*cos(beta(i-1))/c(i-1)*tl_beta(i-1) ...
         - 2*g*Er(i-1)*sin(beta(i-1))/c(i-1)^2*tl_c(i-1);
-    tl_nums = ...
-        + 2*tl_Er(i-1)*c(i-1)*cos(theta(i-1)) ...
-        + 2*Er(i-1)*tl_c(i-1)*cos(theta(i-1)) ...
-        - 2*Er(i-1)*c(i-1)*sin(theta(i-1))*tl_theta(i-1) ...
-        + dx*(tl_Db(i-1)-tl_Dr(i-1));
-    tl_denoms = ...
-        + 2*tl_c(i)*cos(theta(i)) ...
-        - 2*c(i)*sin(theta(i))*tl_theta(i);
     if(Er(i)<0)
       tl_Er(i)=0;
     else
+      tl_nums = ...
+          + 2*tl_Er(i-1)*c(i-1)*cos(theta(i-1)) ...
+          + 2*Er(i-1)*tl_c(i-1)*cos(theta(i-1)) ...
+          - 2*Er(i-1)*c(i-1)*sin(theta(i-1))*tl_theta(i-1) ...
+          + dx*(tl_Db(i-1)-tl_Dr(i-1));
+      tl_denoms = ...
+          + 2*tl_c(i)*cos(theta(i)) ...
+          - 2*c(i)*sin(theta(i))*tl_theta(i);
       tl_Er(i) = tl_nums/denoms - nums/denoms^2*tl_denoms;
     end
   end  % roller
@@ -236,8 +235,7 @@ A(nx,nx-1:nx)=[1 -2]/dx^2*nu*h(nx);
 
 % bottom stress model following Ruessink et al. (2001), Feddersen et
 % al. (2000).  To get TL model, differentiate the eqn for v (i.e., the
-% fsolve() line in waveModel.m) on both sides, then solve for
-% tl_v
+% fsolve() line in waveModel.m) on both sides, then solve for tl_v
 a=1.16;  % empirical constant
 Cd=0.015*(ka_drag./h).^(1/3);
 tl_Cd=0.015*(1/3)*(ka_drag./h).^(-2/3).*(-ka_drag./h.^2.*tl_h+tl_ka_drag./h);
@@ -254,11 +252,12 @@ else
   tl_v = inv(diag(dens)+A)*tl_N;  % tl_N = (dens + A) * tl_v
 end
 
-% % TEST: look at a specific variable
-% tl_H=eval(['tl_' outvar]);
+% % TEST-CODE: override output variable
+% eval(['tl_H = tl_' outvar ';']);
 % tl_theta=zeros(nx,1);
-% tl_v=zeros(nx,1);
-% tl_k=zeros(nx,1);
-% tl_Ew=zeros(nx,1);
-% tl_Er=zeros(nx,1);
-% tl_Dr=zeros(nx,1);
+% tl_v    =zeros(nx,1);
+% tl_k    =zeros(nx,1);
+% tl_Ew   =zeros(nx,1);
+% tl_Er   =zeros(nx,1);
+% tl_Dr   =zeros(nx,1);
+

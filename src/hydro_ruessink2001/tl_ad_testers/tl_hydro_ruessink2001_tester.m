@@ -4,22 +4,24 @@
 addpath ..
 clear
 
-addpath ./example_inputOutput/assim_1dh_output_oct.mat
+load ~wilsongr/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
 waves=posterior;
 physicalConstants;
 
 % define input variables
 x=waves.x;
+nx=length(x);
 h=flipud(filtfilt(ones(5,1)/5,1,waves.h));
 H0=waves.H0;
 theta0=waves.theta0;
 omega=waves.sigma;
 ka_drag=waves.ka_drag;
-tauw=ones(length(x),1)*.001;
-detady=zeros(length(x),1)*.001;
+tauw=ones(nx,2)*.001;
+detady=zeros(nx,1)*.001;
+dgamma=zeros(nx,1);
 
 % background NL model run
-[Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady);
+[Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma);
 
 % choose perturbations
 frac_tl = 0.01;
@@ -31,6 +33,7 @@ tl_omega  =omega  *frac_tl*myrand();
 tl_ka_drag=ka_drag*frac_tl*myrand();
 tl_tauw   =tauw   *frac_tl*myrand();
 tl_detady =detady *frac_tl*myrand();
+tl_dgamma =dgamma *frac_tl*myrand();
 
 % re-run NL model with perturbed background variables
 [Hrms_prime,theta_prime,vbar_prime,kabs_prime,Ew_prime,Er_prime,Dr_prime] = ...
@@ -41,11 +44,12 @@ tl_detady =detady *frac_tl*myrand();
                        omega  +tl_omega  ,...
                        ka_drag+tl_ka_drag,...
                        tauw   +tl_tauw   ,...
-                       detady +tl_detady );
+                       detady +tl_detady ,...
+                       dgamma +tl_dgamma );
 
 % run TL model
 [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
-    tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw,tl_detady,bkgd);
+    tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw,tl_detady,tl_dgamma,bkgd);
 
 % check results
 clf

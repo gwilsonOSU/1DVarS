@@ -9,7 +9,7 @@ ws=ws_brownLawler(d50);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
-n=10;
+n=5;
 F = eps*rand(1,n);  % 1st dim is number of tl input parameters
 for i=1:n
   % TL model: TL*F

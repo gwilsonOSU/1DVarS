@@ -1,6 +1,7 @@
 function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout] = ...
-    tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,...
-                  tl_d50,tl_d90,tl_params,bkgd)
+    tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,...
+                     tl_detady,tl_dgamma,...
+                     tl_d50,tl_d90,tl_params,bkgd)%,outvar)
 
 % sub-stepping loop
 tl_hp(:,1) = tl_h;  % init t=0
@@ -9,7 +10,7 @@ for n=1:bkgd(1).nsubsteps
   [tl_Hrms(:,n),tl_vbar(:,n),tl_theta(:,n),tl_kabs(:,n),...
    tl_Qx(:,n),tl_hp(:,n+1)] = ...
       tl_hydroSedModel_main(tl_hp(:,n),tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,...
-                         tl_dgamma,tl_d50,tl_d90,tl_params,bkgd(n));
+                         tl_dgamma,tl_d50,tl_d90,tl_params,bkgd(n));%,outvar);
 end
 
 % drop initial condition from hpout
@@ -22,7 +23,7 @@ end  % end wrapper function (for sub-stepping loop logic)
 % begin main function, for single time step
 function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hp] = ...
     tl_hydroSedModel_main(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,...
-                  tl_d50,tl_d90,tl_params,bkgd)
+                  tl_d50,tl_d90,tl_params,bkgd)%,outvar)
 
 physicalConstants;
 
@@ -150,5 +151,18 @@ tl_dh(isnan(dh))=0;
 tl_hp = tl_h + tl_dh;
 
 end  % catch for special case dt==0
+
+% % TEST-CODE: override output variable
+% if((length(outvar)>=6 & strcmp(outvar(1:6),'udelta')) | strcmp(outvar,'ubar'))
+%   eval(['tl_Hrms = tl_' outvar '(:,2);']);
+%   eval(['tl_' outvar '(:,1)=0;']);
+% else
+%   eval(['tl_Hrms = tl_' outvar ';']);
+% end
+% tl_vbar =zeros(nx,1);
+% tl_theta=zeros(nx,1);
+% tl_kabs =zeros(nx,1);
+% tl_Qx   =zeros(nx,1);
+% tl_hp   =zeros(nx,1);
 
 end  % main function for single time step

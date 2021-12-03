@@ -2,20 +2,25 @@ function [qs,workspc]=qtrans_vanderA_onewave(d50,d90,wsc,wst,udelta,uhat,uhatc,u
 %
 % [qs,workspc]=qtrans_vanderA(d50,d90,wsc,wst,udelta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,param)
 %
-% Calculates transport following van der A (2013)
-%
-% The following effects are neglected:
-% - vertical velocities (w_min = w_max = 0 in eqns 29-30).  Hence, this is for tunnel flow ONLY.
-% - wave angle is not considered in calculating wave-related velocities.
-%   See TODO notes in comments, and there may be other places
+% Calculates transport following van der A (2013).  This version is for a
+% single wave with measured wave shape parameters (uhat,uhatc,T,Tc,etc etc).
+% If you only have bulk wave parameters (Hrms,omega), you can instead use
+% qtrans_vanderA.m.
 %
 % INPUTS:
 %
 % d50   : in meters
 % d90   : in meters 
 % wsc,wst : particle settling velocities under crest and trough, m/s,
-%           potentially including a correction for orbital velocity
-% udelta: near-bed mean velocity, 2x1 vector, m/s
+%           potentially including a correction for orbital velocity.  Note:
+%           If you don't have measurements these can be estimated from wave
+%           parameters instead; refer to the implementation in
+%           qtrans_vanderA.m as an example.
+% udelta: near-bed mean velocity, 2x1 vector, m/s.  Note: wave angle is
+%         assumed to be zero in this code.  To incorporate a nonzero wave
+%         angle, you should rotate udelta to align with the wave direction.
+%         An example of doing this can be found in hydroSedModel.m provided
+%         with the 1DVarS code repository.
 % uhat=sqrt(2*mean(uw.^2)) : rms wave velocity for full wave cycle, eqn 8, m/s
 % uhatc=max(uw) : max velocity under crest, see text below eqn 7, m/s
 % uhatt=min(uw) : max velocity under trough (positive valued), m/s
@@ -33,11 +38,12 @@ function [qs,workspc]=qtrans_vanderA_onewave(d50,d90,wsc,wst,udelta,uhat,uhatc,u
 %
 % OUTPUTS:
 %
-% qs: total sediment transport flux in m2/s
+% qs: total sediment transport flux in m2/s.  This code does not include any
+% correction for bed porosity, so qs is volume of sediment per unit time per
+% unit alongshore distance.
 %
-% workspc: this is intended only for passing internally to
-% {tl,ad}_qtrans_vanderA.m, not for end-user.  Note it is a vector of
-% structs, each of which contains bkgd NL variables.
+% workspc: this is intended for passing internally to TL-AD codes, not for
+% end-user.
 %
 %     If you wish to get user access to output variables other than q, it
 %     would probably be better to add them to the list of outputs rather
@@ -47,7 +53,6 @@ function [qs,workspc]=qtrans_vanderA_onewave(d50,d90,wsc,wst,udelta,uhat,uhatc,u
 physicalConstants;
 
 % fixed constants
-nt=1000;  % for calculation of intra-wave velocity
 delta=0.2;  % fixed delta=0.2m, per VDA paper
 
 % critical shields param, Soulsby
@@ -167,7 +172,7 @@ end
 qsc=sqrt(abs(thetac)).*Tc.*(Omegacc+Tc./(2*Tcu).*Omegatc).*thetacx./abs(thetac);
 qst=sqrt(abs(thetat)).*Tt.*(Omegatt+Tt./(2*Ttu).*Omegact).*thetatx./abs(thetat);
 qs = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3);
-qs = qs/(1-psed);  % account for bed porosity
+% qs = qs/(1-psed);  % account for bed porosity
 
 % save all relevant variables for passing to TL model
 if(nargout>1)

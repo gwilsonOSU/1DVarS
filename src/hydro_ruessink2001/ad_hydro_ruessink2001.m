@@ -1,4 +1,4 @@
-function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw,ad_detady,ad_dgamma]=ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,bkgd)%,invar)
+function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw2d,ad_detady,ad_dgamma]=ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,bkgd)%,invar)
 %
 % AD-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
 % directly from output of hydro_ruessink2001.m
@@ -102,7 +102,7 @@ dens = -urms.*Cd - v.^2.*Cd./urms./B;
 
 % mixing operator
 A=zeros(nx);
-for i=2:nx-1  % define mixing operator
+for i=2:nx-1
   A(i,i+[-1:1])=[1 -2 1]/dx^2*nu*h(i);
 end
 A(1,1:2)=0; %[-2 1]/dx^2*nu*h(1);
@@ -427,7 +427,9 @@ ad_h=ad_h-ad_k.*k.^2.*sech(k.*h).^2./(tanh(k.*h)+k.*h.*sech(k.*h).^2);
 ad_omega = ad_omega + sum(2*omega/g./(tanh(k.*h)+k.*h.*sech(k.*h).^2).*ad_k);
 ad_k=0;
 
-ad_tauw(:,2)=ad_tauw;  % for compatibility reasons
+% tl_tauw=tl_tauw2d(:,2);  % for compatibility reasons
+ad_tauw2d(:,2)=ad_tauw;
+ad_tauw=zeros(nx,1);
 
 if(strcmp(betaType,'const') | strcmp(betaType,'none'))
   ad_beta=zeros(nx,1);

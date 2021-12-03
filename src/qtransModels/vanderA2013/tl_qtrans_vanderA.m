@@ -19,13 +19,106 @@ function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omeg
 
 physicalConstants;
 
-% break out NL background vars
-fld=fields(bkgd);
-for i=1:length(fld)
-  eval([fld{i} ' = bkgd.' fld{i} ';']);
-end
-alpha=bkgd.alpha;
-mu=bkgd.mu;
+% % v1, break out NL background vars. This version uses eval() and is a bit slow.
+% fld=fields(bkgd);
+% for i=1:length(fld)
+%   eval([fld{i} ' = bkgd.' fld{i} ';']);
+% end
+% alpha=bkgd.alpha;
+% mu=bkgd.mu;
+
+% v2, Break out NL background vars. Note this hard-coded version runs
+% significantly faster than if I use eval() to dynamically load all bkgd
+% variables
+Dstar       =bkgd.Dstar       ;
+Hmo         =bkgd.Hmo         ;
+Hrms        =bkgd.Hrms        ;
+Omegac      =bkgd.Omegac      ;
+Omegacc     =bkgd.Omegacc     ;
+Omegact     =bkgd.Omegact     ;
+Omegat      =bkgd.Omegat      ;
+Omegatc     =bkgd.Omegatc     ;
+Omegatt     =bkgd.Omegatt     ;
+Pc          =bkgd.Pc          ;
+Pt          =bkgd.Pt          ;
+T           =bkgd.T           ;
+Tc          =bkgd.Tc          ;
+Tcu         =bkgd.Tcu         ;
+Tt          =bkgd.Tt          ;
+Ttu         =bkgd.Ttu         ;
+ahat        =bkgd.ahat        ;
+alpha       =bkgd.alpha       ;
+alphaw      =bkgd.alphaw      ;
+branch_A1   =bkgd.branch_A1   ;
+branch_A4   =bkgd.branch_A4   ;
+branch_A5   =bkgd.branch_A5   ;
+c           =bkgd.c           ;
+d50         =bkgd.d50         ;
+d90         =bkgd.d90         ;
+delta       =bkgd.delta       ;
+deltasc     =bkgd.deltasc     ;
+deltast     =bkgd.deltast     ;
+eta         =bkgd.eta         ;
+etawc       =bkgd.etawc       ;
+etawt       =bkgd.etawt       ;
+fd          =bkgd.fd          ;
+fw          =bkgd.fw          ;
+fwc         =bkgd.fwc         ;
+fwd         =bkgd.fwd         ;
+fwdc        =bkgd.fwdc        ;
+fwdt        =bkgd.fwdt        ;
+fwt         =bkgd.fwt         ;
+tauwRe      =bkgd.tauwRe      ;
+h           =bkgd.h           ;
+kabs        =bkgd.kabs        ;
+ksd         =bkgd.ksd         ;
+ksw         =bkgd.ksw         ;
+lambda      =bkgd.lambda      ;
+meta        =bkgd.meta        ;
+mlambda     =bkgd.mlambda     ;
+mu          =bkgd.mu          ;
+neta        =bkgd.neta        ;
+nlambda     =bkgd.nlambda     ;
+nt          =bkgd.nt          ;
+omega       =bkgd.omega       ;
+param       =bkgd.param       ;
+phi_r2012   =bkgd.phi_r2012   ;
+r_r2012     =bkgd.r_r2012     ;
+psed        =bkgd.psed        ;
+psihat      =bkgd.psihat      ;
+psihatc     =bkgd.psihatc     ;
+psihatt     =bkgd.psihatt     ;
+qs          =bkgd.qs          ;
+qsc         =bkgd.qsc         ;
+qst         =bkgd.qst         ;
+t           =bkgd.t           ;
+theta_av    =bkgd.theta_av    ;
+theta_cr    =bkgd.theta_cr    ;
+thetac      =bkgd.thetac      ;
+thetacx     =bkgd.thetacx     ;
+thetatx     =bkgd.thetatx     ;
+thetahatc   =bkgd.thetahatc   ;
+thetahatt   =bkgd.thetahatt   ;
+thetat      =bkgd.thetat      ;
+ucrabs      =bkgd.ucrabs      ;
+ucrvec      =bkgd.ucrvec      ;
+udabs       =bkgd.udabs       ;
+udelta      =bkgd.udelta      ;
+uhat        =bkgd.uhat        ;
+uhatc       =bkgd.uhatc       ;
+uhatt       =bkgd.uhatt       ;
+utildecr    =bkgd.utildecr    ;
+utildetr    =bkgd.utildetr    ;
+utrabs      =bkgd.utrabs      ;
+utrvec      =bkgd.utrvec      ;
+uw          =bkgd.uw          ;
+ws          =bkgd.ws          ;
+wsc         =bkgd.wsc         ;
+wst         =bkgd.wst         ;
+worbc       =bkgd.worbc       ;
+worbt       =bkgd.worbt       ;
+uwave_wksp  =bkgd.uwave_wksp  ;
+c1          =bkgd.c1          ;
 
 % derived params
 tl_Hmo=tl_Hrms*1.4;

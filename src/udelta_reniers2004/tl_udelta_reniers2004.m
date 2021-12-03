@@ -13,11 +13,68 @@ cd=0.002;   % stated in text
 fdelta=3;   % stated in text
 nintegral=100;  % number of gridpionts for sigma-integration
 
-% break out background vars
-fld=fields(bkgd);
-for i=1:length(fld)
-  eval([fld{i} ' = bkgd.' fld{i} ';']);
-end
+% % v1, break out NL background vars. This version uses eval() and is a bit slow.
+% fld=fields(bkgd);
+% for i=1:length(fld)
+%   eval([fld{i} ' = bkgd.' fld{i} ';']);
+% end
+
+% v2, Break out NL background vars. Note this hard-coded version runs
+% significantly faster than if I use eval() to dynamically load all bkgd
+% variables
+ubar        =bkgd.ubar        ;
+k           =bkgd.k           ;
+omega       =bkgd.omega       ;
+h           =bkgd.h           ;
+Hrms        =bkgd.Hrms        ;
+detady      =bkgd.detady      ;
+Dr          =bkgd.Dr          ;
+fv          =bkgd.fv          ;
+kabs        =bkgd.kabs        ;
+A           =bkgd.A           ;
+uorb        =bkgd.uorb        ;
+ks          =bkgd.ks          ;
+z0          =bkgd.z0          ;
+fw          =bkgd.fw          ;
+Df          =bkgd.Df          ;
+nubar_tb    =bkgd.nubar_tb    ;
+Hm0         =bkgd.Hm0         ;
+ht          =bkgd.ht          ;
+p1          =bkgd.p1          ;
+delta       =bkgd.delta       ;
+phi_b       =bkgd.phi_b       ;
+tau_wind    =bkgd.tau_wind    ;
+tau_wind    =bkgd.tau_wind    ;
+tau_wave    =bkgd.tau_wave    ;
+tau_t       =bkgd.tau_t       ;
+nubar_tflow =bkgd.nubar_tflow ;
+abs_tau_wind=bkgd.abs_tau_wind;
+nubar_twind =bkgd.nubar_twind ;
+nubar_twave =bkgd.nubar_twave ;
+nubar_t     =bkgd.nubar_t     ;
+nu_tsurf    =bkgd.nu_tsurf    ;
+sig_s       =bkgd.sig_s       ;
+phi_s       =bkgd.phi_s       ;
+nums        =bkgd.nums        ;
+dens        =bkgd.dens        ;
+sig_b       =bkgd.sig_b       ;
+sig_0       =bkgd.sig_0       ;
+l1d         =bkgd.l1d         ;
+l2d         =bkgd.l2d         ;
+Ab          =bkgd.Ab          ;
+Bbp         =bkgd.Bbp         ;
+Cbp         =bkgd.Cbp         ;
+Am          =bkgd.Am          ;
+alphab_bar  =bkgd.alphab_bar  ;
+betab_bar   =bkgd.betab_bar   ;
+alpham_bar  =bkgd.alpham_bar  ;
+betam_bar   =bkgd.betam_bar   ;
+alpha_bar   =bkgd.alpha_bar   ;
+beta_bar    =bkgd.beta_bar    ;
+F           =bkgd.F           ;
+Bb          =bkgd.Bb          ;
+Cb          =bkgd.Cb          ;
+udelta      =bkgd.udelta      ;
 
 %---------------------------------
 % begin TL code
