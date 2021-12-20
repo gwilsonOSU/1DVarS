@@ -112,7 +112,7 @@ nx=length(x);
 % tau_wind(:,2)=cd*rhoa*sqrt(w1).*windW(:,2);
 
 % 1DH wave and longshore current balance
-[Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
+[Hrms,theta,vbar,kabs,Ew,Er,Dr,Aw,Sw,Uw,hydro_bkgd] = ...
     hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma);
 
 % special case dt=0: in this case we are done since there is no morphology
@@ -189,7 +189,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
                             omega,theta,ubar,Dr,params);
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   [Q,bkgd_qtrans] = ...
-      qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta_w,ws,params);
+      qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta_w,ws,Aw,Sw,Uw,params);
 end
 Q=real(Q);
 

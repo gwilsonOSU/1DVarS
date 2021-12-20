@@ -14,6 +14,9 @@ ad_ka_drag=0;
 ad_tau_wind=zeros(nx,1);
 ad_detady=zeros(nx,1);
 ad_dgamma=zeros(nx,1);
+ad_Aw=zeros(nx,1);
+ad_Sw=zeros(nx,1);
+ad_Uw=zeros(nx,1);
 ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
 ad_params.fv =0;
@@ -124,6 +127,9 @@ ad_ka_drag=0;
 ad_tau_wind=zeros(nx,2);
 ad_detady=zeros(nx,1);
 ad_dgamma=zeros(nx,1);
+ad_Aw=zeros(nx,1);
+ad_Sw=zeros(nx,1);
+ad_Uw=zeros(nx,1);
 ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
 ad_params.fv =0;
@@ -282,7 +288,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   %15c1 tl_Q = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,...
   %                          tl_udelta,tl_ws,tl_params,bkgd_qtrans);
-  [ad1_d50,ad1_d90,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_params] = ...
+  [ad1_d50,ad1_d90,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_params] = ...
       ad_qtrans_vanderA(ad_Q,bkgd_qtrans);
   ad_d50        =ad_d50        +ad1_d50        ;
   ad_d90        =ad_d90        +ad1_d90        ;
@@ -297,6 +303,9 @@ elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   ad_params.m    =ad_params.m    +ad1_params.m    ;
   ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
   ad_params.alpha=ad_params.alpha+ad1_params.alpha;
+  ad_Aw    =ad_Aw    +ad1_Aw    ;
+  ad_Sw    =ad_Sw    +ad1_Sw    ;
+  ad_Uw    =ad_Uw    +ad1_Uw    ;
   ad_Q=0;
 end
 %14 tl_tanbeta = tl_calcTanbeta(tl_h,x)';
@@ -420,13 +429,12 @@ if(dt==0)
 else
 
 %2 1DH wave and longshore current balance
-% [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
+% [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr,tl_Aw,tl_Sw,tl_Uw] = ...
 %     tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,...
 %                           tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,...
 %                           bkgd.hydro_bkgd);
 [ad1_h,ad1_H0,ad1_theta0,ad1_omega,ad1_ka_drag,ad1_tau_wind,ad1_detady,ad1_dgamma] = ...
-    ad_hydro_ruessink2001(ad_Hrms,ad_theta,ad_vbar,ad_kabs,ad_Ew,ad_Er,ad_Dr,...
-                          bkgd.hydro_bkgd);
+    ad_hydro_ruessink2001(ad_Hrms,ad_theta,ad_vbar,ad_kabs,ad_Ew,ad_Er,ad_Dr,ad_Aw,ad_Sw,ad_Uw,bkgd.hydro_bkgd);
 ad_h      =ad_h      +ad1_h      ;
 ad_H0     =ad_H0     +ad1_H0     ;
 ad_theta0 =ad_theta0 +ad1_theta0 ;
@@ -442,6 +450,9 @@ ad_kabs =0;
 ad_Ew   =0;
 ad_Er   =0;
 ad_Dr   =0;
+ad_Aw   =0;
+ad_Sw   =0;
+ad_Uw   =0;
 
 %1 tl_h(imask)=0;  % min depth constraint
 ad_h(imask)=0;

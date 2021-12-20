@@ -60,7 +60,7 @@ for i=1:nx
   % using \tilde{U} and \tilde{u} (upper and lower case) interchangably for
   % "wave velocity".  There are a few other obvious sloppy notational errors
   % like using "omega_s" for fall velocity
-  [utilde(:,i),bkgd_uwave(i)]=Uwave_ruessink2012(omega*t,Hmo(i),kabs(i),omega,h(i));
+  [utilde(:,i),~,~,bkgd_uwave(i)]=Uwave_ruessink2012(omega*t,Hmo(i),kabs(i),omega,h(i));
   uH(:,i)=imag(hilbert(utilde(:,i)));
   Au_nums(i) = mean( uH(:,i).^3 );
   Au_dens_1(i) = mean( uH(:,i).^2 );  % == mean(utilde(:,i).^2)

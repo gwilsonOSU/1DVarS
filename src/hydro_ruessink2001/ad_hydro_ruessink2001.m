@@ -1,4 +1,4 @@
-function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw2d,ad_detady,ad_dgamma]=ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,bkgd)%,invar)
+function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw2d,ad_detady,ad_dgamma]=ad_hydro_ruessink2001(ad_H,ad_theta,ad_v,ad_k,ad_Ew,ad_Er,ad_Dr,ad_Aw,ad_Sw,ad_Uw,bkgd)%,invar)
 %
 % AD-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
 % directly from output of hydro_ruessink2001.m
@@ -32,6 +32,7 @@ Qb=bkgd.Qb;
 ka_drag=bkgd.ka_drag;
 detady=bkgd.detady;
 beta=bkgd.beta;
+uwave_wksp=bkgd.uwave_wksp;
 
 h(h<hmin)=hmin;  % min depth constraint
 
@@ -77,6 +78,7 @@ ad_L0=0;
 ad_c1=0;
 ad_omega=0;
 ad_beta=zeros(nx,1);
+ad_Hmo=zeros(nx,1);
 
 % % TEST: look at a specific variable
 % ad_theta=zeros(nx,1);
@@ -90,6 +92,19 @@ ad_beta=zeros(nx,1);
 % if(~strcmp(invar,'H'))
 %   ad_H=zeros(nx,1);
 % end
+
+% calculate coefficients for nonlinear wave shape
+for i=nx:-1:1
+  % [tl_Aw(i),tl_Sw(i),tl_Uw(i)]=tl_Uwave_ruessink2012_params(tl_Hmo(i),tl_k(i),tl_omega,tl_h(i),uwave_wksp(i));
+  [ad1_Hmo,ad1_k,ad1_omega,ad1_h]=ad_Uwave_ruessink2012_params(ad_Aw(i),ad_Sw(i),ad_Uw(i),uwave_wksp(i));
+  ad_Hmo(i)=ad_Hmo(i)+ad1_Hmo  ;
+  ad_k(i)  =ad_k(i)  +ad1_k    ;
+  ad_omega =ad_omega +ad1_omega;
+  ad_h(i)  =ad_h(i)  +ad1_h    ;
+end
+% tl_Hmo=tl_H*1.4;
+ad_H = ad_H + 1.4*ad_Hmo;
+ad_Hmo=0;
 
 %b7 % bottom stress model following Ruessink et al. (2001), Feddersen et
 % % al. (2000).  To get TL model, differentiate the eqn for v (i.e., the

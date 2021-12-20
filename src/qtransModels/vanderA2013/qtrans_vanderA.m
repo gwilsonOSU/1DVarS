@@ -1,6 +1,6 @@
-function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
+function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 %
-% [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
+% [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 %
 % Calculates transport following van der A (2013).  This version 
 %
@@ -20,6 +20,7 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 %         incorporate a nonzero wave angle, you should rotate udelta to
 %         align with the wave direction.
 % ws    : sediment settling velocity, m/s
+% Aw,Sw,Uw : wave shape params (as calcualted by Uwave_ruessink2012_params())
 % param.{alpha,xi,m,n}: tuning parameters struct
 %        alpha: phase lag effect, eqns (24)-(28).  Default 8.2
 %        xi   : phase lag effect, eqns (24)-(28).  Default 1.7.  O(1) according to Kranenburg (2013)
@@ -43,14 +44,14 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
 % this wrapper loop serves to handle vector inputs
 nx=length(h);
 for i=1:nx
-  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),param);
+  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),Aw(i),Sw(i),Uw(i),param);
 end
 qs=qs(:);
 workspc=workspc(:);
 
 end  % end of wrapper function, start of main function
 
-function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,Hrms,kabs,omega,udelta,ws,param)
+function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 
 physicalConstants;
 
@@ -65,7 +66,7 @@ c=omega/kabs;
 % intra-wave velocities using Ruessink et al. (2012).  Then extract stats
 % relevant to van Der A
 t=linspace(0,2*pi/omega,nt);
-[uw,uwave_wksp]=Uwave_ruessink2012(omega*t,Hmo,kabs,omega,h);
+[uw,uwave_wksp]=Uwave_ruessink2012(omega*t,Aw,Sw,Uw);
 r_r2012  =uwave_wksp.r  ;
 phi_r2012=uwave_wksp.phi;
 uhat=sqrt(2*mean(uw.^2));   % rms wave velocity for full wave cycle, eqn 8
@@ -134,12 +135,12 @@ lambda=ahat*mlambda*nlambda*(1.97-0.44*psihat^.21);
 % TEST: parameterization of Kranenburg et al. (2012) for boundary layer
 % streaming velocity.  Try using this to augment or replace the mean flow at
 % top of boundary layer.
-ks=.0082;  % Reniers et al. 2004, calibrated for Duck (Table 4)
+% ks=.0082;  % Reniers et al. 2004, calibrated for Duck (Table 4)
 % U0 = uhat.^2./c.*( .345 + .7*(ahat/ks).^-.9 - .25./sinh(kabs.*h).^2*0 );
-U0 = 3/4*uhat.^2./c;  % longuet higgins 1958
+% U0 = 3/4*uhat.^2./c;  % longuet higgins 1958
 % udelta(1) = U0 + udelta(1);
-% udelta(1)=0;
-% udelta(2)=0;
+% udelta(1)=udelta(1)/4;  % TEST
+% udelta(2)=0;  % TEST
 
 % shields parameter related parameters.  Requires solving a 5-eqn nonlinear
 % system, so this is done in its own code.
@@ -169,8 +170,20 @@ thetat=.5*fwdt.*utrabs.^2/((s-1)*g*d50);  % eqn 17
 fwd = alpha*fd+(1-alpha)*fw;
 alphaw = 4/(3*pi);
 tauwRe = fwd*alphaw*uhat^3/2/c;
+
+% % TEST: override VDA streaming with that of Nielsen (2006)
+% f25 = exp(5.5*(2.5*d50/ahat)^.2-6.3);
+% theta25 = 0.5*f25*(ahat*omega)^2/((s-1)*g*d50);
+% r = 170*sqrt(max(0,theta25-0.05))*d50;
+% fws = exp(5.5*(r/ahat)^.2-6.3);
+% tauwRe = fws*alphaw*uhat^3/2/c;
+
 streamingEffect = tauwRe/((s-1)*g*d50);  % eqns 15 and 22
-% streamingEffect=streamingEffect*0;  % TEST
+
+% % TEST: artificially alter streaming with constant factor
+% streamingEffect=streamingEffect*8;
+
+% apply streaming to bottom stress
 thetacx = abs(thetac)*ucrvec(1)/ucrabs + streamingEffect;  % eqn 15
 thetatx = abs(thetat)*utrvec(1)/utrabs + streamingEffect;  % eqn 15
 
@@ -187,10 +200,6 @@ else
   deltasc=(d50)*13*thetahatc;
   deltast=(d50)*13*thetahatt;
 end
-
-% Use stokes 2nd order theory to get vertical fluid velocities and correct
-% settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
-% simply ported from COAWST code.
 if(eta==0)
   etawc=deltasc;
   etawt=deltast;
@@ -198,21 +207,67 @@ else
   etawc=eta;
   etawt=eta;
 end
-b=1/r_r2012*(1-sqrt(1-r_r2012^2));  % see MD2012, line after eqn 13b
-RR=0.5*(1+b*sin(-phi_r2012));  % see MD2012, eqn 17, note their phi convention is negated
-worb1c=pi*Hmo*etawc/(T*h);
-worb1t=pi*Hmo*etawt/(T*h);
-worb2c=2*worb1c*(2*RR-1);
-worb2t=2*worb1t*(2*RR-1);
-worbc = .125*worb1c*sqrt(64-(-worb1c+sqrt(worb1c^2+32*worb2c^2))^2/(worb2c^2)) ...
-       + worb2c*sin(2*acos(.125*(-worb1c+sqrt(worb1c^2+32*worb2c^2))/worb2c));
-worbt = .125*worb1t*sqrt(64-(-worb1t+sqrt(worb1t^2+32*worb2t^2))^2/(worb2t^2)) ...
-       + worb2t*sin(2*acos(.125*(-worb1t+sqrt(worb1t^2+32*worb2t^2))/worb2t));
 
-% % old version: Use linear theory transfer function to get vertical fluid velocities
+% % v0: Use linear theory transfer function to get vertical fluid velocities
 % worbc=+max(etawc/c*diff(uw)./diff(t));
 % worbt=-min(etawt/c*diff(uw)./diff(t));
 
+% % Use stokes 2nd order theory to get vertical fluid velocities and correct
+% % settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
+% % simply ported from COAWST code.  NOTE, it is a bit odd to do hydrodynamic
+% % calculations in qtrans_vanderA (by convention, hydro stuff is ideally done
+% % by callers of this function), but the code can't be easily moved outside
+% % because it uses ripple height as input.
+% %
+% % TODO: This code is breaking TL-AD symmetry.  Need to rewrite TL-AD.
+% %
+% b=1/r_r2012*(1-sqrt(1-r_r2012^2));  % see MD2012, line after eqn 13b
+% RR=0.5*(1+b*sin(-phi_r2012));  % see MD2012, eqn 17, note their phi convention is negated
+% worb1c=pi*Hmo*etawc/(T*h);
+% worb1t=pi*Hmo*etawt/(T*h);
+% worb2c=2*worb1c*(2*RR-1);
+% worb2t=2*worb1t*(2*RR-1);
+% t1ca = worb1c^2 + 32*worb2c^2;
+% t1ta = worb1t^2 + 32*worb2t^2;
+% t1cb = worb1c - sqrt(t1ca);
+% t1tb = worb1t - sqrt(t1ta);
+% t1c = 64 + t1cb^2/worb2c^2;
+% t1t = 64 + t1tb^2/worb2t^2;
+% t2cb = -worb1c + sqrt( worb1c^2 + 32*worb2c^2 );
+% t2tb = -worb1t + sqrt( worb1t^2 + 32*worb2t^2 );
+% t2ca = .125*t2cb/worb2c;
+% t2ta = .125*t2tb/worb2t;
+% t2c = 2*acos(t2ca);
+% t2t = 2*acos(t2ta);
+% worbc = .125*worb1c*sqrt(t1c) + worb2c*sin(t2c);
+% worbt = .125*worb1t*sqrt(t1t) + worb2t*sin(t2t);
+
+% TODO: for now, set variables in the above block to zero, until I can get
+% the TL-AD fixed.
+b=nan;
+RR=nan;
+worb1c=nan;
+worb1t=nan;
+worb2c=nan;
+worb2t=nan;
+t1ca=nan;
+t1ta=nan;
+t1cb=nan;
+t1tb=nan;
+t1c=nan;
+t1t=nan;
+t2cb=nan;
+t2tb=nan;
+t2ca=nan;
+t2ta=nan;
+t2c=nan;
+t2t=nan;
+worbc=nan;
+worbt=nan;
+worbc=0;  % temporary fix
+worbt=0;  % temporary fix
+
+% apply orbital vels to adjust sediment velocity
 wsc=max(ws-worbc,0.001);
 wst=max(ws+worbt,0.001);
 
@@ -355,7 +410,30 @@ if(nargout>1)
   vname{end+1}='worbc';
   vname{end+1}='worbt';
   vname{end+1}='uwave_wksp';
+  vname{end+1}='Aw';
+  vname{end+1}='Sw';
+  vname{end+1}='Uw';
   vname{end+1}='c1';
+  vname{end+1}='b';
+  vname{end+1}='RR';
+  vname{end+1}='worb1c';
+  vname{end+1}='worb1t';
+  vname{end+1}='worb2c';
+  vname{end+1}='worb2t';
+  vname{end+1}='t1ca';
+  vname{end+1}='t1ta';
+  vname{end+1}='t1cb';
+  vname{end+1}='t1tb';
+  vname{end+1}='t1c';
+  vname{end+1}='t1t';
+  vname{end+1}='t2cb';
+  vname{end+1}='t2tb';
+  vname{end+1}='t2ca';
+  vname{end+1}='t2ta';
+  vname{end+1}='t2c';
+  vname{end+1}='t2t';
+  vname{end+1}='worbc';
+  vname{end+1}='worbt';
   workspc=struct;
   for i=1:length(vname)
     workspc=setfield(workspc,vname{i},eval(vname{i}));

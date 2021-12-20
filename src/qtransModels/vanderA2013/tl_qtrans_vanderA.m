@@ -1,4 +1,4 @@
-function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_param,bkgd)%,outvar)
+function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd,outvar)
 %
 % TL code for qtrans_vanderA.m
 %
@@ -9,13 +9,13 @@ tl_Q=zeros(nx,1);
 for i=1:nx
   tl_qs(i)= ...
       tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_Hrms(i),tl_kabs(i),...
-                             tl_omega,tl_udelta(i,:),tl_ws(i),tl_param,bkgd(i));%,outvar);
+                             tl_omega,tl_udelta(i,:),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i),outvar);
 end
 tl_qs=tl_qs(:);
 
 end  % end of wrapper function, start of main function
 
-function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_param,bkgd)%,outvar)
+function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd,outvar)
 
 physicalConstants;
 
@@ -119,6 +119,28 @@ worbc       =bkgd.worbc       ;
 worbt       =bkgd.worbt       ;
 uwave_wksp  =bkgd.uwave_wksp  ;
 c1          =bkgd.c1          ;
+Aw          =bkgd.Aw          ;
+Sw          =bkgd.Sw          ;
+b           =bkgd.b           ;
+RR          =bkgd.RR          ;
+worb1c      =bkgd.worb1c      ;
+worb1t      =bkgd.worb1t      ;
+worb2c      =bkgd.worb2c      ;
+worb2t      =bkgd.worb2t      ;
+t1ca        =bkgd.t1ca        ;
+t1ta        =bkgd.t1ta        ;
+t1cb        =bkgd.t1cb        ;
+t1tb        =bkgd.t1tb        ;
+t1c         =bkgd.t1c         ;
+t1t         =bkgd.t1t         ;
+t2cb        =bkgd.t2cb        ;
+t2tb        =bkgd.t2tb        ;
+t2ca        =bkgd.t2ca        ;
+t2ta        =bkgd.t2ta        ;
+t2c         =bkgd.t2c         ;
+t2t         =bkgd.t2t         ;
+worbc       =bkgd.worbc       ;
+worbt       =bkgd.worbt       ;
 
 % derived params
 tl_Hmo=tl_Hrms*1.4;
@@ -126,11 +148,9 @@ tl_c=-omega/kabs^2*tl_kabs + tl_omega/kabs;
 
 % intra-wave velocities using Ruessink et al. (2012).  Then extract stats
 % relevant to van Der A
-
-[tl_uw,tl_r_r2012,tl_phi_r2012]=tl_Uwave_ruessink2012(tl_Hmo,tl_kabs,tl_omega,tl_h,omega*t,uwave_wksp);
+[tl_uw,tl_r_r2012,tl_phi_r2012]=tl_Uwave_ruessink2012(tl_Aw,tl_Sw,tl_Uw,omega*t,uwave_wksp);
 uw2mean=mean(uw.^2);
 tl_uw2mean=mean(2*uw.*tl_uw);
-% uhat=sqrt(2*uw2mean);
 tl_uhat=.5./sqrt(2*uw2mean)*2.*tl_uw2mean;
 
 % timing of wave velocity direction change, crest, and trough, based on
@@ -330,10 +350,6 @@ else
   tl_deltast = tl_d50*13*thetahatt ...
       + d50*13*tl_thetahatt;
 end
-
-% Use stokes 2nd order theory to get vertical fluid velocities and correct
-% settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
-% simply ported from COAWST code.
 if(eta==0)
   tl_etawc=tl_deltasc;
   tl_etawt=tl_deltast;
@@ -341,68 +357,63 @@ else
   tl_etawc=tl_eta;
   tl_etawt=tl_eta;
 end
-b=1/r_r2012*(1-sqrt(1-r_r2012^2));
-RR=0.5*(1+b*sin(-phi_r2012));
-worb1c=pi*Hmo*etawc/(T*h);
-worb1t=pi*Hmo*etawt/(T*h);
-worb2c=2*worb1c*(2*RR-1);
-worb2t=2*worb1t*(2*RR-1);
-tl_b = -1/r_r2012^2*(1-sqrt(1-r_r2012^2))*tl_r_r2012 ...
-       + .5/r_r2012/sqrt(1-r_r2012^2)*2*r_r2012*tl_r_r2012;
-tl_RR = 0.5*sin(-phi_r2012)*tl_b ...
-        - 0.5*b*cos(-phi_r2012)*tl_phi_r2012;
-tl_worb1c = pi*etawc/(T*h)*tl_Hmo ...
-    + pi*Hmo/(T*h)*tl_etawc ...
-    - pi*Hmo*etawc/(T^2*h)*tl_T ...
-    - pi*Hmo*etawc/(T*h^2)*tl_h;
-tl_worb1t = pi*etawt/(T*h)*tl_Hmo ...
-    + pi*Hmo/(T*h)*tl_etawt ...
-    - pi*Hmo*etawt/(T^2*h)*tl_T ...
-    - pi*Hmo*etawt/(T*h^2)*tl_h;
-tl_worb2c = 2*(2*RR-1)*tl_worb1c ...
-    + 2*worb1c*2*tl_RR;
-tl_worb2t = 2*(2*RR-1)*tl_worb1t ...
-    + 2*worb1t*2*tl_RR;
-t1ca=-worb1c+sqrt(worb1c^2+32*worb2c^2);
-tl_t1ca = -tl_worb1c ...
-          + .5/sqrt(worb1c^2+32*worb2c^2)*( ...
-              + 2*worb1c*tl_worb1c ...
-              + 2*32*worb2c*tl_worb2c );
-t1c=64-t1ca^2/worb2c^2;
-tl_t1c = -2*t1ca/worb2c^2*tl_t1ca ...
-         + 2*t1ca^2/worb2c^3*tl_worb2c;
-t2ca=t1ca/worb2c;
-tl_t2ca = tl_t1ca/worb2c ...
-          - t1ca/worb2c^2*tl_worb2c;
-t2c=acos(.125*t2ca);
-tl_t2c = -1/sqrt(1-(.125*t2ca)^2)*.125*tl_t2ca;
-worbc = .125*worb1c*sqrt(t1c) ...
-       + worb2c*sin(2*t2c);
-tl_worbc = .125*sqrt(t1c)*tl_worb1c ...
-    + .5*.125*worb1c/sqrt(t1c)*tl_t1c ...
-    + sin(2*t2c)*tl_worb2c ...
-    + worb2c*cos(2*t2c)*2*tl_t2c;
-t1ta=-worb1t+sqrt(worb1t^2+32*worb2t^2);
-tl_t1ta = -tl_worb1t ...
-          + .5/sqrt(worb1t^2+32*worb2t^2)*( ...
-              + 2*worb1t*tl_worb1t ...
-              + 2*32*worb2t*tl_worb2t );
-t1t=64-t1ta^2/worb2t^2;
-tl_t1t = -2*t1ta/worb2t^2*tl_t1ta ...
-         + 2*t1ta^2/worb2t^3*tl_worb2t;
-t2ta=t1ta/worb2t;
-tl_t2ta = tl_t1ta/worb2t ...
-          - t1ta/worb2t^2*tl_worb2t;
-t2t=acos(.125*t2ta);
-tl_t2t = -1/sqrt(1-(.125*t2ta)^2)*.125*tl_t2ta;
-worbt = .125*worb1t*sqrt(t1t) ...
-       + worb2t*sin(2*t2t);
-tl_worbt = .125*sqrt(t1t)*tl_worb1t ...
-    + .5*.125*worb1t/sqrt(t1t)*tl_t1t ...
-    + sin(2*t2t)*tl_worb2t ...
-    + worb2t*cos(2*t2t)*2*tl_t2t;
-wsc=ws-worbc;
-wst=max(ws+worbt,0);
+
+% % Use stokes 2nd order theory to get vertical fluid velocities and correct
+% % settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
+% % simply ported from COAWST code.  NOTE, it is a bit odd to do hydrodynamic
+% % calculations in qtrans_vanderA (by convention, hydro stuff is ideally done
+% % by callers of this function), but the code can't be easily moved outside
+% % because it uses ripple height as input.
+% % b=1/r_r2012*(1-sqrt(1-r_r2012^2));  % see MD2012, line after eqn 13b
+% tl_b = - 1/r_r2012^2*(1-sqrt(1-r_r2012^2))*tl_r_r2012 ...
+%     + 1/r_r2012/sqrt(1-r_r2012^2)*r_r2012*tl_r_r2012;
+% % RR=0.5*(1+b*sin(-phi_r2012));  % see MD2012, eqn 17, note their phi convention is negated
+% tl_RR = 0.5*sin(-phi_r2012)*tl_b ...
+%         - 0.5*b*cos(-phi_r2012)*tl_phi_r2012;
+% % worb1c=pi*Hmo*etawc/(T*h);
+% tl_worb1c = pi*tl_Hmo*etawc/(T*h) ...
+%     + pi*Hmo*tl_etawc/(T*h) ...
+%     - pi*Hmo*etawc/(T^2*h)*tl_T ...
+%     - pi*Hmo*etawc/(T*h^2)*tl_h;
+% % worb1t=pi*Hmo*etawt/(T*h);
+% tl_worb1t = pi*tl_Hmo*etawt/(T*h) ...
+%     + pi*Hmo*tl_etawt/(T*h) ...
+%     - pi*Hmo*etawt/(T^2*h)*tl_T ...
+%     - pi*Hmo*etawt/(T*h^2)*tl_h;
+% % worb2c=2*worb1c*(2*RR-1);
+% tl_worb2c = 2*tl_worb1c*(2*RR-1) ...
+%     + 2*worb1c*2*tl_RR;
+% % worb2t=2*worb1t*(2*RR-1);
+% tl_worb2t = 2*tl_worb1t*(2*RR-1) ...
+%     + 2*worb1t*2*tl_RR;
+% tl_t1ca = 2*worb1c*tl_worb1c + 2*32*worb2c*tl_worb2c;
+% tl_t1ta = 2*worb1t*tl_worb1t + 2*32*worb2t*tl_worb2t;
+% tl_t1cb = tl_worb1c - .5/sqrt(t1ca)*tl_t1ca;
+% tl_t1tb = tl_worb1t - .5/sqrt(t1ta)*tl_t1ta;
+% tl_t1c = 2*t1cb/worb2c^2*tl_t1cb - 2*t1cb^2/worb2c^3*tl_worb2c;
+% tl_t1t = 2*t1tb/worb2t^2*tl_t1tb - 2*t1tb^2/worb2t^3*tl_worb2t;
+% tl_t2cb = -tl_worb1c + 1/sqrt( worb1c^2 + 32*worb2c^2 )*( worb1c*tl_worb1c + 32*worb2c*tl_worb2c );
+% tl_t2tb = -tl_worb1t + 1/sqrt( worb1t^2 + 32*worb2t^2 )*( worb1t*tl_worb1t + 32*worb2t*tl_worb2t );
+% tl_t2ca = .125*tl_t2cb/worb2c - .125*t2cb/worb2c^2*tl_worb2c;
+% tl_t2ta = .125*tl_t2tb/worb2t - .125*t2tb/worb2t^2*tl_worb2t;
+% tl_t2c = 2/sqrt(1-t2ca^2)*tl_t2ca;
+% tl_t2t = 2/sqrt(1-t2ta^2)*tl_t2ta;
+% tl_worbc = .125*tl_worb1c*sqrt(t1c) ...
+%     + .5*.125*worb1c/sqrt(t1c)*tl_t1c ...
+%     + tl_worb2c*sin(t2c) ...
+%     + worb2c*cos(t2c)*tl_t2c;
+% tl_worbt = .125*tl_worb1t*sqrt(t1t) ...
+%     + .5*.125*worb1t/sqrt(t1t)*tl_t1t ...
+%     + tl_worb2t*sin(t2t) ...
+%     + worb2t*cos(t2t)*tl_t2t;
+
+% TODO: for now, don't use the above block until I get the TL-AD symmetry fixed
+tl_worbc=0;
+tl_worbt=0;
+
+% apply orbital vels to adjust sediment velocity
+% wsc=max(ws-worbc,0.001);
+% wst=max(ws+worbt,0.001);
 tl_wsc = tl_ws - tl_worbc;
 tl_wst = tl_ws + tl_worbt;
 
@@ -510,7 +521,7 @@ tl_qs = (tl_qsc + tl_qst)/T*term3 ...
         - (qsc + qst)/T^2*term3*tl_T ...
         + (qsc + qst)/T*tl_term3;
 
-% % TEST-CODE: override output variable
-% eval(['tl_qs = tl_' outvar ';']);
+% TEST-CODE: override output variable
+eval(['tl_qs = tl_' outvar ';']);
 
 end  % end of main function

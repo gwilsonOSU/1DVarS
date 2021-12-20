@@ -71,6 +71,7 @@ params.fv=0.1;  % breaking-induced eddy viscosity calibration parameter
 x=waves.x;
 nx=length(x);
 h=flipud(filtfilt(ones(5,1)/5,1,waves.h));
+h(h<=.5)=.5;
 H0=waves.H0;
 theta0=waves.theta0;
 omega=waves.sigma;

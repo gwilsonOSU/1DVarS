@@ -231,7 +231,7 @@ for i=nx:-1:1
 
   %1 tl_utilde(:,i)=tl_Uwave_ruessink2012(tl_Hmo(i),tl_kabs(i),tl_omega,tl_h(i),...
   %                                      omega*t,bkgd_uwave(i))';
-  [ad1_Hmo,ad1_kabs,ad1_omega,ad1_h]=ad_Uwave_ruessink2012(ad_utilde(:,i)',0,0,omega*t,bkgd_uwave(i));
+  [ad1_Hmo,ad1_kabs,ad1_omega,ad1_h]=ad_Uwave_ruessink2012(ad_utilde(:,i)',0,0,omega*t,0,0,bkgd_uwave(i));
   ad_Hmo(i) =ad_Hmo(i) +ad1_Hmo;
   ad_kabs(i)=ad_kabs(i)+ad1_kabs;
   ad_omega = ad_omega + ad1_omega;

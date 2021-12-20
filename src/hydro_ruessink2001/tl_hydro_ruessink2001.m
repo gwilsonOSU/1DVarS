@@ -1,4 +1,4 @@
-function [tl_H,tl_theta,tl_v,tl_k,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw2d,tl_detady,tl_dgamma,bkgd);%,outvar)
+function [tl_H,tl_theta,tl_v,tl_k,tl_Ew,tl_Er,tl_Dr,tl_Aw,tl_Sw,tl_Uw]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw2d,tl_detady,tl_dgamma,bkgd);%,outvar)
 %
 % TL-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
 % directly from output of hydro_ruessink2001.m
@@ -32,6 +32,7 @@ Qb=bkgd.Qb;
 ka_drag=bkgd.ka_drag;
 detady=bkgd.detady;
 beta=bkgd.beta;
+uwave_wksp=bkgd.uwave_wksp;
 
 h(h<hmin)=hmin;  % min depth constraint
 
@@ -250,6 +251,12 @@ if(nu==0)
   tl_v=tl_N./dens;
 else
   tl_v = inv(diag(dens)+A)*tl_N;  % tl_N = (dens + A) * tl_v
+end
+
+% calculate coefficients for nonlinear wave shape
+tl_Hmo=tl_H*1.4;
+for i=1:nx
+  [tl_Aw(i),tl_Sw(i),tl_Uw(i)]=tl_Uwave_ruessink2012_params(tl_Hmo(i),tl_k(i),tl_omega,tl_h(i),uwave_wksp(i));
 end
 
 % % TEST-CODE: override output variable

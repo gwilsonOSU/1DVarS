@@ -37,7 +37,7 @@ ksd_fn = @(ksd,ksw) max( 3*d90, d50*(mu+6*(theta_av_fn(fd_fn(ksd),fw_fn(ksw,ahat
       + .4*eta^2/lambda;
 
 % eqn A5
-ksw_fn = @(ksd,ksw) max(   d50, d50*(mu+6*(theta_av_fn(fd_fn(ksd),fw_fn(ksw,ahat))-1)) ) ...
+ksw_fn = @(ksd,ksw) max( d50, d50*(mu+6*(theta_av_fn(fd_fn(ksd),fw_fn(ksw,ahat))-1)) ) ...
       + .4*eta^2/lambda;
 
 % solve nonlinear system of equations for ksd, ksw

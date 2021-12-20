@@ -1,46 +1,27 @@
-function [tl_u,tl_r,tl_phi]=tl_Uwave_ruessink2012(tl_Hmo,tl_k,tl_omega,tl_h,phs,bkgd)
+function [tl_u,tl_r,tl_phi]=tl_Uwave_ruessink2012(tl_Aw,tl_Sw,tl_Uw,phs,bkgd)
 %
-% [tl_u,tl_r,tl_phi]=tl_Uwave_ruessink2012(tl_Hmo,tl_k,tl_omega,tl_h,phs,bkgd)
+% [tl_u,tl_r,tl_phi]=tl_Uwave_ruessink2012(tl_Aw,tl_Sw,tl_Uw,phs,bkgd)
 %
 % TL-code for Uwave_ruessink2012.m
 %
 % note, 'bkgd' struct should be taken from last output of
 % Uwave_ruessink2012.m, this contains the NL calculated variables
 
-% % v1, break out NL background vars. This version uses eval() and is a bit slow.
-% fld=fields(bkgd);
-% for i=1:length(fld)
-%   eval([fld{i} ' = bkgd.' fld{i} ';']);
-% end
-
-% v2, Break out NL background vars. Note this hard-coded version runs
+% Break out NL background vars. Note this hard-coded version runs
 % significantly faster than if I use eval() to dynamically load all bkgd
 % variables
-aw   =bkgd.aw   ;
-Ur   =bkgd.Ur   ;
-Hrms =bkgd.Hrms ;
-Uw   =bkgd.Uw   ;
-p1   =bkgd.p1   ;
-p2   =bkgd.p2   ;
-p3   =bkgd.p3   ;
-p4   =bkgd.p4   ;
-ee   =bkgd.ee   ;
-dens =bkgd.dens ;
-B    =bkgd.B    ;
-p5   =bkgd.p5   ;
-p6   =bkgd.p6   ;
-psi  =bkgd.psi  ;
-phi  =bkgd.phi  ;
-b    =bkgd.b    ;
-r    =bkgd.r    ;
-f    =bkgd.f    ;
-f1   =bkgd.f1   ;
-f2   =bkgd.f2   ;
-u    =bkgd.u    ;
-Hmo  =bkgd.Hmo  ;
-k    =bkgd.k    ;
-omega=bkgd.omega;
-h    =bkgd.h    ;
+Uw =bkgd.Uw ;
+B  =bkgd.B  ;
+psi=bkgd.psi;
+phi=bkgd.phi;
+b  =bkgd.b  ;
+r  =bkgd.r  ;
+f  =bkgd.f  ;
+f1 =bkgd.f1 ;
+f2 =bkgd.f2 ;
+u  =bkgd.u  ;
+Aw =bkgd.Aw ;
+Sw =bkgd.Sw ;
 
 bra=2*(1-b.^2);  % not calculated in NL code
 
@@ -48,24 +29,11 @@ bra=2*(1-b.^2);  % not calculated in NL code
 % begin TL code
 %----------------------------
 
-% Ursell number, eqn (6)
-tl_aw=tl_Hmo/2;
-tl_Ur = 3/4*( (tl_aw.*k+aw.*tl_k)./(k.*h).^3 ...
-              - 3*aw.*k./(k.*h).^4.*( tl_k.*h + k.*tl_h ) );
-
-% wave velocity magnitude, linear theory, stated in text
-tl_Hrms=tl_Hmo/1.4;
-tl_Uw = omega/2.*( tl_Hrms./sinh(k.*h) ...
-                   - Hrms./sinh(k.*h).^2.*cosh(k.*h).*(tl_k.*h+k.*tl_h) ) ...
-        + tl_omega/2.*Hrms./sinh(k.*h);
-
-% non-linearity param B, eqn (9).  Using parameter values quoted in text
-tl_ee=-1./Ur./p4.*tl_Ur;
-tl_dens=exp(ee).*tl_ee;
-tl_B = -(p2-p1)./dens.^2.*tl_dens;
-
-% non-linearity phase param psi, eqn (10)
-tl_psi = pi/2*sech(p5./Ur.^p6).^2.*( -p5.*p6.*Ur.^(-p6-1).*tl_Ur );
+% convert to B and psi
+% B = sqrt(Aw.^2 + Sw.^2);
+tl_B = 1./sqrt(Aw.^2 + Sw.^2).*(Aw.*tl_Aw+Sw.*tl_Sw);
+% psi = atan(Aw./Sw);
+tl_psi = 1./(1+(Aw./Sw).^2).*( tl_Aw./Sw - Aw./Sw.^2.*tl_Sw );
 
 % phi parameter, eqn (12)
 tl_phi = -tl_psi;  % verified
@@ -76,10 +44,10 @@ tl_phi = -tl_psi;  % verified
 % see ./Uwave_TLbB_deriv/*.jpg for derivations
 tl_b = sqrt(bra)./(3-6*b.^2./bra).*tl_B;  % uses db/dB eqn.
 tl_r = (1+f)./(1+r.^2./(f.*(1+f))).*tl_b;  % uses dr/db
-tl_f = .5./f.*( -2*r.*tl_r );  % ok
 % TODO: tl_b and tl_r both look to be a bit systematically biased in testing...
 
 % Abreu et al. (2010) time series formula, eqn (4)
+tl_f = .5./f.*( -2*r.*tl_r );  % ok
 tl_f1 = tl_r.*sin(phi)./(1+f) ...
         + r.*cos(phi)./(1+f).*tl_phi ...
         - r.*sin(phi)./(1+f).^2.*tl_f; % ok
