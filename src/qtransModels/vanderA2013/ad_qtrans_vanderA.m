@@ -1,5 +1,5 @@
 function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
-    ad_qtrans_vanderA(ad_qs,bkgd);%,invar)
+    ad_qtrans_vanderA(ad_qs,bkgd)%,invar)
 %
 % AD code for qtrans_vanderA.m
 %
@@ -70,7 +70,7 @@ end
 
 end  % end of wrapper function, start of main function
 
-function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd);%,invar)
+function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd)%,invar)
 
 physicalConstants;
 
@@ -290,6 +290,15 @@ ad_etawc=0;
 ad_etawt=0;
 ad_wsc=0;
 ad_wst=0;
+ad_streamingEffect=0;
+ad_tauwRe=0;
+ad_fwd=0;
+ad_argc=0;
+ad_argt=0;
+ad_argc1=0;
+ad_argt1=0;
+ad_argc2=0;
+ad_argt2=0;
 ad_b     =0;
 ad_RR    =0;
 ad_worb1c=0;
@@ -310,15 +319,6 @@ ad_t2c   =0;
 ad_t2t   =0;
 ad_worbc =0;
 ad_worbt =0;
-ad_streamingEffect=0;
-ad_tauwRe=0;
-ad_fwd=0;
-ad_argc=0;
-ad_argt=0;
-ad_argc1=0;
-ad_argt1=0;
-ad_argc2=0;
-ad_argt2=0;
 
 % % TEST-CODE: override input variable
 % if(~strcmp(invar,'qs'))
@@ -505,124 +505,115 @@ ad_ws   =ad_ws   + ad_wsc;
 ad_worbc=ad_worbc- ad_wsc;
 ad_wsc=0;
 
-% TODO: for now, don't use the orbital vel calculations block until I get
-% the TL-AD symmetry fixed.  See block of code below this one vvvvvvvvv
-ad_worbc=0;
+% Use stokes 2nd order theory to get vertical fluid velocities
+%20 tl_worbt = .125*tl_worb1t*sqrt(t1t) ...
+%     + .5*.125*worb1t/sqrt(t1t)*tl_t1t ...
+%     + tl_worb2t*sin(t2t) ...
+%     + worb2t*cos(t2t)*tl_t2t;
+ad_worb1t=ad_worb1t+ .125*sqrt(t1t)          *ad_worbt;
+ad_t1t   =ad_t1t   + .5*.125*worb1t/sqrt(t1t)*ad_worbt;
+ad_worb2t=ad_worb2t+ sin(t2t)                *ad_worbt;
+ad_t2t   =ad_t2t   + worb2t*cos(t2t)         *ad_worbt;
 ad_worbt=0;
-
-% % Use stokes 2nd order theory to get vertical fluid velocities and correct
-% % settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
-% % simply ported from COAWST code.  NOTE, it is a bit odd to do hydrodynamic
-% % calculations in qtrans_vanderA (by convention, hydro stuff is ideally done
-% % by callers of this function), but the code can't be easily moved outside
-% % because it uses ripple height as input.
-% %
-% % TODO: not symmetric!!!
-% %
-% %20 tl_worbt = .125*tl_worb1t*sqrt(t1t) ...
-% %     + .5*.125*worb1t/sqrt(t1t)*tl_t1t ...
-% %     + tl_worb2t*sin(t2t) ...
-% %     + worb2t*cos(t2t)*tl_t2t;
-% ad_worb1t=ad_worb1t+ .125*sqrt(t1t)          *ad_worbt;
-% ad_t1t   =ad_t1t   + .5*.125*worb1t/sqrt(t1t)*ad_worbt;
-% ad_worb2t=ad_worb2t+ sin(t2t)                *ad_worbt;
-% ad_t2t   =ad_t2t   + worb2t*cos(t2t)         *ad_worbt;
-% ad_worbt=0;
-% %19 tl_worbc = .125*tl_worb1c*sqrt(t1c) ...
-% %     + .5*.125*worb1c/sqrt(t1c)*tl_t1c ...
-% %     + tl_worb2c*sin(t2c) ...
-% %     + worb2c*cos(t2c)*tl_t2c;
-% ad_worb1c=ad_worb1c+ .125*sqrt(t1c)          *ad_worbc;
-% ad_t1c   =ad_t1c   + .5*.125*worb1c/sqrt(t1c)*ad_worbc;
-% ad_worb2c=ad_worb2c+ sin(t2c)                *ad_worbc;
-% ad_t2c   =ad_t2c   + worb2c*cos(t2c)         *ad_worbc;
-% ad_worbc=0;
-% %18 tl_t2t = 2/sqrt(1-t2ta^2)*tl_t2ta;
-% ad_t2ta=ad_t2ta+ 2/sqrt(1-t2ta^2)*ad_t2t;
-% ad_t2t=0;
-% %17 tl_t2c = 2/sqrt(1-t2ca^2)*tl_t2ca;
-% ad_t2ca=ad_t2ca+ 2/sqrt(1-t2ca^2)*ad_t2c;
-% ad_t2c=0;
-% %16 tl_t2ta = .125*tl_t2tb/worb2t - .125*t2tb/worb2t^2*tl_worb2t;
-% ad_t2tb  =ad_t2tb  + .125/worb2t       *ad_t2ta;
-% ad_worb2t=ad_worb2t- .125*t2tb/worb2t^2*ad_t2ta;
-% ad_t2ta=0;
-% %15 tl_t2ca = .125*tl_t2cb/worb2c - .125*t2cb/worb2c^2*tl_worb2c;
-% ad_t2cb  =ad_t2cb  + .125/worb2c       *ad_t2ca;
-% ad_worb2c=ad_worb2c- .125*t2cb/worb2c^2*ad_t2ca;
-% ad_t2ca=0;
-% %14 tl_t2tb = -tl_worb1t + 1/sqrt( worb1t^2 + 32*worb2t^2 )*( worb1t*tl_worb1t + 32*worb2t*tl_worb2t );
-% ad_worb1t=ad_worb1t- 1                                         *ad_t2tb;
-% ad_worb1t=ad_worb1t+ 1/sqrt( worb1t^2 + 32*worb2t^2 )*worb1t   *ad_t2tb;
-% ad_worb2t=ad_worb2t+ 1/sqrt( worb1t^2 + 32*worb2t^2 )*32*worb2t*ad_t2tb;
-% ad_t2tb=0;
-% %13 tl_t2cb = -tl_worb1c + 1/sqrt( worb1c^2 + 32*worb2c^2 )*( worb1c*tl_worb1c + 32*worb2c*tl_worb2c );
-% ad_worb1c=ad_worb1c- 1                                         *ad_t2cb;
-% ad_worb1c=ad_worb1c+ 1/sqrt( worb1c^2 + 32*worb2c^2 )*worb1c   *ad_t2cb;
-% ad_worb2c=ad_worb2c+ 1/sqrt( worb1c^2 + 32*worb2c^2 )*32*worb2c*ad_t2cb;
-% ad_t2cb=0;
-% %12 tl_t1t = 2*t1tb/worb2t^2*tl_t1tb - 2*t1tb^2/worb2t^3*tl_worb2t;
-% ad_t1tb  =ad_t1tb  + 2*t1tb/worb2t^2  *ad_t1t;
-% ad_worb2t=ad_worb2t- 2*t1tb^2/worb2t^3*ad_t1t;
-% ad_t1t=0;
-% %11 tl_t1c = 2*t1cb/worb2c^2*tl_t1cb - 2*t1cb^2/worb2c^3*tl_worb2c;
-% ad_t1cb  =ad_t1cb  + 2*t1cb/worb2c^2  *ad_t1c;
-% ad_worb2c=ad_worb2c- 2*t1cb^2/worb2c^3*ad_t1c;
-% ad_t1c=0;
-% %10 tl_t1tb = tl_worb1t - .5/sqrt(t1ta)*tl_t1ta;
-% ad_worb1t=ad_worb1t+ 1            *ad_t1tb;
-% ad_t1ta  =ad_t1ta  - .5/sqrt(t1ta)*ad_t1tb;
-% ad_t1tb=0;
-% %9 tl_t1cb = tl_worb1c - .5/sqrt(t1ca)*tl_t1ca;
-% ad_worb1c=ad_worb1c+ 1            *ad_t1cb;
-% ad_t1ca  =ad_t1ca  - .5/sqrt(t1ca)*ad_t1cb;
-% ad_t1cb=0;
-% %8 tl_t1ta = 2*worb1t*tl_worb1t + 2*32*worb2t*tl_worb2t;
-% ad_worb1t=ad_worb1t+ 2*worb1t   *ad_t1ta;
-% ad_worb2t=ad_worb2t+ 2*32*worb2t*ad_t1ta;
-% ad_t1ta=0;
-% %7 tl_t1ca = 2*worb1c*tl_worb1c + 2*32*worb2c*tl_worb2c;
-% ad_worb1c=ad_worb1c+ 2*worb1c   *ad_t1ca;
-% ad_worb2c=ad_worb2c+ 2*32*worb2c*ad_t1ca;
-% ad_t1ca=0;
-% %6 tl_worb2t = 2*tl_worb1t*(2*RR-1) ...
-% %     + 2*worb1t*2*tl_RR;
-% ad_worb1t=ad_worb1t+ 2*(2*RR-1)*ad_worb2t;
-% ad_RR    =ad_RR    + 2*worb1t*2*ad_worb2t;
-% ad_worb2t=0;
-% %5 tl_worb2c = 2*tl_worb1c*(2*RR-1) ...
-% %     + 2*worb1c*2*tl_RR;
-% ad_worb1c=ad_worb1c+ 2*(2*RR-1)*ad_worb2c;
-% ad_RR    =ad_RR    + 2*worb1c*2*ad_worb2c;
-% ad_worb2c=0;
-% %4 tl_worb1t = pi*tl_Hmo*etawt/(T*h) ...
-% %     + pi*Hmo*tl_etawt/(T*h) ...
-% %     - pi*Hmo*etawt/(T^2*h)*tl_T ...
-% %     - pi*Hmo*etawt/(T*h^2)*tl_h;
-% ad_Hmo  =ad_Hmo  + pi*etawt/(T*h)      *ad_worb1t;
-% ad_etawt=ad_etawt+ pi*Hmo/(T*h)        *ad_worb1t;
-% ad_T    =ad_T    - pi*Hmo*etawt/(T^2*h)*ad_worb1t;
-% ad_h    =ad_h    - pi*Hmo*etawt/(T*h^2)*ad_worb1t;
-% ad_worb1t=0;
-% %3 tl_worb1c = pi*tl_Hmo*etawc/(T*h) ...
-% %     + pi*Hmo*tl_etawc/(T*h) ...
-% %     - pi*Hmo*etawc/(T^2*h)*tl_T ...
-% %     - pi*Hmo*etawc/(T*h^2)*tl_h;
-% ad_Hmo  =ad_Hmo  + pi*etawc/(T*h)      *ad_worb1c;
-% ad_etawc=ad_etawc+ pi*Hmo/(T*h)        *ad_worb1c;
-% ad_T    =ad_T    - pi*Hmo*etawc/(T^2*h)*ad_worb1c;
-% ad_h    =ad_h    - pi*Hmo*etawc/(T*h^2)*ad_worb1c;
-% ad_worb1c=0;
-% %2 tl_RR = 0.5*sin(-phi_r2012)*tl_b ...
-% %         - 0.5*b*cos(-phi_r2012)*tl_phi_r2012;
-% ad_b        =ad_b        + 0.5*sin(-phi_r2012)  *ad_RR;
-% ad_phi_r2012=ad_phi_r2012- 0.5*b*cos(-phi_r2012)*ad_RR;
-% ad_RR=0;
-% %1 tl_b = - 1/r_r2012^2*(1-sqrt(1-r_r2012^2))*tl_r_r2012 ...
-% %     + 1/r_r2012/sqrt(1-r_r2012^2)*r_r2012*tl_r_r2012;
-% ad_r_r2012=ad_r_r2012- 1/r_r2012^2*(1-sqrt(1-r_r2012^2))  *ad_b;
-% ad_r_r2012=ad_r_r2012+ 1/r_r2012/sqrt(1-r_r2012^2)*r_r2012*ad_b;
-% ad_b=0;
+%19 tl_worbc = .125*tl_worb1c*sqrt(t1c) ...
+%     + .5*.125*worb1c/sqrt(t1c)*tl_t1c ...
+%     + tl_worb2c*sin(t2c) ...
+%     + worb2c*cos(t2c)*tl_t2c;
+ad_worb1c=ad_worb1c+ .125*sqrt(t1c)          *ad_worbc;
+ad_t1c   =ad_t1c   + .5*.125*worb1c/sqrt(t1c)*ad_worbc;
+ad_worb2c=ad_worb2c+ sin(t2c)                *ad_worbc;
+ad_t2c   =ad_t2c   + worb2c*cos(t2c)         *ad_worbc;
+ad_worbc=0;
+%18 tl_t2t = 2/sqrt(1-t2ta^2)*tl_t2ta;
+ad_t2ta=ad_t2ta+ 2/sqrt(1-t2ta^2)*ad_t2t;
+ad_t2t=0;
+%17 tl_t2c = 2/sqrt(1-t2ca^2)*tl_t2ca;
+ad_t2ca=ad_t2ca+ 2/sqrt(1-t2ca^2)*ad_t2c;
+ad_t2c=0;
+%16 tl_t2ta = .125*tl_t2tb/worb2t ...
+%           - .125*t2tb/worb2t^2*tl_worb2t;
+ad_t2tb  =ad_t2tb  + .125/worb2t       *ad_t2ta;
+ad_worb2t=ad_worb2t- .125*t2tb/worb2t^2*ad_t2ta;
+ad_t2ta=0;
+%15 tl_t2ca = .125*tl_t2cb/worb2c ...
+%           - .125*t2cb/worb2c^2*tl_worb2c;
+ad_t2cb  =ad_t2cb  + .125/worb2c       *ad_t2ca;
+ad_worb2c=ad_worb2c- .125*t2cb/worb2c^2*ad_t2ca;
+ad_t2ca=0;
+%14 tl_t2tb = -tl_worb1t + 1/sqrt( worb1t^2 + 32*worb2t^2 )*( worb1t*tl_worb1t + 32*worb2t*tl_worb2t );
+ad_worb1t=ad_worb1t- 1                                         *ad_t2tb;
+ad_worb1t=ad_worb1t+ 1/sqrt( worb1t^2 + 32*worb2t^2 )*worb1t   *ad_t2tb;
+ad_worb2t=ad_worb2t+ 1/sqrt( worb1t^2 + 32*worb2t^2 )*32*worb2t*ad_t2tb;
+ad_t2tb=0;
+%13 tl_t2cb = -tl_worb1c + 1/sqrt( worb1c^2 + 32*worb2c^2 )*( worb1c*tl_worb1c + 32*worb2c*tl_worb2c );
+ad_worb1c=ad_worb1c- 1                                         *ad_t2cb;
+ad_worb1c=ad_worb1c+ 1/sqrt( worb1c^2 + 32*worb2c^2 )*worb1c   *ad_t2cb;
+ad_worb2c=ad_worb2c+ 1/sqrt( worb1c^2 + 32*worb2c^2 )*32*worb2c*ad_t2cb;
+ad_t2cb=0;
+%12 tl_t1t = 2*t1tb/worb2t^2*tl_t1tb ...
+%          - 2*t1tb^2/worb2t^3*tl_worb2t;
+ad_t1tb  =ad_t1tb  + 2*t1tb/worb2t^2  *ad_t1t;
+ad_worb2t=ad_worb2t- 2*t1tb^2/worb2t^3*ad_t1t;
+ad_t1t=0;
+%11 tl_t1c = 2*t1cb/worb2c^2*tl_t1cb ...
+%          - 2*t1cb^2/worb2c^3*tl_worb2c;
+ad_t1cb  =ad_t1cb  + 2*t1cb/worb2c^2  *ad_t1c;
+ad_worb2c=ad_worb2c- 2*t1cb^2/worb2c^3*ad_t1c;
+ad_t1c=0;
+%10 tl_t1tb = tl_worb1t - .5/sqrt(t1ta)*tl_t1ta;
+ad_worb1t=ad_worb1t+ 1            *ad_t1tb;
+ad_t1ta  =ad_t1ta  - .5/sqrt(t1ta)*ad_t1tb;
+ad_t1tb=0;
+%9 tl_t1cb = tl_worb1c - .5/sqrt(t1ca)*tl_t1ca;
+ad_worb1c=ad_worb1c+ 1            *ad_t1cb;
+ad_t1ca  =ad_t1ca  - .5/sqrt(t1ca)*ad_t1cb;
+ad_t1cb=0;
+%8 tl_t1ta = 2*worb1t*tl_worb1t + 32*2*worb2t*tl_worb2t;
+ad_worb1t=ad_worb1t+ 2*worb1t   *ad_t1ta;
+ad_worb2t=ad_worb2t+ 32*2*worb2t*ad_t1ta;
+ad_t1ta=0;
+%7 tl_t1ca = 2*worb1c*tl_worb1c + 32*2*worb2c*tl_worb2c;
+ad_worb1c=ad_worb1c+ 2*worb1c   *ad_t1ca;
+ad_worb2c=ad_worb2c+ 32*2*worb2c*ad_t1ca;
+ad_t1ca=0;
+%6 tl_worb2t = 2*tl_worb1t*(2*RR-1) ...
+%     + 2*worb1t*2*tl_RR;
+ad_worb1t=ad_worb1t+ 2*(2*RR-1)*ad_worb2t;
+ad_RR    =ad_RR    + 2*worb1t*2*ad_worb2t;
+ad_worb2t=0;
+%5 tl_worb2c = 2*tl_worb1c*(2*RR-1) ...
+%     + 2*worb1c*2*tl_RR;
+ad_worb1c=ad_worb1c+ 2*(2*RR-1)*ad_worb2c;
+ad_RR    =ad_RR    + 2*worb1c*2*ad_worb2c;
+ad_worb2c=0;
+%4 tl_worb1t = + pi*tl_Hmo*etawt/(T*h) ...
+%     + pi*Hmo*tl_etawt/(T*h) ...
+%     - pi*Hmo*etawt/(T^2*h)*tl_T ...
+%     - pi*Hmo*etawt/(T*h^2)*tl_h;
+ad_Hmo  =ad_Hmo  + pi*etawt/(T*h)      *ad_worb1t;
+ad_etawt=ad_etawt+ pi*Hmo/(T*h)        *ad_worb1t;
+ad_T    =ad_T    - pi*Hmo*etawt/(T^2*h)*ad_worb1t;
+ad_h    =ad_h    - pi*Hmo*etawt/(T*h^2)*ad_worb1t;
+ad_worb1t=0;
+%3 tl_worb1c = + pi*tl_Hmo*etawc/(T*h) ...
+%     + pi*Hmo*tl_etawc/(T*h) ...
+%     - pi*Hmo*etawc/(T^2*h)*tl_T ...
+%     - pi*Hmo*etawc/(T*h^2)*tl_h;
+ad_Hmo  =ad_Hmo  + pi*etawc/(T*h)      *ad_worb1c;
+ad_etawc=ad_etawc+ pi*Hmo/(T*h)        *ad_worb1c;
+ad_T    =ad_T    - pi*Hmo*etawc/(T^2*h)*ad_worb1c;
+ad_h    =ad_h    - pi*Hmo*etawc/(T*h^2)*ad_worb1c;
+ad_worb1c=0;
+%2 tl_RR = -0.5*tl_b*sin(phi_r2012) ...
+%         -0.5*b*cos(phi_r2012)*tl_phi_r2012;
+ad_b        =ad_b        - 0.5*sin(phi_r2012)  *ad_RR;
+ad_phi_r2012=ad_phi_r2012- 0.5*b*cos(phi_r2012)*ad_RR;
+ad_RR=0;
+%1 tl_b = -1/r_r2012^2*(1-sqrt(1-r_r2012^2))*tl_r_r2012 ...
+%        + 1/r_r2012/sqrt(1-r_r2012^2)*r_r2012*tl_r_r2012;
+ad_r_r2012=ad_r_r2012- 1/r_r2012^2*(1-sqrt(1-r_r2012^2))  *ad_b;
+ad_r_r2012=ad_r_r2012+ 1/r_r2012/sqrt(1-r_r2012^2)*r_r2012*ad_b;
+ad_b=0;
 
 % %b12 sheet flow layer thickness, Appendix C
 if(eta==0)
@@ -1025,9 +1016,9 @@ ad_Ttu=0;
 %                                       omega,r_r2012,phi_r2012,Tcu);
 [ad1_omega,ad1_r_r2012,ad1_phi_r2012] = ad_Uwave_ruessink2012_tcrest(ad_Ttu,omega,r_r2012,phi_r2012,Ttu);
 [ad2_omega,ad2_r_r2012,ad2_phi_r2012] = ad_Uwave_ruessink2012_tcrest(ad_Tcu,omega,r_r2012,phi_r2012,Tcu);
-ad_r_r2012  =ad1_r_r2012  +ad2_r_r2012  ;
-ad_phi_r2012=ad1_phi_r2012+ad2_phi_r2012;
-ad_omega=ad_omega+ad1_omega+ad2_omega;
+ad_r_r2012  =ad_r_r2012 + ad1_r_r2012 + ad2_r_r2012  ;
+ad_phi_r2012=ad_phi_r2012 + ad1_phi_r2012 + ad2_phi_r2012;
+ad_omega = ad_omega + ad1_omega + ad2_omega;
 %4 tl_T=tl_Tc+tl_Tt;
 ad_Tc=ad_Tc+ad_T;
 ad_Tt=ad_Tt+ad_T;
@@ -1059,7 +1050,10 @@ ad_uhat=0;
 %2 tl_uw2mean=mean(2*uw.*tl_uw);
 ad_uw = ad_uw + 2*uw*ad_uw2mean/nt;
 %1 [tl_uw,tl_r_r2012,tl_phi_r2012]=tl_Uwave_ruessink2012(tl_Aw,tl_Sw,tl_Uw,omega*t,uwave_wksp);
-[ad_Aw,ad_Sw,ad_Uw]=ad_Uwave_ruessink2012(ad_uw,ad_r_r2012,ad_phi_r2012,omega*t,uwave_wksp);
+[ad1_Aw,ad1_Sw,ad1_Uw]=ad_Uwave_ruessink2012(ad_uw,ad_r_r2012,ad_phi_r2012,omega*t,uwave_wksp);
+ad_Aw=ad_Aw+ad1_Aw;
+ad_Sw=ad_Sw+ad1_Sw;
+ad_Uw=ad_Uw+ad1_Uw;
 
 % %b1 derived params
 %2 tl_c=-omega/kabs^2*tl_kabs + tl_omega/kabs;

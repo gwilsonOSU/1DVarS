@@ -212,60 +212,32 @@ end
 % worbc=+max(etawc/c*diff(uw)./diff(t));
 % worbt=-min(etawt/c*diff(uw)./diff(t));
 
-% % Use stokes 2nd order theory to get vertical fluid velocities and correct
-% % settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
-% % simply ported from COAWST code.  NOTE, it is a bit odd to do hydrodynamic
-% % calculations in qtrans_vanderA (by convention, hydro stuff is ideally done
-% % by callers of this function), but the code can't be easily moved outside
-% % because it uses ripple height as input.
-% %
-% % TODO: This code is breaking TL-AD symmetry.  Need to rewrite TL-AD.
-% %
-% b=1/r_r2012*(1-sqrt(1-r_r2012^2));  % see MD2012, line after eqn 13b
-% RR=0.5*(1+b*sin(-phi_r2012));  % see MD2012, eqn 17, note their phi convention is negated
-% worb1c=pi*Hmo*etawc/(T*h);
-% worb1t=pi*Hmo*etawt/(T*h);
-% worb2c=2*worb1c*(2*RR-1);
-% worb2t=2*worb1t*(2*RR-1);
-% t1ca = worb1c^2 + 32*worb2c^2;
-% t1ta = worb1t^2 + 32*worb2t^2;
-% t1cb = worb1c - sqrt(t1ca);
-% t1tb = worb1t - sqrt(t1ta);
-% t1c = 64 + t1cb^2/worb2c^2;
-% t1t = 64 + t1tb^2/worb2t^2;
-% t2cb = -worb1c + sqrt( worb1c^2 + 32*worb2c^2 );
-% t2tb = -worb1t + sqrt( worb1t^2 + 32*worb2t^2 );
-% t2ca = .125*t2cb/worb2c;
-% t2ta = .125*t2tb/worb2t;
-% t2c = 2*acos(t2ca);
-% t2t = 2*acos(t2ta);
-% worbc = .125*worb1c*sqrt(t1c) + worb2c*sin(t2c);
-% worbt = .125*worb1t*sqrt(t1t) + worb2t*sin(t2t);
-
-% TODO: for now, set variables in the above block to zero, until I can get
-% the TL-AD fixed.
-b=nan;
-RR=nan;
-worb1c=nan;
-worb1t=nan;
-worb2c=nan;
-worb2t=nan;
-t1ca=nan;
-t1ta=nan;
-t1cb=nan;
-t1tb=nan;
-t1c=nan;
-t1t=nan;
-t2cb=nan;
-t2tb=nan;
-t2ca=nan;
-t2ta=nan;
-t2c=nan;
-t2t=nan;
-worbc=nan;
-worbt=nan;
-worbc=0;  % temporary fix
-worbt=0;  % temporary fix
+% Use stokes 2nd order theory to get vertical fluid velocities and correct
+% settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
+% simply ported from COAWST code.  NOTE, it is a bit odd to do hydrodynamic
+% calculations in qtrans_vanderA (by convention, hydro stuff is ideally done
+% by callers of this function), but the code can't be easily moved outside
+% because it uses ripple height as input.
+b=1/r_r2012*(1-sqrt(1-r_r2012^2));  % see MD2012, line after eqn 13b
+RR=0.5*(1+b*sin(-phi_r2012));  % see MD2012, eqn 17, note their phi convention is negated
+worb1c=pi*Hmo*etawc/(T*h);
+worb1t=pi*Hmo*etawt/(T*h);
+worb2c=2*worb1c*(2*RR-1);
+worb2t=2*worb1t*(2*RR-1);
+t1ca = worb1c^2 + 32*worb2c^2;
+t1ta = worb1t^2 + 32*worb2t^2;
+t1cb = worb1c - sqrt(t1ca);
+t1tb = worb1t - sqrt(t1ta);
+t1c = 64 + t1cb^2/worb2c^2;
+t1t = 64 + t1tb^2/worb2t^2;
+t2cb = -worb1c + sqrt( worb1c^2 + 32*worb2c^2 );
+t2tb = -worb1t + sqrt( worb1t^2 + 32*worb2t^2 );
+t2ca = .125*t2cb/worb2c;
+t2ta = .125*t2tb/worb2t;
+t2c = 2*acos(t2ca);
+t2t = 2*acos(t2ta);
+worbc = .125*worb1c*sqrt(t1c) + worb2c*sin(t2c);
+worbt = .125*worb1t*sqrt(t1t) + worb2t*sin(t2t);
 
 % apply orbital vels to adjust sediment velocity
 wsc=max(ws-worbc,0.001);

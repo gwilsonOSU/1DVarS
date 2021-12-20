@@ -9,86 +9,83 @@ addpath(genpath('../../..'));
 % Requires having an auxiliary input for the TL and AD codes that override
 % the default output variable.  See {tl,ad}_qtrans_vanderA.m 'TEST-CODE'
 % blocks (commented out for production code)
-inoutvar='d50';
-inoutvar='d90';
-inoutvar='h';
-inoutvar='Hrms';
-inoutvar='kabs';
-inoutvar='omega';
-inoutvar='udelta';  % can't do, vector
-inoutvar='ws';
-inoutvar='asinarg';
-inoutvar='Tc';
-inoutvar='Tcu';
-inoutvar='Ttu';
-inoutvar='uhatc';
-inoutvar='uhatt';
-inoutvar='theta_cr';
-inoutvar='ahat';
-inoutvar='psihatc';
-inoutvar='psihatt';
-inoutvar='neta';  % nan
-inoutvar='eta';  % nan
-inoutvar='lambda';  % nan
-inoutvar='theta_av';
-inoutvar='ksd';
-inoutvar='ksw';
-inoutvar='fd';
-inoutvar='fw';
-inoutvar='alpha';
-inoutvar='argc2';
-inoutvar='argc1';
-inoutvar='argc';
-inoutvar='argt2';
-inoutvar='argt1';
-inoutvar='argt';
-inoutvar='fwdc';
-inoutvar='fwdt';
-inoutvar='ucrvec';  % can't do, vector
-inoutvar='utrvec';  % can't do, vector
-inoutvar='ucrabs';
-inoutvar='utrabs';
-inoutvar='thetac';
-inoutvar='thetat';
-inoutvar='fwd';
-
-inoutvar='Hmo';
-inoutvar='c';
-inoutvar='uw2mean';
-inoutvar='uhat';
-inoutvar='asinarg ';
-inoutvar='T';  % nan
-inoutvar='Tt';
-inoutvar='Dstar';
-inoutvar='mu';
-inoutvar='ahat ';
-inoutvar='utildecr';
-inoutvar='utildetr';
-inoutvar='meta';  %nan
-inoutvar='mlambda'; %nan
-inoutvar='psihatc ';
-inoutvar='psihatt ';
-inoutvar='psihat';
-inoutvar='neta';
-inoutvar='nlambda';
-inoutvar='eta ';
-inoutvar='lambda ';
-inoutvar='udabs';
-inoutvar='fwc';
-inoutvar='fwt';
-inoutvar='etawc';
-inoutvar='etawt';
+% inoutvar='d50';
+% inoutvar='d90';
+% inoutvar='h';
+% inoutvar='Hrms';
+% inoutvar='kabs';
+% inoutvar='omega';
+% inoutvar='udelta';  % can't do, vector
+% inoutvar='ws';
+% inoutvar='asinarg';
+% inoutvar='Tc';
+% inoutvar='Tcu';
+% inoutvar='Ttu';
+% inoutvar='uhatc';
+% inoutvar='uhatt';
+% inoutvar='theta_cr';
+% inoutvar='ahat';
+% inoutvar='psihatc';
+% inoutvar='psihatt';
+% inoutvar='neta';  % nan
+% inoutvar='eta';  % nan
+% inoutvar='lambda';  % nan
+% inoutvar='theta_av';
+% inoutvar='ksd';
+% inoutvar='ksw';
+% inoutvar='fd';
+% inoutvar='fw';
+% inoutvar='alpha';
+% inoutvar='argc2';
+% inoutvar='argc1';
+% inoutvar='argc';
+% inoutvar='argt2';
+% inoutvar='argt1';
+% inoutvar='argt';
+% inoutvar='fwdc';
+% inoutvar='fwdt';
+% inoutvar='ucrvec';  % can't do, vector
+% inoutvar='utrvec';  % can't do, vector
+% inoutvar='ucrabs';
+% inoutvar='utrabs';
+% inoutvar='thetac';
+% inoutvar='thetat';
+% inoutvar='fwd';
+% inoutvar='Hmo';
+% inoutvar='c';
+% inoutvar='uw2mean';
+% inoutvar='uhat';
+% inoutvar='asinarg ';
+% inoutvar='T';  % nan
+% inoutvar='Tt';
+% inoutvar='Dstar';
+% inoutvar='mu';
+% inoutvar='ahat ';
+% inoutvar='utildecr';
+% inoutvar='utildetr';
+% inoutvar='meta';  %nan
+% inoutvar='mlambda'; %nan
+% inoutvar='psihatc ';
+% inoutvar='psihatt ';
+% inoutvar='psihat';
+% inoutvar='neta';
+% inoutvar='nlambda';
+% inoutvar='eta ';
+% inoutvar='lambda ';
+% inoutvar='udabs';
+% inoutvar='fwc';
+% inoutvar='fwt';
+% inoutvar='etawc';
+% inoutvar='etawt';
 % inoutvar='phi_r2012';  %nan
 % inoutvar='b ';  % nan
-inoutvar='RR ';  % nan
+% inoutvar='RR ';  % nan
 % inoutvar='worb1c ';  % ok
 % inoutvar='worb1t '; %ok
-% inoutvar='worb2c ';  % NO
-% inoutvar='worb2t ';  % NO
-
+% inoutvar='worb2c ';  % ok
+% inoutvar='worb2t ';  % ok
+% inoutvar='t1ca';
 % inoutvar='asinarg '; %ok
-
-% % all ok in this block
 % inoutvar='tauwRe';  % ok
 % inoutvar='streamingEffect';
 % inoutvar='thetacx';
@@ -99,7 +96,6 @@ inoutvar='RR ';  % nan
 % inoutvar='deltast';
 % inoutvar='deltasc';
 % inoutvar='deltast';
-
 % inoutvar='b';  % nan
 % inoutvar='RR'; % nan
 % inoutvar='worb1c';
@@ -128,11 +124,10 @@ inoutvar='RR ';  % nan
 % inoutvar='Omegatt';
 % inoutvar='Omegact';  % nan
 % inoutvar='Omegatc';  % nan
-
 % inoutvar='qsc';  % 1e-12
 % inoutvar='qst';  % 1e-12
 % inoutvar='term3';
-inoutvar='qs';
+% inoutvar='qs';
 
 load ~/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
 waves=posterior;
@@ -211,11 +206,11 @@ for i=1:n
   tl_param.alpha=F(11*nx+5       ,i);
 
   % TL model: TL*F
-  tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd,inoutvar);
+  tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,inoutvar);
 
   % AD model: g=AD*(TL*F)
   [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
-      ad_qtrans_vanderA(tl_qs,bkgd,inoutvar);
+      ad_qtrans_vanderA(tl_qs,bkgd);%,inoutvar);
 
   % create output vector
   g(0*nx+0+[1:nx],i) =ad_d50        ;
