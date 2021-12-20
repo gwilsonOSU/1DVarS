@@ -1,4 +1,4 @@
-function [tl_H,tl_theta,tl_v,tl_k,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw2d,tl_detady,tl_dgamma,bkgd);%,outvar)
+function [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw2d,tl_detady,tl_dgamma,bkgd);%,outvar)
 %
 % TL-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
 % directly from output of hydro_ruessink2001.m
@@ -13,16 +13,16 @@ Db=bkgd.Db;
 Dr=bkgd.Dr;
 c    =bkgd.c    ;
 cg   =bkgd.cg   ;
-k    =bkgd.k    ;
+kabs    =bkgd.kabs    ;
 h    =bkgd.h    ;
 n    =bkgd.n    ;
 theta=bkgd.theta;
 omega=bkgd.omega;
 x    =bkgd.x    ;
-H    =bkgd.Hrms ;
+Hrms    =bkgd.Hrms ;
 dSxydx=bkgd.dSxydx;
 Fy=bkgd.Fy;
-v=bkgd.vbar;
+vbar=bkgd.vbar;
 H0=bkgd.H0;
 theta0=bkgd.theta0;
 gamma=bkgd.gamma;
@@ -52,16 +52,16 @@ if(~exist('dgamma'))
   tl_dgamma=zeros(nx,1);
 end
 
-tl_tauw=tl_tauw2d(:,2);  % for compatibility reasons
+tl_tau_wind=tl_tauw2d(:,2);  % for compatibility reasons
 
 % dispersion
-tl_k=-tl_h.*k.^2.*sech(k.*h).^2./(tanh(k.*h)+k.*h.*sech(k.*h).^2) ...
-     + 2*omega/g./( tanh(k.*h) ...
-     + k.*h.*sech(k.*h).^2 ).*tl_omega;
-tl_c=-omega./k.^2.*tl_k + tl_omega./k;
-% n= .5* + k.*h./sinh(2*k.*h);
-tl_n = tl_k.*h./sinh(2*k.*h) + k.*tl_h./sinh(2*k.*h) ...
-       - k.*h./sinh(2*k.*h).^2.*cosh(2*k.*h)*2.*(tl_k.*h+k.*tl_h);
+tl_kabs=-tl_h.*kabs.^2.*sech(kabs.*h).^2./(tanh(kabs.*h)+kabs.*h.*sech(kabs.*h).^2) ...
+     + 2*omega/g./( tanh(kabs.*h) ...
+     + kabs.*h.*sech(kabs.*h).^2 ).*tl_omega;
+tl_c=-omega./kabs.^2.*tl_kabs + tl_omega./kabs;
+% n= .5* + kabs.*h./sinh(2*kabs.*h);
+tl_n = tl_kabs.*h./sinh(2*kabs.*h) + kabs.*tl_h./sinh(2*kabs.*h) ...
+       - kabs.*h./sinh(2*kabs.*h).^2.*cosh(2*kabs.*h)*2.*(tl_kabs.*h+kabs.*tl_h);
 tl_cg=tl_n.*c+n.*tl_c;
 refconst=sin(theta0)/c(1);
 tl_refconst=cos(theta0)/c(1)*tl_theta0-sin(theta0)/c(1)^2*tl_c(1);
@@ -80,8 +80,8 @@ if(gammaType==2001)
   gamma=ones(nx,1)*gamma;
   tl_gamma=ones(nx,1)*tl_gamma;
 elseif(gammaType==2003)
-  gamma=0.76*k.*h+0.29;
-  tl_gamma = 0.76*tl_k.*h + 0.76*k.*tl_h;
+  gamma=0.76*kabs.*h+0.29;
+  tl_gamma = 0.76*tl_kabs.*h + 0.76*kabs.*tl_h;
 end
 gamma=gamma+dgamma;
 tl_gamma=tl_gamma+tl_dgamma;
@@ -93,7 +93,7 @@ tl_Db=zeros(nx,1);
 tl_Dr=zeros(nx,1);
 tl_Ew(1)=rho*g/8*2*H0*tl_H0;
 tl_Er(1)=0;
-tl_H(1)=tl_H0;
+tl_Hrms(1)=tl_H0;
 tl_theta(1)=tl_theta0;
 for i=2:nx
 
@@ -102,16 +102,16 @@ for i=2:nx
   tl_theta(i)=1./sqrt(1-(c(i).*refconst).^2).*( refconst.*tl_c(i) + tl_refconst.*c(i) );
 
   % max wave height
-  tharg=gamma(i-1)/0.88.*k(i-1).*h(i-1);
-  tl_tharg=gamma(i-1)/0.88*( tl_k(i-1).*h(i-1) + k(i-1)*tl_h(i-1) ) ...
-           + tl_gamma(i-1)/0.88.*k(i-1).*h(i-1);
-  % Hm(i-1)=0.88./k(i-1).*tanh(tharg);
-  tl_Hm(i-1)=0.88*( -1./k(i-1).^2.*tanh(tharg).*tl_k(i-1) ...
-               + 1./k(i-1).*sech(tharg).^2.*tl_tharg );
+  tharg=gamma(i-1)/0.88.*kabs(i-1).*h(i-1);
+  tl_tharg=gamma(i-1)/0.88*( tl_kabs(i-1).*h(i-1) + kabs(i-1)*tl_h(i-1) ) ...
+           + tl_gamma(i-1)/0.88.*kabs(i-1).*h(i-1);
+  % Hm(i-1)=0.88./kabs(i-1).*tanh(tharg);
+  tl_Hm(i-1)=0.88*( -1./kabs(i-1).^2.*tanh(tharg).*tl_kabs(i-1) ...
+               + 1./kabs(i-1).*sech(tharg).^2.*tl_tharg );
 
   % fraction of breaking waves, non-implicit approximation from SWAN code
-  B=H(i-1)/Hm(i-1);
-  tl_B=tl_H(i-1)/Hm(i-1)-H(i-1)/Hm(i-1)^2*tl_Hm(i-1);
+  B=Hrms(i-1)/Hm(i-1);
+  tl_B=tl_Hrms(i-1)/Hm(i-1)-Hrms(i-1)/Hm(i-1)^2*tl_Hm(i-1);
   if(B<=.5)
     Qo=0;
     tl_Qo=0;
@@ -161,17 +161,17 @@ for i=2:nx
   % roller
   if(~strcmp(betaType,'none'))
     if(strcmp(betaType,'rafati21'))  % rafati et al. (2021) variable-beta
-      if(k(i-1)*h(i-1)<0.45)
+      if(kabs(i-1)*h(i-1)<0.45)
         tl_beta(i-1)=0;
       else
         if(beta(i-1)==0.1)  % limiter was hit
           tl_beta(i-1)=0;
         else
           tl_beta(i-1) = ...
-              + 0.03*tl_k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
-              + 0.03*k(i-1)*tl_h(i-1)*(h(i-1)-H(i-1))/H(i-1) ...
-              + 0.03*k(i-1)*h(i-1)*(tl_h(i-1)-tl_H(i-1))/H(i-1) ...
-              - 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1)^2*tl_H(i-1);
+              + 0.03*tl_kabs(i-1)*h(i-1)*(h(i-1)-Hrms(i-1))/Hrms(i-1) ...
+              + 0.03*kabs(i-1)*tl_h(i-1)*(h(i-1)-Hrms(i-1))/Hrms(i-1) ...
+              + 0.03*kabs(i-1)*h(i-1)*(tl_h(i-1)-tl_Hrms(i-1))/Hrms(i-1) ...
+              - 0.03*kabs(i-1)*h(i-1)*(h(i-1)-Hrms(i-1))/Hrms(i-1)^2*tl_Hrms(i-1);
         end
       end
     end
@@ -196,16 +196,16 @@ for i=2:nx
     end
   end  % roller
 
-  % H(i)=sqrt(8/rho/g*Ew(i));
+  % Hrms(i)=sqrt(8/rho/g*Ew(i));
   if(Ew(i)==0)
-    tl_H(i)=0;
+    tl_Hrms(i)=0;
   else
-    tl_H(i)=.5./sqrt(8/rho/g*Ew(i))*8/rho/g.*tl_Ew(i);
+    tl_Hrms(i)=.5./sqrt(8/rho/g*Ew(i))*8/rho/g.*tl_Ew(i);
   end
 
 end
 tl_c=tl_c(:);
-tl_H=tl_H(:);
+tl_Hrms=tl_Hrms(:);
 tl_theta=tl_theta(:);
 
 % radiation stress gradient
@@ -222,8 +222,8 @@ else
 end
 
 % total force = radiation stress gradient + wind stress
-% Fy=dSxydx+tauw/rho+g*h.*detady;
-tl_Fy = tl_dSxydx + tl_tauw/rho + g*tl_h.*detady + g*h.*tl_detady;
+% Fy=dSxydx+tau_wind/rho+g*h.*detady;
+tl_Fy = tl_dSxydx + tl_tau_wind/rho + g*tl_h.*detady + g*h.*tl_detady;
 
 % define mixing operator
 A=zeros(nx);
@@ -234,29 +234,29 @@ A(1,1:2)=0; %[-2 1]/dx^2*nu*h(1);
 A(nx,nx-1:nx)=[1 -2]/dx^2*nu*h(nx);
 
 % bottom stress model following Ruessink et al. (2001), Feddersen et
-% al. (2000).  To get TL model, differentiate the eqn for v (i.e., the
-% fsolve() line in waveModel.m) on both sides, then solve for tl_v
+% al. (2000).  To get TL model, differentiate the eqn for vbar (i.e., the
+% fsolve() line in waveModel.m) on both sides, then solve for tl_vbar
 a=1.16;  % empirical constant
 Cd=0.015*(ka_drag./h).^(1/3);
 tl_Cd=0.015*(1/3)*(ka_drag./h).^(-2/3).*(-ka_drag./h.^2.*tl_h+tl_ka_drag./h);
-urms=1.416*H*omega./(4*sinh(k.*h));
-tl_urms=1.416*omega*( tl_H./(4*sinh(k.*h)) ...
-                      -H./(4*sinh(k.*h).^2).*cosh(k.*h).*( tl_k.*h+k.*tl_h ) ) ...
-        + 1.416*H./(4*sinh(k.*h))*tl_omega;
-B=a^2+(v./urms).^2;
-tl_N = tl_Fy./sqrt(B) + tl_urms.*(v.*Cd-v.^3.*Cd./(urms.^2.*B)) + tl_Cd.*v.*urms;
-dens = -urms.*Cd - v.^2.*Cd./urms./B;
+urms=1.416*Hrms*omega./(4*sinh(kabs.*h));
+tl_urms=1.416*omega*( tl_Hrms./(4*sinh(kabs.*h)) ...
+                      -Hrms./(4*sinh(kabs.*h).^2).*cosh(kabs.*h).*( tl_kabs.*h+kabs.*tl_h ) ) ...
+        + 1.416*Hrms./(4*sinh(kabs.*h))*tl_omega;
+B=a^2+(vbar./urms).^2;
+tl_N = tl_Fy./sqrt(B) + tl_urms.*(vbar.*Cd-vbar.^3.*Cd./(urms.^2.*B)) + tl_Cd.*vbar.*urms;
+dens = -urms.*Cd - vbar.^2.*Cd./urms./B;
 if(nu==0)
-  tl_v=tl_N./dens;
+  tl_vbar=tl_N./dens;
 else
-  tl_v = inv(diag(dens)+A)*tl_N;  % tl_N = (dens + A) * tl_v
+  tl_vbar = inv(diag(dens)+A)*tl_N;  % tl_N = (dens + A) * tl_vbar
 end
 
 % % TEST-CODE: override output variable
-% eval(['tl_H = tl_' outvar ';']);
+% eval(['tl_Hrms = tl_' outvar ';']);
 % tl_theta=zeros(nx,1);
-% tl_v    =zeros(nx,1);
-% tl_k    =zeros(nx,1);
+% tl_vbar    =zeros(nx,1);
+% tl_kabs    =zeros(nx,1);
 % tl_Ew   =zeros(nx,1);
 % tl_Er   =zeros(nx,1);
 % tl_Dr   =zeros(nx,1);

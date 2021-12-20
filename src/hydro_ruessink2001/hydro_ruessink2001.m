@@ -1,6 +1,6 @@
-function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
+function [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma)
 %
-% [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
+% [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma)
 %
 % Wave energy balance equation solver, explicit spatial stepping scheme,
 % followed by longshore current momentum balance solver with constant
@@ -17,15 +17,15 @@ function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_d
 % theta0  : wave angle at offshore boundary, rads
 % omega   : wave frequency, rad/m
 % ka_drag : hydraulic roughness factor, m
-% tauw    : vector (x,y) components of wind stress, N/m2.  Only tauw(:,2) (longshore) is actually used.
+% tau_wind    : vector (x,y) components of wind stress, N/m2.  Only tau_wind(:,2) (longshore) is actually used.
 % detady  : longshore pressure gradient, m/m units
 %
 % OUTPUTS:
 %
-% H     : rms wave height, m
+% Hrms     : rms wave height, m
 % theta : wave angle, rads
-% v     : longshore current, m/s
-% k     : wavenumber, rad/m
+% vbar     : longshore current, m/s
+% kabs     : wavenumber, rad/m
 % wkspc : struct containing all NL variables, used for TL-AD models
 %
 
@@ -33,8 +33,8 @@ function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_d
 
 h(h<hmin)=hmin;  % min depth constraint
 
-tauw2d=tauw;
-tauw=tauw(:,2);  % for compatibility
+tauw2d=tau_wind;
+tau_wind=tau_wind(:,2);  % for compatibility
 
 % grid
 nx=length(x);
@@ -54,11 +54,11 @@ end
 
 % dispersion
 for i=1:nx
-  k(i)=fzero(@(k)omega^2-g*k.*tanh(k.*h(i)),omega./sqrt(g*h(i)),optimset('Display','off'));
+  kabs(i)=fzero(@(kabs)omega^2-g*kabs.*tanh(kabs.*h(i)),omega./sqrt(g*h(i)),optimset('Display','off'));
 end
-k=k(:);
-c=max(0,real(omega./k));
-n=.5*(1+2*k.*h./sinh(2*k.*h));
+kabs=kabs(:);
+c=max(0,real(omega./kabs));
+n=.5*(1+2*kabs.*h./sinh(2*kabs.*h));
 cg=n.*c;
 refconst=sin(theta0)/c(1);
 
@@ -72,7 +72,7 @@ if(gammaType==2001)
   gamma=0.5+0.4*tanh(33*s0);
   gamma=ones(nx,1)*gamma;
 elseif(gammaType==2003)
-  gamma=0.76*k.*h+0.29;
+  gamma=0.76*kabs.*h+0.29;
 end
 gamma=gamma+dgamma;
 
@@ -88,16 +88,16 @@ Hm=zeros(nx,1);
 Qb=zeros(nx,1);
 Ew(1)=rho*g/8*H0^2;
 Er(1)=0;
-H(1)=H0;
+Hrms(1)=H0;
 theta(1)=theta0; %asin(c(1).*refconst);
 for i=2:nx
 
   % max wave height
-  tharg=gamma(i-1)/0.88.*k(i-1).*h(i-1);
-  Hm(i-1)=0.88./k(i-1).*tanh(tharg);
+  tharg=gamma(i-1)/0.88.*kabs(i-1).*h(i-1);
+  Hm(i-1)=0.88./kabs(i-1).*tanh(tharg);
 
   % fraction of breaking waves, non-implicit approximation from SWAN code
-  B=H(i-1)/Hm(i-1);
+  B=Hrms(i-1)/Hm(i-1);
   if(B<=.5)
     Qo=0;
   else
@@ -124,10 +124,10 @@ for i=2:nx
   % roller
   if(~strcmp(betaType,'none'))
     if(strcmp(betaType,'rafati21'))  % rafati et al. (2021) variable-beta
-      if(k(i-1)*h(i-1)<0.45)
+      if(kabs(i-1)*h(i-1)<0.45)
         beta(i-1)=0.1;
       else
-        beta(i-1) = 0.03*k(i-1)*h(i-1)*(h(i-1)-H(i-1))/H(i-1);
+        beta(i-1) = 0.03*kabs(i-1)*h(i-1)*(h(i-1)-Hrms(i-1))/Hrms(i-1);
         if(beta(i-1)>0.1)
           beta(i-1)=0.1;
         end
@@ -143,15 +143,15 @@ for i=2:nx
   if(Ew(i)<.001)
     Ew(i)=.001;
   end
-  H(i)=sqrt(8/rho/g*Ew(i));
+  Hrms(i)=sqrt(8/rho/g*Ew(i));
 
 end
 c=c(:);
 cg=cg(:);
-k=k(:);
+kabs=kabs(:);
 n=n(:);
 theta=theta(:);
-H=H(:);
+Hrms=Hrms(:);
 
 % radiation stress gradient
 if(~strcmp(betaType,'none'))
@@ -165,14 +165,14 @@ dSxydx(dSxydx==0)=1e-6;  % avoid singularity in TL model
 
 % total force = radiation stress gradient + wind stress + pressure gradient,
 % m2/s2 units
-Fy=dSxydx+tauw/rho+g*h.*detady;
+Fy=dSxydx+tau_wind/rho+g*h.*detady;
 
 % v1: analytical solution, no mixing
 a=1.16;  % empirical constant
 Cd=0.015*(ka_drag./h).^(1/3);
-urms=1.416*H.*omega./(4*sinh(k.*h));
+urms=1.416*Hrms.*omega./(4*sinh(kabs.*h));
 v2 = sqrt( (a*Cd.*urms).^4 + 4*(Cd.*Fy).^2 )./(2*Cd.^2) - (a*urms).^2/2;
-v=sqrt(v2).*sign(-Fy);
+vbar=sqrt(v2).*sign(-Fy);
 
 % mixing operator
 A=zeros(nx);
@@ -183,10 +183,10 @@ A(1,1:2)=0; %[-2 1]/dx^2*nu*h(1);
 A(nx,nx-1:nx)=[1 -2]/dx^2*nu*h(nx);
 
 % v2: nonlinear solution with mixing
-v0=v;
+v0=vbar;
 opt=optimset('Display','off');
-v = fsolve(@(v)Fy + Cd.*urms.*v.*sqrt(a^2+(v./urms).^2) - A*v,v0,opt);
-v=real(v);
+vbar = fsolve(@(vbar)Fy + Cd.*urms.*vbar.*sqrt(a^2+(vbar./urms).^2) - A*vbar,v0,opt);
+vbar=real(vbar);
 
 % outputs struct
 bkgd.x=x;
@@ -195,25 +195,25 @@ bkgd.H0     =H0     ;
 bkgd.theta0 =theta0 ;
 bkgd.omega  =omega  ;
 bkgd.ka_drag=ka_drag;
-bkgd.tauw   =tauw2d ;
+bkgd.tau_wind   =tauw2d ;
 bkgd.Ew   =Ew;
 bkgd.Er   =Er;
 bkgd.Db=Db;
 bkgd.Dr=Dr;
 bkgd.c=c;
 bkgd.cg=cg;
-bkgd.k=k;
+bkgd.kabs=kabs;
 bkgd.n=n;
 bkgd.theta=theta;
 bkgd.omega=omega;
-bkgd.Hrms=H;
+bkgd.Hrms=Hrms;
 bkgd.gamma=gamma;
 bkgd.dgamma=dgamma;
 bkgd.Hm=Hm;
 bkgd.Qb=Qb;
 bkgd.dSxydx=dSxydx;
 bkgd.Fy=Fy;
-bkgd.vbar=real(v);
+bkgd.vbar=real(vbar);
 bkgd.detady=detady;
 bkgd.beta=beta;
 bkgd.gammaType=gammaType; % hydroParams.m
@@ -227,5 +227,5 @@ bkgd.hmin =hmin ;         % hydroParams.m
  
 % optional, if user only wants the struct
 if(nargout==1)
-  H=bkgd;
+  Hrms=bkgd;
 end
