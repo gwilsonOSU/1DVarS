@@ -79,19 +79,19 @@ vname{end+1}='detady';  % input
 vname{end+1}='dgamma';  % input
 vname{end+1}='dAw';  % input
 vname{end+1}='dSw';  % input
+vname{end+1}='Hrms';  % output
+vname{end+1}='vbar';  % output
+vname{end+1}='theta';  % output
+vname{end+1}='kabs';  % output
+vname{end+1}='Ew';  % output
+vname{end+1}='Er';  % output
+vname{end+1}='Dr';  % output
+vname{end+1}='Aw';  % output
+vname{end+1}='Sw';  % output
+vname{end+1}='Uw';  % output
 vname{end+1}='imask';
-vname{end+1}='Dr';
-vname{end+1}='Er';
-vname{end+1}='Ew';
-vname{end+1}='Uw';
-vname{end+1}='Aw';
-vname{end+1}='Sw';
-vname{end+1}='Hrms';
 vname{end+1}='c';
-vname{end+1}='h';
-vname{end+1}='kabs';
 vname{end+1}='nx';
-vname{end+1}='theta';
 vname{end+1}='hydro_bkgd';
 vname{end+1}='uwave_bkgd';
 workspc=struct;
@@ -101,4 +101,7 @@ for i=1:length(vname)
   end
 end
 
-end  % main function for single time step
+% if user requested output as a single struct, give them that
+if(nargout==1)
+  Hrms=workspc;
+end

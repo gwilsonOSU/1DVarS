@@ -26,11 +26,8 @@ ad_detady=zeros(nx,1);
 ad_dgamma=zeros(nx,1);
 ad_dAw=zeros(nx,1);
 ad_dSw=zeros(nx,1);
-ad_Aw=zeros(nx,1);
-ad_Sw=zeros(nx,1);
 ad_Aw0=zeros(nx,1);
 ad_Sw0=zeros(nx,1);
-ad_Uw=zeros(nx,1);
 
 %----------------------------------------
 % begin AD code
