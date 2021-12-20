@@ -1,4 +1,4 @@
-function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd,outvar)
+function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,outvar)
 %
 % TL code for qtrans_vanderA.m
 %
@@ -9,13 +9,13 @@ tl_Q=zeros(nx,1);
 for i=1:nx
   tl_qs(i)= ...
       tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_Hrms(i),tl_kabs(i),...
-                             tl_omega,tl_udelta(i,:),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i),outvar);
+                             tl_omega,tl_udelta(i,:),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i));%,outvar);
 end
 tl_qs=tl_qs(:);
 
 end  % end of wrapper function, start of main function
 
-function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd,outvar)
+function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,outvar)
 
 physicalConstants;
 
@@ -521,7 +521,7 @@ tl_qs = (tl_qsc + tl_qst)/T*term3 ...
         - (qsc + qst)/T^2*term3*tl_T ...
         + (qsc + qst)/T*tl_term3;
 
-% TEST-CODE: override output variable
-eval(['tl_qs = tl_' outvar ';']);
+% % TEST-CODE: override output variable
+% eval(['tl_qs = tl_' outvar ';']);
 
 end  % end of main function

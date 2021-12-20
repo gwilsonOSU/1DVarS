@@ -1,10 +1,10 @@
 function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
-    hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,...
+    hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw,...
                   d50,d90,params,sedmodel,dt,nsubsteps)
 %
 % RECOMMENDED-USAGE: struct output
 %
-% out = hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,...
+% out = hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,dAw,dSw,...
 %                     tau_wind,detady,d50,d90,sedparams,...
 %                     sedmodel,dt,nsubsteps)
 %
@@ -25,6 +25,8 @@ function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
 % omega    : wave frequency, rad/m
 % ka_drag  : hydraulic roughness factor, m
 % dgamma   : linear correction factor for wave model gamma
+% dAw      : linear correction factor for wave model Aw
+% dSw      : linear correction factor for wave model Sw
 % tau_wind : wind stress, vector Nx2, N/m2
 % detady   : alongshore pressure gradient, m/m units
 % d50      : median grain diameter, m
@@ -65,7 +67,7 @@ for n=1:nsubsteps
   [Hrms(:,n),vbar(:,n),theta(:,n),kabs(:,n),...
    Qx(:,n),hp(:,n+1),workspc(n)] = ...
       hydroSedModel_main(x,hp(:,n),H0,theta0,omega,ka_drag,tau_wind,detady,...
-                         dgamma,d50,d90,params,sedmodel,dt/nsubsteps);
+                         dgamma,dAw,dSw,d50,d90,params,sedmodel,dt/nsubsteps);
 end
 for n=1:nsubsteps
   workspc(n).nsubsteps=nsubsteps;
@@ -86,7 +88,7 @@ end  % end wrapper function (for sub-stepping loop logic)
 
 % begin main function, for single time step
 function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
-    hydroSedModel_main(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,...
+    hydroSedModel_main(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw,...
                   d50,d90,params,sedmodel,dt)
 
 % experimental features
@@ -112,8 +114,13 @@ nx=length(x);
 % tau_wind(:,2)=cd*rhoa*sqrt(w1).*windW(:,2);
 
 % 1DH wave and longshore current balance
-[Hrms,theta,vbar,kabs,Ew,Er,Dr,Aw,Sw,Uw,hydro_bkgd] = ...
+[Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
     hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma);
+
+% wave shape parameters
+[Aw0,Sw0,Uw,uwave_bkgd]=Uwave_ruessink2012_params(Hrms,kabs,omega,h);
+Aw=Aw0+dAw;
+Sw=Sw0+dSw;
 
 % special case dt=0: in this case we are done since there is no morphology
 % update to compute
@@ -268,6 +275,8 @@ vname{end+1}='ka_drag'; % input
 vname{end+1}='tau_wind';% input
 vname{end+1}='detady';  % input
 vname{end+1}='dgamma';  % input
+vname{end+1}='dAw';  % input
+vname{end+1}='dSw';  % input
 vname{end+1}='d50';     % input
 vname{end+1}='d90';     % input
 vname{end+1}='params';  % input
@@ -279,11 +288,13 @@ vname{end+1}='horig';
 vname{end+1}='Dr';
 vname{end+1}='Er';
 vname{end+1}='Ew';
+vname{end+1}='Uw';
+vname{end+1}='Aw';
+vname{end+1}='Sw';
 vname{end+1}='Hrms';
 vname{end+1}='Q';
 vname{end+1}='Qx';
 vname{end+1}='dQdx';
-vname{end+1}='bkgd_qtrans';
 vname{end+1}='c';
 vname{end+1}='h';
 vname{end+1}='hp';
@@ -296,6 +307,8 @@ vname{end+1}='theta';
 vname{end+1}='ubar';
 vname{end+1}='udel_bkgd';
 vname{end+1}='hydro_bkgd';
+vname{end+1}='uwave_bkgd';
+vname{end+1}='bkgd_qtrans';
 vname{end+1}='delta';
 vname{end+1}='udelta';
 vname{end+1}='udelta_w';

@@ -1,5 +1,5 @@
 function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
-    ad_qtrans_vanderA(ad_qs,bkgd,invar)
+    ad_qtrans_vanderA(ad_qs,bkgd);%,invar)
 %
 % AD code for qtrans_vanderA.m
 %
@@ -41,7 +41,7 @@ for i=nx:-1:1
   %                       tl_udelta(i,:),tl_ws,tl_dAw(i),tl_dSw(i),tl_param,bkgd_qtrans(i));
   [ad1_d50,ad1_d90,ad1_h,ad1_Hrms,ad1_kabs,...
    ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
-      ad_qtrans_vanderA_main(ad_qs(i),bkgd(i),invar);
+      ad_qtrans_vanderA_main(ad_qs(i),bkgd(i));%,invar);
   ad_d50(i)=ad_d50(i)+ad1_d50   ;
   ad_d90(i)=ad_d90(i)+ad1_d90   ;
   ad_ws(i) =ad_ws(i) +ad1_ws    ;
@@ -70,7 +70,7 @@ end
 
 end  % end of wrapper function, start of main function
 
-function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd,invar)
+function [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd);%,invar)
 
 physicalConstants;
 
@@ -320,11 +320,11 @@ ad_argt1=0;
 ad_argc2=0;
 ad_argt2=0;
 
-% TEST-CODE: override input variable
-if(~strcmp(invar,'qs'))
-  eval(['ad_' invar '=ad_qs;'])
-  ad_qs=0;
-end
+% % TEST-CODE: override input variable
+% if(~strcmp(invar,'qs'))
+%   eval(['ad_' invar '=ad_qs;'])
+%   ad_qs=0;
+% end
 
 %b14 transport, eqn 1
 absthetac=abs(thetac);

@@ -1,6 +1,6 @@
-function [H,theta,v,k,Ew,Er,Dr,Aw,Sw,Uw,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
+function [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
 %
-% [H,theta,v,k,Ew,Er,Dr,Aw,Sw,Uw,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
+% [H,theta,v,k,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma)
 %
 % Wave energy balance equation solver, explicit spatial stepping scheme,
 % followed by longshore current momentum balance solver with constant
@@ -188,12 +188,6 @@ opt=optimset('Display','off');
 v = fsolve(@(v)Fy + Cd.*urms.*v.*sqrt(a^2+(v./urms).^2) - A*v,v0,opt);
 v=real(v);
 
-% calculate coefficients for nonlinear wave shape
-Hmo=H*1.4;
-for i=1:nx
-  [Aw(i),Sw(i),Uw(i),uwave_wksp(i)]=Uwave_ruessink2012_params(Hmo(i),k(i),omega,h(i));
-end
-
 % outputs struct
 bkgd.x=x;
 bkgd.h=h;
@@ -222,10 +216,6 @@ bkgd.Fy=Fy;
 bkgd.vbar=real(v);
 bkgd.detady=detady;
 bkgd.beta=beta;
-bkgd.Aw=Aw;
-bkgd.Sw=Sw;
-bkgd.Uw=Uw;
-bkgd.uwave_wksp=uwave_wksp;
 bkgd.gammaType=gammaType; % hydroParams.m
 bkgd.betaType=betaType;   % hydroParams.m
 bkgd.g    =g    ;         % hydroParams.m
