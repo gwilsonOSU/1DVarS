@@ -93,7 +93,7 @@ function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
 
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)
-doDubarbierHack=0;  % shift velocities shoreward per Dubarbier's approxmiation
+doDubarbierHack=1;  % shift velocities shoreward per Dubarbier's approxmiation
 doMarieu=0;  % use Marieu's dh/dt instead of upwind differencing
 if(doMarieu==1)
   warning('Marieu code TL-AD appears to have stability issues!')
@@ -139,8 +139,8 @@ c=omega./kabs;
 ubarx=-(Ew+2*Er)./(rho*c.*h);  % e.g., Dubarbier et al. (2015) eqn 8
 ubar=cat(2,ubarx(:),vbar(:));
 
-% settling velocity: use Brown & Lawler.  TODO, for vanderA use 0.8*d50
-% here, per explanation on page 29
+% settling velocity: Brown & Lawler.  For vanderA use 0.8*d50 per
+% explanation on page 29
 if(strcmp(sedmodel,'vanderA'))
   ws=ws_brownLawler(.8*d50);
 else
@@ -150,7 +150,7 @@ end
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
 % prior to calculation of undertow (udelta).  TODO, need TL-AD code
 if(doDubarbierHack)
-  warning('no TL-AD model exists for this optional code yet')
+  % warning('no TL-AD model exists for this optional code yet')
   lambda=1.57;
   xb=lambda*2*pi./kabs;
   for i=1:nx
@@ -165,24 +165,31 @@ if(doDubarbierHack)
   ubar=ur;
 end
 
-% Reniers et al. (2004) model for velocity at top of boundary layer
-Dr(Dr==0)=min([0; Dr(Dr>0)]);
-for i=1:nx
-  if(Dr(i)==0)
-    udelta(i,:)=[0 0];
-    delta_bl(i)=.2;
-  else
-    [udelta(i,:),delta_bl(i),udel_bkgd(i)]= ...
-        udelta_reniers2004(ubar(i,:),k(i,:),omega,...
-                           h(i),Hrms(i),detady(i),...
-                           tau_wind(i,:),Dr(i),params.fv,d50(i));
-    udel_bkgd=udel_bkgd(:);
-  end
-end
+% % Reniers et al. (2004) model for velocity at top of boundary layer
+% Dr(Dr==0)=min([0; Dr(Dr>0)]);
+% for i=1:nx
+%   if(Dr(i)==0)
+%     udelta(i,:)=[0 0];
+%     delta_bl(i)=.2;
+%   else
+%     [udelta(i,:),delta_bl(i),udel_bkgd(i)]= ...
+%         udelta_reniers2004(ubar(i,:),k(i,:),omega,...
+%                            h(i),Hrms(i),detady(i),...
+%                            tau_wind(i,:),Dr(i),params.fv,d50(i));
+%     udel_bkgd=udel_bkgd(:);
+%   end
+% end
+udelta=ubar;  % udelta_reniers looks weird, is larger than ubar!
 
-% rotate udelta into wave direction, as assumed by sed transport equations
-udelta_w(:,1) = udelta(:,1).*cos(theta) - udelta(:,2).*sin(theta);
-udelta_w(:,2) = udelta(:,1).*sin(theta) + udelta(:,2).*cos(theta);
+% Rotate udelta into wave direction, as assumed by sed transport equations.
+% To understand which direction to rotate, consider the first component of
+% udelta_w(:,1) is the "cross-shore" current in the wave-rotated
+% coordinates, and it should equal the projection of udelta onto the
+% wave-direction unit vector (cos(theta),sin(theta)), which establishes the
+% eqn for udelta_w(:,1).  The eqn for udelta_w(:,2) then follows because
+% it has to be a rotation matrix.
+udelta_w(:,1) = +udelta(:,1).*cos(theta) + udelta(:,2).*sin(theta);
+udelta_w(:,2) = -udelta(:,1).*sin(theta) + udelta(:,2).*cos(theta);
 
 % run the requested model for sediment flux (m2/s)
 tanbeta=calcTanbeta(x,h)';
@@ -240,7 +247,7 @@ wgt=.5*(1+cos(pi/L*(di+L)));
 wgt(di<-L)=1;
 wgt(di>0)=0;
 
-% rotate output from wave-following coords to cartesian
+% rotate output from wave-following coords back to cartesian
 Qx=Q.*cos(theta);  % x-shore component
 
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,

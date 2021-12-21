@@ -319,58 +319,61 @@ ad_tanbeta=0;
 
 % rotate udelta into wave direction, as assumed by sed transport equations
 %13 tl_udelta_w(:,2) = ...
-%     + tl_udelta(:,1).*sin(theta) ...
-%     + udelta(:,1).*cos(theta).*tl_theta ...
+%     - tl_udelta(:,1).*sin(theta) ...
+%     - udelta(:,1).*cos(theta).*tl_theta ...
 %     + tl_udelta(:,2).*cos(theta) ...
 %     - udelta(:,2).*sin(theta).*tl_theta;
-ad_udelta(:,1)=ad_udelta(:,1)+ sin(theta)             .*ad_udelta_w(:,2);
-ad_theta      =ad_theta      + udelta(:,1).*cos(theta).*ad_udelta_w(:,2);
+ad_udelta(:,1)=ad_udelta(:,1)- sin(theta)             .*ad_udelta_w(:,2);
+ad_theta      =ad_theta      - udelta(:,1).*cos(theta).*ad_udelta_w(:,2);
 ad_udelta(:,2)=ad_udelta(:,2)+ cos(theta)             .*ad_udelta_w(:,2);
 ad_theta      =ad_theta      - udelta(:,2).*sin(theta).*ad_udelta_w(:,2);
 ad_udelta_w(:,2)=0;
 %12 tl_udelta_w(:,1) = ...
 %     + tl_udelta(:,1).*cos(theta) ...
 %     - udelta(:,1).*sin(theta).*tl_theta ...
-%     - tl_udelta(:,2).*sin(theta) ...
-%     - udelta(:,2).*cos(theta).*tl_theta;
+%     + tl_udelta(:,2).*sin(theta) ...
+%     + udelta(:,2).*cos(theta).*tl_theta;
 ad_udelta(:,1)=ad_udelta(:,1)+ cos(theta)             .*ad_udelta_w(:,1);
 ad_theta      =ad_theta      - udelta(:,1).*sin(theta).*ad_udelta_w(:,1);
-ad_udelta(:,2)=ad_udelta(:,2)- sin(theta)             .*ad_udelta_w(:,1);
-ad_theta      =ad_theta      - udelta(:,2).*cos(theta).*ad_udelta_w(:,1);
+ad_udelta(:,2)=ad_udelta(:,2)+ sin(theta)             .*ad_udelta_w(:,1);
+ad_theta      =ad_theta      + udelta(:,2).*cos(theta).*ad_udelta_w(:,1);
 ad_udelta_w(:,1)=0;
 
-% Reniers et al. (2004) model for velocity at top of boundary layer
-for i=nx:-1:1
-  if(Dr(i)==0)
-    %11a2 tl_delta_bl(i)=0;
-    ad_delta_bl(i)=0;
-    %11a1 tl_udelta(i,:)=[0 0];
-    ad_udelta(i,:)=[0 0];
-  else
-    %11b1 [tl_udelta(i,:),tl_delta_bl(i)] = ...
-    %     tl_udelta_reniers2004(tl_ubar(i,:),tl_k(i,:),tl_omega,...
-    %                           tl_h(i),tl_Hrms(i),tl_detady(i),...
-    %                           tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,tl_d50(i),...
-    %                           udel_bkgd(i));
-    [ad1_ubar,ad1_k,ad1_omega,ad1_h,ad1_Hrms,...
-     ad1_detady,ad1_tau_wind,ad1_Dr,ad1_params_fv,ad1_d50] = ...
-        ad_udelta_reniers2004(ad_udelta(i,:),ad_delta_bl(i),udel_bkgd(i));
-
-    ad_ubar(i,:)    =ad_ubar(i,:)    +ad1_ubar     ;
-    ad_k(i,:)       =ad_k(i,:)       +ad1_k        ;
-    ad_omega        =ad_omega        +ad1_omega    ;    
-    ad_h(i)         =ad_h(i)         +ad1_h        ;
-    ad_Hrms(i)      =ad_Hrms(i)      +ad1_Hrms     ;
-    ad_detady(i)    =ad_detady(i)    +ad1_detady   ;
-    ad_tau_wind(i,:)=ad_tau_wind(i,:)+ad1_tau_wind ;
-    ad_Dr(i)        =ad_Dr(i)        +ad1_Dr       ;
-    ad_params.fv    =ad_params.fv    +ad1_params_fv;    
-    ad_d50(i)       =ad_d50(i)       +ad1_d50      ;
-
-    ad_udelta(i,:)=0;
-    ad_delta_bl(i)=0;
-  end
-end
+% tl_udelta=tl_ubar;  % udelta_reniers looks weird, is larger than ubar!
+ad_ubar=ad_ubar+ad_udelta;
+ad_udelta=0;
+% % Reniers et al. (2004) model for velocity at top of boundary layer
+% for i=nx:-1:1
+%   if(Dr(i)==0)
+%     %11a2 tl_delta_bl(i)=0;
+%     ad_delta_bl(i)=0;
+%     %11a1 tl_udelta(i,:)=[0 0];
+%     ad_udelta(i,:)=[0 0];
+%   else
+%     %11b1 [tl_udelta(i,:),tl_delta_bl(i)] = ...
+%     %     tl_udelta_reniers2004(tl_ubar(i,:),tl_k(i,:),tl_omega,...
+%     %                           tl_h(i),tl_Hrms(i),tl_detady(i),...
+%     %                           tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,tl_d50(i),...
+%     %                           udel_bkgd(i));
+%     [ad1_ubar,ad1_k,ad1_omega,ad1_h,ad1_Hrms,...
+%      ad1_detady,ad1_tau_wind,ad1_Dr,ad1_params_fv,ad1_d50] = ...
+%         ad_udelta_reniers2004(ad_udelta(i,:),ad_delta_bl(i),udel_bkgd(i));
+% 
+%     ad_ubar(i,:)    =ad_ubar(i,:)    +ad1_ubar     ;
+%     ad_k(i,:)       =ad_k(i,:)       +ad1_k        ;
+%     ad_omega        =ad_omega        +ad1_omega    ;    
+%     ad_h(i)         =ad_h(i)         +ad1_h        ;
+%     ad_Hrms(i)      =ad_Hrms(i)      +ad1_Hrms     ;
+%     ad_detady(i)    =ad_detady(i)    +ad1_detady   ;
+%     ad_tau_wind(i,:)=ad_tau_wind(i,:)+ad1_tau_wind ;
+%     ad_Dr(i)        =ad_Dr(i)        +ad1_Dr       ;
+%     ad_params.fv    =ad_params.fv    +ad1_params_fv;    
+%     ad_d50(i)       =ad_d50(i)       +ad1_d50      ;
+% 
+%     ad_udelta(i,:)=0;
+%     ad_delta_bl(i)=0;
+%   end
+% end
 
 % settling velocity: use Brown & Lawler.  For vanderA use 0.8*d50
 % here, per explanation on page 29
