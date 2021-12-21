@@ -119,7 +119,6 @@ etawt       =bkgd.etawt       ;
 fd          =bkgd.fd          ;
 fw          =bkgd.fw          ;
 fwc         =bkgd.fwc         ;
-fwd         =bkgd.fwd         ;
 fwdc        =bkgd.fwdc        ;
 fwdt        =bkgd.fwdt        ;
 fwt         =bkgd.fwt         ;
@@ -197,6 +196,14 @@ t2c         =bkgd.t2c         ;
 t2t         =bkgd.t2t         ;
 worbc       =bkgd.worbc       ;
 worbt       =bkgd.worbt       ;
+if(~isfield(param,'streamingType') || param.streamingType=='v')
+  fwd=bkgd.fwd;
+elseif(param.streamingType=='n')
+  f25    =bkgd.f25    ;
+  theta25=bkgd.theta25;
+  r      =bkgd.r      ;
+  fws    =bkgd.fws    ;
+end
 
 %------------------------------------
 % begin AD code
@@ -292,7 +299,6 @@ ad_wsc=0;
 ad_wst=0;
 ad_streamingEffect=0;
 ad_tauwRe=0;
-ad_fwd=0;
 ad_argc=0;
 ad_argt=0;
 ad_argc1=0;
@@ -319,6 +325,14 @@ ad_t2c   =0;
 ad_t2t   =0;
 ad_worbc =0;
 ad_worbt =0;
+if(~isfield(param,'streamingType') || param.streamingType=='v')
+  ad_fwd=0;
+elseif(param.streamingType=='n')
+  ad_fws=0;
+  ad_r=0;
+  ad_f25=0;
+  ad_theta25=0;
+end
 
 % % TEST-CODE: override input variable
 % if(~strcmp(invar,'qs'))
@@ -703,22 +717,66 @@ ad_thetacx=0;
 ad_tauwRe=ad_tauwRe+ 1/((s-1)*g)/d50         *ad_streamingEffect;
 ad_d50   =ad_d50   - 1/((s-1)*g)*tauwRe/d50^2*ad_streamingEffect;
 ad_streamingEffect=0;
-%2 tl_tauwRe = .5*alphaw*( ...
-%     tl_fwd*uhat^3/c ...
-%     + 3*fwd*uhat^2/c*tl_uhat ...
-%     - fwd*uhat^3/c^2*tl_c );
-ad_fwd =ad_fwd + .5*alphaw*uhat^3/c      *ad_tauwRe;
-ad_uhat=ad_uhat+ .5*alphaw*3*fwd*uhat^2/c*ad_tauwRe;
-ad_c   =ad_c   - .5*alphaw*fwd*uhat^3/c^2*ad_tauwRe;
-ad_tauwRe=0;
-%1 tl_fwd = tl_alpha*fd ...
-%          + alpha*tl_fd ...
-%          - tl_alpha*fw ...
-%          + (1-alpha)*tl_fw;
-ad_alpha=ad_alpha+ (fd-fw)  *ad_fwd;
-ad_fd   =ad_fd   + alpha    *ad_fwd;
-ad_fw   =ad_fw   + (1-alpha)*ad_fwd;
-ad_fwd=0;
+
+% boundary layer streaming, either with VDA13 model or Nielsen
+alphaw = 4/(3*pi);
+if(~isfield(param,'streamingType') || param.streamingType=='v')
+  %2 tl_tauwRe = .5*alphaw*( ...
+  %     tl_fwd*uhat^3/c ...
+  %     + 3*fwd*uhat^2/c*tl_uhat ...
+  %     - fwd*uhat^3/c^2*tl_c );
+  ad_fwd =ad_fwd + .5*alphaw*uhat^3/c      *ad_tauwRe;
+  ad_uhat=ad_uhat+ .5*alphaw*3*fwd*uhat^2/c*ad_tauwRe;
+  ad_c   =ad_c   - .5*alphaw*fwd*uhat^3/c^2*ad_tauwRe;
+  ad_tauwRe=0;
+  %1 tl_fwd = tl_alpha*fd ...
+  %          + alpha*tl_fd ...
+  %          - tl_alpha*fw ...
+  %          + (1-alpha)*tl_fw;
+  ad_alpha=ad_alpha+ (fd-fw)  *ad_fwd;
+  ad_fd   =ad_fd   + alpha    *ad_fwd;
+  ad_fw   =ad_fw   + (1-alpha)*ad_fwd;
+  ad_fwd=0;
+elseif(param.streamingType=='n')
+  %6 tl_tauwRe = tl_fws*alphaw*uhat^3/2/c ...
+  %     + 3*fws*alphaw*uhat^2/2/c*tl_uhat ...
+  %     - fws*alphaw*uhat^3/2/c^2*tl_c;
+  ad_fws   =ad_fws   + alphaw*uhat^3/2/c      *ad_tauwRe;
+  ad_uhat  =ad_uhat  + 3*fws*alphaw*uhat^2/2/c*ad_tauwRe;
+  ad_c     =ad_c     - fws*alphaw*uhat^3/2/c^2*ad_tauwRe;
+  ad_tauwRe=0;
+  %5 tl_fws = exp(5.5*(r/ahat)^.2-6.3)*2*5.5*(r/ahat)*( tl_r/ahat - r/ahat.^2.*tl_ahat );
+  ad_r   =ad_r   + exp(5.5*(r/ahat)^.2-6.3)*2*5.5*(r/ahat)/ahat      *ad_fws;
+  ad_ahat=ad_ahat- exp(5.5*(r/ahat)^.2-6.3)*2*5.5*(r/ahat)*r/ahat.^2.*ad_fws;
+  ad_fws=0;
+  if(lambda>0)
+    %4   tl_r = tl_r + 2*8*eta/lambda*tl_eta - 8*eta^2/lambda^2*tl_lambda;
+    ad_eta   =ad_eta   + 2*8*eta/lambda  *ad_r;
+    ad_lambda=ad_lambda- 8*eta^2/lambda^2*ad_r;
+    % do not clear ad_r, statement was an increment not assignment
+  end
+  %3 tl_r = 170*sqrt(max(0,theta25-0.05))*tl_d50 ...
+  %        + .5*170/sqrt(max(0,theta25-0.05))*tl_theta25;
+  ad_d50    =ad_d50    + 170*sqrt(max(0,theta25-0.05))   *ad_r;
+  ad_theta25=ad_theta25+ .5*170/sqrt(max(0,theta25-0.05))*ad_r;
+  ad_r=0;
+  %2 tl_theta25 = 0.5*tl_f25*(ahat*omega)^2/((s-1)*g*d50) ...
+  %     + 2*0.5*f25*ahat*(omega)^2/((s-1)*g*d50)*tl_ahat ...
+  %     + 2*0.5*f25*(ahat)^2*omega/((s-1)*g*d50)*tl_omega ...
+  %     - 0.5*f25*(ahat*omega)^2/((s-1)*g*d50^2)*tl_d50;
+  ad_f25  =ad_f25  + 0.5*(ahat*omega)^2/((s-1)*g*d50)      *ad_theta25;
+  ad_ahat =ad_ahat + 2*0.5*f25*ahat*(omega)^2/((s-1)*g*d50)*ad_theta25;
+  ad_omega=ad_omega+ 2*0.5*f25*(ahat)^2*omega/((s-1)*g*d50)*ad_theta25;
+  ad_d50  =ad_d50  - 0.5*f25*(ahat*omega)^2/((s-1)*g*d50^2)*ad_theta25;
+  ad_theta25=0;
+  %1 tl_f25 = exp(5.5*(2.5*d50/ahat)^2-6.3)*2*5.5*(2.5*d50/ahat)*( ...
+  %     2.5*tl_d50/ahat - 2.5*d50/ahat^2*tl_ahat );
+  ad_d50 =ad_d50 + exp(5.5*(2.5*d50/ahat)^2-6.3)*2*5.5*(2.5*d50/ahat)*2.5/ahat      *ad_f25;
+  ad_ahat=ad_ahat- exp(5.5*(2.5*d50/ahat)^2-6.3)*2*5.5*(2.5*d50/ahat)*2.5*d50/ahat^2*ad_f25;
+  ad_f25=0;
+else
+  error('must provide param.streamingType as either ''n'' or ''v''')
+end
 
 % %b11 other BBL derived parameters
 %10 tl_thetat = .5/((s-1)*g)*( tl_fwdt.*utrabs.^2/d50 ...

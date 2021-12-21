@@ -4,6 +4,8 @@
 clear
 addpath(genpath('../../..'));
 
+param.streamingType='n';  % choose either 'n' or 'v'.  NOTE, should test both
+
 % TEST-CODE: choose a test variable.  These are in the order they appear in
 % TL model.  This is a very effective debugging technique for the AD model.
 % Requires having an auxiliary input for the TL and AD codes that override

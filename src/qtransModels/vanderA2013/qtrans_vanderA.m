@@ -27,6 +27,10 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,U
 %        m    : MPM leading coefficient, eqn (36).  Default 11.0
 %        n    : MPM exponent, eqn (36).  Default 1.2
 %
+% param.streamingType : select from 'v' (van der A, 2013) or 'n' (Nielsen,
+% 2006).  The Nielsen formulation uses a larger roughness for calculating
+% bed streaming, and therefore produces a larger streaming.
+%
 % OUTPUTS:
 %
 % qs: total sediment transport flux in m2/s.  A factor 1/(1-psed) is
@@ -167,21 +171,26 @@ ucrabs=sqrt(ucrvec(1)^2+ucrvec(2)^2);
 utrabs=sqrt(utrvec(1)^2+utrvec(2)^2);
 thetac=.5*fwdc.*ucrabs.^2/((s-1)*g*d50);  % eqn 17
 thetat=.5*fwdt.*utrabs.^2/((s-1)*g*d50);  % eqn 17
-fwd = alpha*fd+(1-alpha)*fw;
+
+% boundary layer streaming, either with VDA13 model or Nielsen
 alphaw = 4/(3*pi);
-tauwRe = fwd*alphaw*uhat^3/2/c;
-
-% % TEST: override VDA streaming with that of Nielsen (2006)
-% f25 = exp(5.5*(2.5*d50/ahat)^.2-6.3);
-% theta25 = 0.5*f25*(ahat*omega)^2/((s-1)*g*d50);
-% r = 170*sqrt(max(0,theta25-0.05))*d50;
-% fws = exp(5.5*(r/ahat)^.2-6.3);
-% tauwRe = fws*alphaw*uhat^3/2/c;
-
+if(~isfield(param,'streamingType') || param.streamingType=='v')
+  fwd = alpha*fd+(1-alpha)*fw;
+  tauwRe = fwd*alphaw*uhat^3/2/c;
+elseif(param.streamingType=='n')
+  f25 = exp(5.5*(2.5*d50/ahat)^.2-6.3);
+  theta25 = 0.5*f25*(ahat*omega)^2/((s-1)*g*d50);
+  r = 170*sqrt(max(0,theta25-0.05))*d50;
+  if(lambda>0)
+    r = r + 8*eta^2/lambda;
+  end
+  fws = exp(5.5*(r/ahat)^.2-6.3);
+  tauwRe = fws*alphaw*uhat^3/2/c;
+  % tauRe = 1/T/2*fws*trapz(t,abs(uw).^3)/c;  % same but integrate uw(t)
+else
+  error('must provide param.streamingType as either ''n'' or ''v''')
+end
 streamingEffect = tauwRe/((s-1)*g*d50);  % eqns 15 and 22
-
-% % TEST: artificially alter streaming with constant factor
-% streamingEffect=streamingEffect*8;
 
 % apply streaming to bottom stress
 thetacx = abs(thetac)*ucrvec(1)/ucrabs + streamingEffect;  % eqn 15
@@ -406,9 +415,15 @@ if(nargout>1)
   vname{end+1}='t2t';
   vname{end+1}='worbc';
   vname{end+1}='worbt';
+  vname{end+1}='f25';
+  vname{end+1}='theta25';
+  vname{end+1}='r';
+  vname{end+1}='fws';
   workspc=struct;
   for i=1:length(vname)
-    workspc=setfield(workspc,vname{i},eval(vname{i}));
+    if(exist(vname{i}))
+      workspc=setfield(workspc,vname{i},eval(vname{i}));
+    end
   end
 end
 workspc=workspc(:);

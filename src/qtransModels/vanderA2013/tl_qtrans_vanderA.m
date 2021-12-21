@@ -64,7 +64,6 @@ etawt       =bkgd.etawt       ;
 fd          =bkgd.fd          ;
 fw          =bkgd.fw          ;
 fwc         =bkgd.fwc         ;
-fwd         =bkgd.fwd         ;
 fwdc        =bkgd.fwdc        ;
 fwdt        =bkgd.fwdt        ;
 fwt         =bkgd.fwt         ;
@@ -139,6 +138,14 @@ t2c         =bkgd.t2c         ;
 t2t         =bkgd.t2t         ;
 worbc       =bkgd.worbc       ;
 worbt       =bkgd.worbt       ;
+if(~isfield(param,'streamingType') || param.streamingType=='v')
+  fwd=bkgd.fwd;
+elseif(param.streamingType=='n')
+  f25    =bkgd.f25    ;
+  theta25=bkgd.theta25;
+  r      =bkgd.r      ;
+  fws    =bkgd.fws    ;
+end
 
 % derived params
 tl_Hmo=tl_Hrms*1.4;
@@ -307,14 +314,47 @@ tl_thetac = .5/((s-1)*g)*( tl_fwdc.*ucrabs.^2/d50 ...
 tl_thetat = .5/((s-1)*g)*( tl_fwdt.*utrabs.^2/d50 ...
                            + 2*fwdt.*utrabs*tl_utrabs/d50 ...
                            - fwdt.*utrabs.^2/d50^2*tl_d50 );  % ad symmetric
-tl_fwd = tl_alpha*fd ...
+
+% boundary layer streaming, either with VDA13 model or Nielsen
+alphaw = 4/(3*pi);
+if(~isfield(param,'streamingType') || param.streamingType=='v')
+  % fwd = alpha*fd+(1-alpha)*fw;
+  tl_fwd = tl_alpha*fd ...
          + alpha*tl_fd ...
          - tl_alpha*fw ...
          + (1-alpha)*tl_fw;
-tl_tauwRe = .5*alphaw*( ...
-    tl_fwd*uhat^3/c ...
-    + 3*fwd*uhat^2/c*tl_uhat ...
-    - fwd*uhat^3/c^2*tl_c );
+  % tauwRe = fwd*alphaw*uhat^3/2/c;
+  tl_tauwRe = .5*alphaw*( ...
+      tl_fwd*uhat^3/c ...
+      + 3*fwd*uhat^2/c*tl_uhat ...
+      - fwd*uhat^3/c^2*tl_c );
+elseif(param.streamingType=='n')
+  % f25 = exp(5.5*(2.5*d50/ahat)^.2-6.3);
+  tl_f25 = exp(5.5*(2.5*d50/ahat)^2-6.3)*2*5.5*(2.5*d50/ahat)*( ...
+      2.5*tl_d50/ahat - 2.5*d50/ahat^2*tl_ahat );
+  % theta25 = 0.5*f25*(ahat*omega)^2/((s-1)*g*d50);
+  tl_theta25 = 0.5*tl_f25*(ahat*omega)^2/((s-1)*g*d50) ...
+      + 2*0.5*f25*ahat*(omega)^2/((s-1)*g*d50)*tl_ahat ...
+      + 2*0.5*f25*(ahat)^2*omega/((s-1)*g*d50)*tl_omega ...
+      - 0.5*f25*(ahat*omega)^2/((s-1)*g*d50^2)*tl_d50;
+  % r = 170*sqrt(max(0,theta25-0.05))*d50;
+  tl_r = 170*sqrt(max(0,theta25-0.05))*tl_d50 ...
+         + .5*170/sqrt(max(0,theta25-0.05))*tl_theta25;
+  if(lambda>0)
+    tl_r = tl_r + 2*8*eta/lambda*tl_eta - 8*eta^2/lambda^2*tl_lambda;
+  end
+  % fws = exp(5.5*(r/ahat)^.2-6.3);
+  tl_fws = exp(5.5*(r/ahat)^.2-6.3)*2*5.5*(r/ahat)*( tl_r/ahat - r/ahat.^2.*tl_ahat );
+  % tauwRe = fws*alphaw*uhat^3/2/c;
+  tl_tauwRe = tl_fws*alphaw*uhat^3/2/c ...
+      + 3*fws*alphaw*uhat^2/2/c*tl_uhat ...
+      - fws*alphaw*uhat^3/2/c^2*tl_c;
+else
+  error('must provide param.streamingType as either ''n'' or ''v''')
+end
+
+% apply streaming to bottom stress
+% streamingEffect = tauwRe/((s-1)*g*d50);  % eqns 15 and 22
 tl_streamingEffect = 1/((s-1)*g)*( tl_tauwRe/d50 - tauwRe/d50^2*tl_d50 );
 tl_thetacx = tl_thetac*ucrvec(1)/ucrabs ...
     + thetac*tl_ucrvec(1)/ucrabs ...
