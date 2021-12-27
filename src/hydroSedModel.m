@@ -165,21 +165,20 @@ if(doDubarbierHack)
   ubar=ur;
 end
 
-% % Reniers et al. (2004) model for velocity at top of boundary layer
-% Dr(Dr==0)=min([0; Dr(Dr>0)]);
-% for i=1:nx
-%   if(Dr(i)==0)
-%     udelta(i,:)=[0 0];
-%     delta_bl(i)=.2;
-%   else
-%     [udelta(i,:),delta_bl(i),udel_bkgd(i)]= ...
-%         udelta_reniers2004(ubar(i,:),k(i,:),omega,...
-%                            h(i),Hrms(i),detady(i),...
-%                            tau_wind(i,:),Dr(i),params.fv,d50(i));
-%     udel_bkgd=udel_bkgd(:);
-%   end
-% end
-udelta=ubar;  % udelta_reniers looks weird, is larger than ubar!
+% Reniers et al. (2004) model for velocity at top of boundary layer
+Dr(Dr==0)=min([0; Dr(Dr>0)]);
+for i=1:nx
+  if(Dr(i)==0)
+    udelta(i,:)=[0 0];
+    delta_bl(i)=.2;
+  else
+    [udelta(i,:),delta_bl(i),udel_bkgd(i)]= ...
+        udelta_reniers2004(ubar(i,:),k(i,:),omega,...
+                           h(i),Hrms(i),detady(i),...
+                           tau_wind(i,:),Dr(i),params.fv,d50(i));
+    udel_bkgd=udel_bkgd(:);
+  end
+end
 
 % Rotate udelta into wave direction, as assumed by sed transport equations.
 % To understand which direction to rotate, consider the first component of
