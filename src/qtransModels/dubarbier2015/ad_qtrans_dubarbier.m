@@ -231,11 +231,9 @@ for i=nx:-1:1
 
   for j=nt:-1:1
     % tl_utot(j,i)=1/utot(j,i)*utilde(j,i)*tl_utilde(j,i) ...
-    %     + 1/utot(j,i)*udelta(i,1)*tl_udelta(i,1) ...
-    %     + 1/utot(j,i)*udelta(i,2)*tl_udelta(i,2);
+    %     + 1/utot(j,i)*udelta(i,1)*tl_udelta(i,1);
     ad_utilde(j,i)=ad_utilde(j,i)+ 1/utot(j,i)*utilde(j,i)*ad_utot(j,i);
     ad_udelta(i,1)=ad_udelta(i,1)+ 1/utot(j,i)*udelta(i,1)*ad_utot(j,i);
-    ad_udelta(i,2)=ad_udelta(i,2)+ 1/utot(j,i)*udelta(i,2)*ad_utot(j,i);
     ad_utot(j,i)=0;
   end
 

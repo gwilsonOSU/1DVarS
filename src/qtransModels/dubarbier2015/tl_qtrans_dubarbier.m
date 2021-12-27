@@ -88,8 +88,7 @@ for i=1:nx
   tl_Awq(i) = omega*tl_Uwq(i) + tl_omega*Uwq(i);
   for j=1:length(t)
     tl_utot(j,i)=1/utot(j,i)*utilde(j,i)*tl_utilde(j,i) ...
-        + 1/utot(j,i)*udelta(i,1)*tl_udelta(i,1) ...
-        + 1/utot(j,i)*udelta(i,2)*tl_udelta(i,2);
+        + 1/utot(j,i)*udelta(i,1)*tl_udelta(i,1);
   end
 
   % energetics model, eqns (11)-(14)

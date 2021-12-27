@@ -61,7 +61,7 @@ for i=1:nx
   % comparing to Hsu et al. (2006) it seems as though Dubarbier et al. are
   % using \tilde{U} and \tilde{u} (upper and lower case) interchangably for
   % "wave velocity".  There are a few other obvious sloppy notational errors
-  % like using "omega_s" for fall velocity
+  % like using "omega_s" for fall velocity.
   [utilde(:,i),bkgd_uwave(i)]=Uwave_ruessink2012(omega*t,Aw(i),Sw(i),Uw(i));
   uH(:,i)=imag(hilbert(utilde(:,i)));
   Au_nums(i) = mean( uH(:,i).^3 );
@@ -69,7 +69,7 @@ for i=1:nx
   Au_dens(i) = Au_dens_1(:,i).^(3/2);
   Au(i) = Au_nums(i)/Au_dens(i);
   Awq(i) = omega*Uwq(i);
-  utot(:,i)=sqrt(utilde(:,i).^2+udelta(i,1)^2+udelta(i,2)^2);
+  utot(:,i)=sqrt(utilde(:,i).^2+udelta(i,1)^2);
 
   % energetics model, eqns (11)-(14).  There are a few very sloppy typos in
   % the paper, use Hsu et al. (2006) and Bailard (1981) for more coherent
