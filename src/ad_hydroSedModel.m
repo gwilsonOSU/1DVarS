@@ -307,7 +307,6 @@ elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   ad_omega      =ad_omega      +ad1_omega      ;
   ad_udelta     =ad_udelta     +ad1_udelta     ;
   ad_ws         =ad_ws         +ad1_ws         ;
-  ad_params.fv   =ad_params.fv   +ad1_params.fv   ;
   ad_params.n    =ad_params.n    +ad1_params.n    ;
   ad_params.m    =ad_params.m    +ad1_params.m    ;
   ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
