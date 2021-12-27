@@ -755,11 +755,16 @@ elseif(param.streamingType=='n')
     ad_lambda=ad_lambda- 8*eta^2/lambda^2*ad_r;
     % do not clear ad_r, statement was an increment not assignment
   end
-  %3 tl_r = 170*sqrt(max(0,theta25-0.05))*tl_d50 ...
-  %        + .5*170/sqrt(max(0,theta25-0.05))*tl_theta25;
-  ad_d50    =ad_d50    + 170*sqrt(max(0,theta25-0.05))   *ad_r;
-  ad_theta25=ad_theta25+ .5*170/sqrt(max(0,theta25-0.05))*ad_r;
-  ad_r=0;
+  if(theta25-0.05<=0)
+    %3 tl_r=0;
+    ad_r=0;
+  else
+    %3 tl_r = 170*sqrt(theta25-0.05)*tl_d50 ...
+    %      + .5*170/sqrt(theta25-0.05)*tl_theta25;
+    ad_d50    =ad_d50    + 170*sqrt(theta25-0.05)   *ad_r;
+    ad_theta25=ad_theta25+ .5*170/sqrt(theta25-0.05)*ad_r;
+    ad_r=0;
+  end
   %2 tl_theta25 = 0.5*tl_f25*(ahat*omega)^2/((s-1)*g*d50) ...
   %     + 2*0.5*f25*ahat*(omega)^2/((s-1)*g*d50)*tl_ahat ...
   %     + 2*0.5*f25*(ahat)^2*omega/((s-1)*g*d50)*tl_omega ...

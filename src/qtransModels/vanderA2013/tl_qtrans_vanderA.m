@@ -338,8 +338,12 @@ elseif(param.streamingType=='n')
       + 2*0.5*f25*(ahat)^2*omega/((s-1)*g*d50)*tl_omega ...
       - 0.5*f25*(ahat*omega)^2/((s-1)*g*d50^2)*tl_d50;
   % r = 170*sqrt(max(0,theta25-0.05))*d50;
-  tl_r = 170*sqrt(max(0,theta25-0.05))*tl_d50 ...
-         + .5*170/sqrt(max(0,theta25-0.05))*tl_theta25;
+  if(theta25-0.05<=0)
+    tl_r=0;
+  else
+    tl_r = 170*sqrt(theta25-0.05)*tl_d50 ...
+         + .5*170/sqrt(theta25-0.05)*tl_theta25;
+  end
   if(lambda>0)
     tl_r = tl_r + 2*8*eta/lambda*tl_eta - 8*eta^2/lambda^2*tl_lambda;
   end
