@@ -69,7 +69,7 @@ for i=1:nx
   Au_dens(i) = Au_dens_1(:,i).^(3/2);
   Au(i) = Au_nums(i)/Au_dens(i);
   Awq(i) = omega*Uwq(i);
-  utot(:,i)=sqrt(utilde(:,i).^2+udelta(i,1)^2);
+  utot(:,i)=sqrt(utilde(:,i).^2+udelta(i,1)^2+udelta(i,2)^2);
 
   % energetics model, eqns (11)-(14).  There are a few very sloppy typos in
   % the paper, use Hsu et al. (2006) and Bailard (1981) for more coherent
