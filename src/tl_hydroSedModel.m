@@ -86,20 +86,19 @@ else
   tl_ws = tl_ws_brownLawler(tl_d50,d50);
 end
 
-% % Reniers et al. (2004) model for velocity at top of boundary layer
-% for i=1:nx
-%   if(Dr(i)==0)
-%     tl_udelta(i,:)=[0 0];
-%     tl_delta_bl(i)=0;
-%   else
-%     [tl_udelta(i,:),tl_delta_bl(i)] = ...
-%         tl_udelta_reniers2004(tl_ubar(i,:),tl_k(i,:),tl_omega,...
-%                               tl_h(i),tl_Hrms(i),tl_detady(i),...
-%                               tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,tl_d50(i),...
-%                               udel_bkgd(i));
-%   end
-% end
-tl_udelta=tl_ubar;  % udelta_reniers looks weird, is larger than ubar!
+% Reniers et al. (2004) model for velocity at top of boundary layer
+for i=1:nx
+  if(Dr(i)==0)
+    tl_udelta(i,:)=[0 0];
+    tl_delta_bl(i)=0;
+  else
+    [tl_udelta(i,:),tl_delta_bl(i)] = ...
+        tl_udelta_reniers2004(tl_ubar(i,:),tl_k(i,:),tl_omega,...
+                              tl_h(i),tl_Hrms(i),tl_detady(i),...
+                              tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,tl_d50(i),...
+                              udel_bkgd(i));
+  end
+end
 
 % rotate udelta into wave direction, as assumed by sed transport equations
 % udelta_w(:,1) = +udelta(:,1).*cos(theta) + udelta(:,2).*sin(theta);
