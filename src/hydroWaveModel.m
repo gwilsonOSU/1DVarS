@@ -60,8 +60,9 @@ nx=length(x);
 [Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
     hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma);
 
-% wave shape parameters
-[Aw0,Sw0,Uw,uwave_bkgd]=Uwave_ruessink2012_params(Hrms,kabs,omega,h);
+% wave shape parameters.  Note Uwave_ruessink2012 specifies Hmo as input
+Hmo=1.4*Hrms;
+[Aw0,Sw0,Uw,uwave_bkgd]=Uwave_ruessink2012_params(Hmo,kabs,omega,h);
 Aw=Aw0+dAw;
 Sw=Sw0+dSw;
 

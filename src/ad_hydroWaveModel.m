@@ -33,7 +33,7 @@ ad_Sw0=zeros(nx,1);
 % begin AD code
 %----------------------------------------
 
-% wave shape parameters
+% wave shape parameters.  Note Uwave_ruessink2012 specifies Hmo as input
 % tl_Sw=tl_Sw0+tl_dSw;
 ad_Sw0=ad_Sw0+ad_Sw;
 ad_dSw=ad_dSw+ad_Sw;
@@ -42,12 +42,15 @@ ad_Sw=zeros(nx,1);
 ad_Aw0=ad_Aw0+ad_Aw;
 ad_dAw=ad_dAw+ad_Aw;
 ad_Aw=zeros(nx,1);
-% [tl_Aw0,tl_Sw0,tl_Uw]=tl_Uwave_ruessink2012_params(tl_Hrms,tl_kabs,tl_omega,tl_h,uwave_bkgd);
-[ad1_Hrms,ad1_kabs,ad1_omega,ad1_h]=ad_Uwave_ruessink2012_params(ad_Aw0,ad_Sw0,ad_Uw,uwave_bkgd);
-ad_Hrms =ad_Hrms +ad1_Hrms ;
+% [tl_Aw0,tl_Sw0,tl_Uw]=tl_Uwave_ruessink2012_params(tl_Hmo,tl_kabs,tl_omega,tl_h,uwave_bkgd);
+[ad1_Hmo,ad1_kabs,ad1_omega,ad1_h]=ad_Uwave_ruessink2012_params(ad_Aw0,ad_Sw0,ad_Uw,uwave_bkgd);
+ad_Hmo  =ad_Hmo  +ad1_Hmo  ;
 ad_kabs =ad_kabs +ad1_kabs ;
 ad_omega=ad_omega+ad1_omega;
 ad_h    =ad_h    +ad1_h    ;
+% tl_Hmo=1.4*tl_Hrms;
+ad_Hrms=ad_Hrms+1.4*ad_Hmo;
+ad_Hmo=0;
 
 % 1DH wave and longshore current balance
 % [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
