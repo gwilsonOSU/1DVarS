@@ -17,6 +17,7 @@ nx=length(h);
 %----------------------------------------
 
 ad_h=zeros(nx,1);
+ad_Hmo=zeros(nx,1);
 ad_H0=0;
 ad_theta0=0;
 ad_omega=0;
