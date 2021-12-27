@@ -1,14 +1,58 @@
-function tl_Q =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,...
+function tl_Q =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,...
                      tl_Cw,tl_Cc,tl_Cf,tl_Ka,bkgd)%,outvar)
 %
 % TL-code for qtrans_dubarbier.m
 %
 
-% break out NL background vars, and recompute some helper variables
-fld=fields(bkgd);
-for i=1:length(fld)
-  eval([fld{i} ' = bkgd.' fld{i} ';']);
-end
+% break out NL background vars, and recompute some helper variables.  Note,
+% is much faster to hard-code this rather than use 'fields(bkgd)' to
+% auto-populate a list.
+h          =bkgd.h          ;
+Hrms       =bkgd.Hrms       ;
+omega      =bkgd.omega      ;
+udelta     =bkgd.udelta     ;
+ws         =bkgd.ws         ;
+Cw         =bkgd.Cw         ;
+Cc         =bkgd.Cc         ;
+Cf         =bkgd.Cf         ;
+Ka         =bkgd.Ka         ;
+eps_b      =bkgd.eps_b      ;
+eps_s      =bkgd.eps_s      ;
+tan_phi    =bkgd.tan_phi    ;
+nt         =bkgd.nt         ;
+nx         =bkgd.nx         ;
+Hmo        =bkgd.Hmo        ;
+kabs       =bkgd.kabs       ;
+Uwq        =bkgd.Uwq        ;
+tanbeta    =bkgd.tanbeta    ;
+t          =bkgd.t          ;
+utilde     =bkgd.utilde     ;
+bkgd_uwave =bkgd.bkgd_uwave ;
+uH         =bkgd.uH         ;
+Au_nums    =bkgd.Au_nums    ;
+Au_dens_1  =bkgd.Au_dens_1  ;
+Au_dens    =bkgd.Au_dens    ;
+Au         =bkgd.Au         ;
+Awq        =bkgd.Awq        ;
+utot       =bkgd.utot       ;
+qb1        =bkgd.qb1        ;
+qb2        =bkgd.qb2        ;
+qb3        =bkgd.qb3        ;
+qs1        =bkgd.qs1        ;
+qs2        =bkgd.qs2        ;
+qs3        =bkgd.qs3        ;
+qa         =bkgd.qa         ;
+qs         =bkgd.qs         ;
+qb         =bkgd.qb         ;
+qnorm      =bkgd.qnorm      ;
+Qa         =bkgd.Qa         ;
+Qs         =bkgd.Qs         ;
+Qb         =bkgd.Qb         ;
+Aw         =bkgd.Aw         ;
+Sw         =bkgd.Sw         ;
+Uw         =bkgd.Uw         ;
+
+% define some stray NL vars not saved in bkgd struct
 utabs=abs(utilde);
 utotabs=abs(utot);
 nt=length(t);
@@ -19,7 +63,7 @@ physicalConstants;
 
 % derived params
 tl_Hmo=tl_Hrms*1.4; % ok
-tl_Uw = omega/2.*( tl_Hrms./sinh(kabs.*h) ...
+tl_Uwq= omega/2.*( tl_Hrms./sinh(kabs.*h) ...
                    - Hrms./sinh(kabs.*h).^2.*cosh(kabs.*h).*(tl_kabs.*h+kabs.*tl_h) ) ...
         + tl_omega.*Hrms./(2*sinh(kabs.*h));
 
@@ -31,7 +75,7 @@ for i=1:nx
   % using \tilde{U} and \tilde{u} (upper and lower case) interchangably for
   % "wave velocity".  There are a few other obvious sloppy notational errors
   % like using "omega_s" for fall velocity
-  tl_utilde(:,i)=tl_Uwave_ruessink2012(tl_Hmo(i),tl_kabs(i),tl_omega,tl_h(i),...
+  tl_utilde(:,i)=tl_Uwave_ruessink2012(tl_Aw(i),tl_Sw(i),tl_Uw(i),...
                                        omega*t,bkgd_uwave(i))';
 
   H = imag(hilbert(eye(length(t))));  % apply hilbert() to a bunch of delta functions
@@ -41,7 +85,7 @@ for i=1:nx
   tl_Au_dens_1(i) = mean( 2*uH(:,i).*tl_uH );
   tl_Au_dens(i) = (3/2)*Au_dens_1(i).^(3/2-1).*tl_Au_dens_1(i);
   tl_Au(i) = tl_Au_nums./Au_dens(i) - Au_nums(i)./Au_dens(i).^2.*tl_Au_dens(i);
-  tl_Aw = omega*tl_Uw(i) + tl_omega*Uw(i);
+  tl_Awq(i) = omega*tl_Uwq(i) + tl_omega*Uwq(i);
   for j=1:length(t)
     tl_utot(j,i)=1/utot(j,i)*utilde(j,i)*tl_utilde(j,i) ...
         + 1/utot(j,i)*udelta(i,1)*tl_udelta(i,1) ...
@@ -49,9 +93,9 @@ for i=1:nx
   end
 
   % energetics model, eqns (11)-(14)
-  tl_qa(i) = -tl_Ka*Au(i)*Aw(i) ...
-          -Ka*tl_Au(i)*Aw(i) ...
-          -Ka*Au(i)*tl_Aw;  % ad symmetric
+  tl_qa(i) = -tl_Ka*Au(i)*Awq(i) ...
+          -Ka*tl_Au(i)*Awq(i) ...
+          -Ka*Au(i)*tl_Awq(i);  % ad symmetric
   tl_utabs(:,i)=sign(utilde(:,i)).*tl_utilde(:,i);  % ad symmetric
   tl_utotabs(:,i)=sign(utot(:,i)).*tl_utot(:,i);  % ad symmetric
 

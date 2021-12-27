@@ -1,19 +1,63 @@
-function [ad_tanbeta,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,...
+function [ad_tanbeta,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,...
                      ad_Cw,ad_Cc,ad_Cf,ad_Ka] = ...
     ad_qtrans_dubarbier(ad_Q,bkgd)%,invar)
 %
 % AD-code for tl_qtrans_dubarbier.m
 %
 
-% break out NL background vars, and recompute some helper variables
-fld=fields(bkgd);
-for i=1:length(fld)
-  eval([fld{i} ' = bkgd.' fld{i} ';']);
-end
+% break out NL background vars, and recompute some helper variables.  Note,
+% is much faster to hard-code this rather than use 'fields(bkgd)' to
+% auto-populate a list.
+h          =bkgd.h          ;
+Hrms       =bkgd.Hrms       ;
+omega      =bkgd.omega      ;
+udelta     =bkgd.udelta     ;
+ws         =bkgd.ws         ;
+Cw         =bkgd.Cw         ;
+Cc         =bkgd.Cc         ;
+Cf         =bkgd.Cf         ;
+Ka         =bkgd.Ka         ;
+eps_b      =bkgd.eps_b      ;
+eps_s      =bkgd.eps_s      ;
+tan_phi    =bkgd.tan_phi    ;
+nt         =bkgd.nt         ;
+nx         =bkgd.nx         ;
+Hmo        =bkgd.Hmo        ;
+kabs       =bkgd.kabs       ;
+Uwq        =bkgd.Uwq        ;
+tanbeta    =bkgd.tanbeta    ;
+t          =bkgd.t          ;
+utilde     =bkgd.utilde     ;
+bkgd_uwave =bkgd.bkgd_uwave ;
+uH         =bkgd.uH         ;
+Au_nums    =bkgd.Au_nums    ;
+Au_dens_1  =bkgd.Au_dens_1  ;
+Au_dens    =bkgd.Au_dens    ;
+Au         =bkgd.Au         ;
+Awq        =bkgd.Awq        ;
+utot       =bkgd.utot       ;
+qb1        =bkgd.qb1        ;
+qb2        =bkgd.qb2        ;
+qb3        =bkgd.qb3        ;
+qs1        =bkgd.qs1        ;
+qs2        =bkgd.qs2        ;
+qs3        =bkgd.qs3        ;
+qa         =bkgd.qa         ;
+qs         =bkgd.qs         ;
+qb         =bkgd.qb         ;
+qnorm      =bkgd.qnorm      ;
+Qa         =bkgd.Qa         ;
+Qs         =bkgd.Qs         ;
+Qb         =bkgd.Qb         ;
+Aw         =bkgd.Aw         ;
+Sw         =bkgd.Sw         ;
+Uw         =bkgd.Uw         ;
+
+% define some stray NL vars not saved in bkgd struct
 utabs=abs(utilde);
 utotabs=abs(utot);
-nx=length(h);
 nt=length(t);
+nx=length(h);
 
 % physical constants
 physicalConstants;
@@ -41,8 +85,8 @@ ad_ws=zeros(nx,1);
 ad_udelta=zeros(nx,2);
 ad_Ka=0;
 ad_Au=zeros(nx,1);
-ad_Aw=0;
-ad_Uw=zeros(nx,1);
+ad_Awq=zeros(nx,1);
+ad_Uwq=zeros(nx,1);
 ad_utilde=zeros(nt,nx);
 ad_utot=zeros(nt,nx);
 ad_utotabs=zeros(nt,nx);
@@ -56,6 +100,9 @@ ad_Au_nums=0;
 ad_Au_dens=zeros(nx,1);
 ad_Au_dens_1=zeros(nx,1);
 ad_omega=0;
+ad_Aw=zeros(nx,1);
+ad_Sw=zeros(nx,1);
+ad_Uw=zeros(nx,1);
 
 % % TEST
 % eval(['ad_' invar '=ad_Q;']);
@@ -168,12 +215,12 @@ for i=nx:-1:1
   ad_utilde(:,i)=ad_utilde(:,i)+sign(utilde(:,i)).*ad_utabs(:,i);
   ad_utabs(:,i)=0;
 
-  %1 tl_qa(i) = -tl_Ka*Au(i)*Aw(i) ...
-  %         -Ka*tl_Au*Aw(i) ...
-  %         -Ka*Au(i)*tl_Aw;
-  ad_Ka=ad_Ka- Au(i)*Aw(i)*ad_qa(i);
-  ad_Au(i)=ad_Au(i)- Ka*Aw(i)   *ad_qa(i);
-  ad_Aw=ad_Aw- Ka*Au(i)   *ad_qa(i);
+  %1 tl_qa(i) = -tl_Ka*Au(i)*Awq(i) ...
+  %         -Ka*tl_Au*Awq(i) ...
+  %         -Ka*Au(i)*tl_Awq;
+  ad_Ka=ad_Ka- Au(i)*Awq(i)*ad_qa(i);
+  ad_Au(i)=ad_Au(i)- Ka*Awq(i)   *ad_qa(i);
+  ad_Awq(i)=ad_Awq(i)- Ka*Au(i)   *ad_qa(i);
   ad_qa(i)=0;
 
   %b03-1 intra-wave velocity information, using Ruessink et al. (2012).  Note,
@@ -192,10 +239,10 @@ for i=nx:-1:1
     ad_utot(j,i)=0;
   end
 
-  %7 tl_Aw = omega*tl_Uw(i) + tl_omega*Uw(i);
-  ad_Uw(i)=ad_Uw(i)+ omega*ad_Aw;
-  ad_omega = ad_omega + Uw(i)*ad_Aw;
-  ad_Aw=0;
+  %7 tl_Awq(i) = omega*tl_Uwq(i) + tl_omega*Uwq(i);
+  ad_Uwq(i)=ad_Uwq(i)+ omega*ad_Awq(i);
+  ad_omega = ad_omega + Uw(i)*ad_Awq(i);
+  ad_Awq(i)=0;
 
   %6 tl_Au = tl_Au_nums./Au_dens(i) - Au_nums(i)./Au_dens(i).^2.*tl_Au_dens;
   ad_Au_nums   =ad_Au_nums   + 1/Au_dens(i)           *ad_Au(i);
@@ -229,29 +276,28 @@ for i=nx:-1:1
   ad_utilde(:,i)=ad_utilde(:,i)+H'*ad_uH;
   ad_uH=0*ad_uH;
 
-  %1 tl_utilde(:,i)=tl_Uwave_ruessink2012(tl_Hmo(i),tl_kabs(i),tl_omega,tl_h(i),...
+  % tl_utilde(:,i)=tl_Uwave_ruessink2012(tl_Aw(i),tl_Sw(i),tl_Uw(i),...
   %                                      omega*t,bkgd_uwave(i))';
-  [ad1_Hmo,ad1_kabs,ad1_omega,ad1_h]=ad_Uwave_ruessink2012(ad_utilde(:,i)',0,0,omega*t,0,0,bkgd_uwave(i));
-  ad_Hmo(i) =ad_Hmo(i) +ad1_Hmo;
-  ad_kabs(i)=ad_kabs(i)+ad1_kabs;
-  ad_omega = ad_omega + ad1_omega;
-  ad_h(i)   =ad_h(i)   +ad1_h;
+  [ad1_Aw,ad1_Sw,ad1_Uw]=ad_Uwave_ruessink2012(ad_utilde(:,i)',0,0,omega*t,bkgd_uwave(i));
+  ad_Aw(i) =ad_Aw(i)+ad1_Aw;
+  ad_Sw(i) =ad_Sw(i)+ad1_Sw;
+  ad_Uw(i) =ad_Uw(i)+ad1_Uw;
   ad_utilde(:,i)=0;
 
 end
 
 %b01 derived params
 
-%3 tl_Uw = omega/2.*( tl_Hrms./sinh(kabs.*h) ...
+%3 tl_Uwq = omega/2.*( tl_Hrms./sinh(kabs.*h) ...
 %                    - Hrms./sinh(kabs.*h).^2.*cosh(kabs.*h).*(tl_kabs.*h+kabs.*tl_h) ) ...
 %         + tl_omega.*Hrms./(2*sinh(kabs.*h));
 coef1=omega/2./sinh(kabs.*h);
 coef2=omega/2.*Hrms./sinh(kabs.*h).^2.*cosh(kabs.*h);
-ad_Hrms=ad_Hrms+ coef1      .*ad_Uw;
-ad_kabs=ad_kabs- coef2.*h   .*ad_Uw;
-ad_h   =ad_h   - coef2.*kabs.*ad_Uw;
-ad_omega = ad_omega + sum(Hrms./(2*sinh(kabs.*h)).*ad_Uw);
-ad_Uw=0;
+ad_Hrms=ad_Hrms+ coef1      .*ad_Uwq;
+ad_kabs=ad_kabs- coef2.*h   .*ad_Uwq;
+ad_h   =ad_h   - coef2.*kabs.*ad_Uwq;
+ad_omega = ad_omega + sum(Hrms./(2*sinh(kabs.*h)).*ad_Uwq);
+ad_Uwq=0;
 
 % tl_Hmo=tl_Hrms*1.4; % ok
 ad_Hrms=ad_Hrms+1.4*ad_Hmo;

@@ -1,9 +1,9 @@
 function [Q,Qb,Qs,Qa,workspc] = ...
-    qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta,ws,...
+    qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,...
                      Cw,Cc,Cf,Ka)
 %
 % [Q,Qb,Qs,Qa] = ...
-%    qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta,ws,[Cw,Cc,Cf,Ka])
+%    qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,[Cw,Cc,Cf,Ka])
 %
 % Implements the Unibest-like model outlined in Dubarbier et al. (2015)
 % "Process-based modeling of cross-shore sandbar behavior"
@@ -20,6 +20,8 @@ function [Q,Qb,Qs,Qa,workspc] = ...
 % kabs  : wavenumber, rad/m, scalar
 % omega : wave frequency, rad/m, scalar
 % udelta: near-bed mean flow (e.g., see udelta_reniers2004.m), Nx2 vector
+% ws    : settling velocity, m/s
+% As,Sw,Uw: wave asymmetry, skewness, and amplitude (use Uwave_ruessink2012_params.m)
 %
 % OPTIONAL: These tunable params will be given defaults if not provided
 %
@@ -49,7 +51,7 @@ physicalConstants;
 % derived params
 nx=length(h);
 Hmo=Hrms*1.4;
-Uw = omega.*Hrms./(2*sinh(kabs.*h));
+Uwq = omega.*Hrms./(2*sinh(kabs.*h));
 
 % step through each gridpoint
 t=linspace(0,2*pi/omega,nt);
@@ -60,19 +62,19 @@ for i=1:nx
   % using \tilde{U} and \tilde{u} (upper and lower case) interchangably for
   % "wave velocity".  There are a few other obvious sloppy notational errors
   % like using "omega_s" for fall velocity
-  [utilde(:,i),~,~,bkgd_uwave(i)]=Uwave_ruessink2012(omega*t,Hmo(i),kabs(i),omega,h(i));
+  [utilde(:,i),bkgd_uwave(i)]=Uwave_ruessink2012(omega*t,Aw(i),Sw(i),Uw(i));
   uH(:,i)=imag(hilbert(utilde(:,i)));
   Au_nums(i) = mean( uH(:,i).^3 );
   Au_dens_1(i) = mean( uH(:,i).^2 );  % == mean(utilde(:,i).^2)
   Au_dens(i) = Au_dens_1(:,i).^(3/2);
   Au(i) = Au_nums(i)/Au_dens(i);
-  Aw(i) = omega*Uw(i);
+  Awq(i) = omega*Uwq(i);
   utot(:,i)=sqrt(utilde(:,i).^2+udelta(i,1)^2+udelta(i,2)^2);
 
   % energetics model, eqns (11)-(14).  There are a few very sloppy typos in
   % the paper, use Hsu et al. (2006) and Bailard (1981) for more coherent
   % references
-  qa(i)=-(rhop-rho)*g*Ka*Au(i)*Aw(i);
+  qa(i)=-(rhop-rho)*g*Ka*Au(i)*Awq(i);
   qb1(i)=mean( abs(utilde(:,i)).^2.*utilde(:,i) );
   qb2(i)=mean( abs(utot(:,i)).^2*udelta(i,1) );
   qb3(i)=mean( abs(utot(:,i)).^3 );
@@ -117,7 +119,7 @@ if(nargout>4)
   vname{end+1}='nx';
   vname{end+1}='Hmo';
   vname{end+1}='kabs';
-  vname{end+1}='Uw ';
+  vname{end+1}='Uwq';
   vname{end+1}='tanbeta';
   vname{end+1}='t';
   vname{end+1}='utilde';
@@ -127,7 +129,7 @@ if(nargout>4)
   vname{end+1}='Au_dens_1';
   vname{end+1}='Au_dens';
   vname{end+1}='Au';
-  vname{end+1}='Aw';
+  vname{end+1}='Awq';
   vname{end+1}='utot';
   vname{end+1}='qb1';
   vname{end+1}='qb2';
@@ -142,6 +144,9 @@ if(nargout>4)
   vname{end+1}='Qa';
   vname{end+1}='Qs';
   vname{end+1}='Qb';
+  vname{end+1}='Aw';
+  vname{end+1}='Sw';
+  vname{end+1}='Uw';
   workspc=struct;
   for i=1:length(vname)
     workspc=setfield(workspc,vname{i},eval(vname{i}));
