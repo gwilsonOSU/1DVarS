@@ -251,10 +251,10 @@ ad_Q(imask)=0;
 
 % run the requested model for sediment flux (m2/s)
 if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
-  %15a1 tl_Q =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,...
+  %15a1 tl_Q =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,...
   %                           tl_params.Cw,tl_params.Cc,tl_params.Cf,tl_params.Ka,...
   %                           bkgd_qtrans);
-  [ad1_tanbeta,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,...
+  [ad1_tanbeta,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,...
    ad1_params_Cw,ad1_params_Cc,ad1_params_Cf,ad1_params_Ka] = ...
       ad_qtrans_dubarbier(ad_Q,bkgd_qtrans);
   ad_tanbeta  =ad_tanbeta  +ad1_tanbeta  ;
@@ -264,6 +264,9 @@ if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
   ad_omega    =ad_omega    +ad1_omega    ;
   ad_udelta   =ad_udelta   +ad1_udelta   ;
   ad_ws       =ad_ws       +ad1_ws       ;
+  ad_Aw       =ad_Aw       +ad1_Aw       ;
+  ad_Sw       =ad_Sw       +ad1_Sw       ;
+  ad_Uw       =ad_Uw       +ad1_Uw       ;
   ad_params.Cw=ad_params.Cw+ad1_params_Cw;
   ad_params.Cc=ad_params.Cc+ad1_params_Cc;
   ad_params.Cf=ad_params.Cf+ad1_params_Cf;
