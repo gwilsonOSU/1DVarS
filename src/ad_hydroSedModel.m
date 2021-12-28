@@ -19,6 +19,7 @@ ad_dSw=zeros(nx,1);
 ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
 ad_params.fv =0;
+ad_params.ks =0;
 if(strcmp(bkgd(1).sedmodel,'dubarbier'))
   ad_params.Cw   =0;
   ad_params.Cc   =0;
@@ -80,6 +81,7 @@ for n=bkgd(1).nsubsteps:-1:1
   ad_hp(:,n+1) =0;
 
   ad_params.fv = ad_params.fv + ad1_params.fv;
+  ad_params.ks = ad_params.ks + ad1_params.ks;
   if(strcmp(bkgd(1).sedmodel,'dubarbier'))
     ad_params.Cw   =ad_params.Cw + ad1_params.Cw;
     ad_params.Cc   =ad_params.Cc + ad1_params.Cc;
@@ -138,6 +140,7 @@ ad_Uw=zeros(nx,1);
 ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
 ad_params.fv =0;
+ad_params.ks =0;
 if(strcmp(bkgd.sedmodel,'dubarbier'))
   ad_params.Cw   =0;
   ad_params.Cc   =0;
@@ -353,10 +356,10 @@ for i=nx:-1:1
     %11b1 [tl_udelta(i,:),tl_delta_bl(i)] = ...
     %     tl_udelta_reniers2004(tl_ubar(i,:),tl_k(i,:),tl_omega,...
     %                           tl_h(i),tl_Hrms(i),tl_detady(i),...
-    %                           tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,tl_d50(i),...
+    %                           tl_tau_wind(i,:),tl_Dr(i),tl_params.fv,tl_params.ks,tl_d50(i),...
     %                           udel_bkgd(i));
     [ad1_ubar,ad1_k,ad1_omega,ad1_h,ad1_Hrms,...
-     ad1_detady,ad1_tau_wind,ad1_Dr,ad1_params_fv,ad1_d50] = ...
+     ad1_detady,ad1_tau_wind,ad1_Dr,ad1_params_fv,ad1_params_ks,ad1_d50] = ...
         ad_udelta_reniers2004(ad_udelta(i,:),ad_delta_bl(i),udel_bkgd(i));
 
     ad_ubar(i,:)    =ad_ubar(i,:)    +ad1_ubar     ;
@@ -368,6 +371,7 @@ for i=nx:-1:1
     ad_tau_wind(i,:)=ad_tau_wind(i,:)+ad1_tau_wind ;
     ad_Dr(i)        =ad_Dr(i)        +ad1_Dr       ;
     ad_params.fv    =ad_params.fv    +ad1_params_fv;    
+    ad_params.ks    =ad_params.ks    +ad1_params_ks;    
     ad_d50(i)       =ad_d50(i)       +ad1_d50      ;
 
     ad_udelta(i,:)=0;

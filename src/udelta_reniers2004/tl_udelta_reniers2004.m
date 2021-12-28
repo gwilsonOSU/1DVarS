@@ -1,4 +1,4 @@
-function [tl_udelta,tl_delta]=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_tau_wind,tl_Dr,tl_fv,tl_d50,bkgd)%,outvar)
+function [tl_udelta,tl_delta]=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_tau_wind,tl_Dr,tl_fv,tl_ks,tl_d50,bkgd)%,outvar)
 %
 % TL-code for udelta_reniers2004.m
 %
@@ -86,7 +86,6 @@ tl_kabs=1./kabs.*(k(1).*tl_k(1)+k(2).*tl_k(2));
 tl_A=tl_Hrms./(2*sinh(kabs.*h)) ...
      - Hrms./(2*sinh(kabs.*h)).^2*2.*cosh(kabs.*h).*(tl_kabs.*h+kabs.*tl_h); % ok2
 tl_uorb=tl_A*omega + A*tl_omega;
-tl_ks=2.5*tl_d50; % ok2
 tl_z0=tl_ks/33; % ok2
 tl_fw=1.39*( -.52*(A./z0).^(-.52-1).*( tl_A./z0 - A./z0.^2.*tl_z0 ) ); % ok2
 tl_Df=1/(2*sqrt(pi))*rho*( tl_fw.*uorb.^3 + 3*fw.*uorb.^2.*tl_uorb ); % ok2

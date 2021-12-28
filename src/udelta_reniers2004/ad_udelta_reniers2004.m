@@ -1,4 +1,4 @@
-function [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_d50]=ad_udelta_reniers2004(ad_udelta,ad_delta,bkgd)%,invar)
+function [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_ks,ad_d50]=ad_udelta_reniers2004(ad_udelta,ad_delta,bkgd)%,invar)
 %
 % AD-code for tl_udelta_reniers2004.m
 %
@@ -565,9 +565,6 @@ ad_fw=0;
 %5 tl_z0=tl_ks/33; % ok2
 ad_ks=ad_ks+ad_z0/33;
 ad_z0=0;
-%4 tl_ks=2.5*tl_d50; % ok2
-ad_d50=ad_d50+2.5*ad_ks;
-ad_ks=0;
 %3 tl_uorb=tl_A*omega + A*tl_omega;
 ad_A=ad_A+ad_uorb*omega;
 ad_omega = ad_omega + A*ad_uorb;

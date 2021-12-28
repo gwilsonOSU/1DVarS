@@ -68,6 +68,7 @@ end
 dt=60*60;  % one hour time step
 nsubsteps=1;
 params.fv=0.1;  % breaking-induced eddy viscosity calibration parameter
+params.ks=0.0082;  % undertow bed roughness calibration parameter
 x=waves.x;
 nx=length(x);
 h=flipud(filtfilt(ones(5,1)/5,1,waves.h));
@@ -92,7 +93,7 @@ d90=400e-6*ones(nx,1);
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(9*nx+9,n);  % 1st dim is number of tl input parameters
+F = eps*rand(9*nx+10,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -112,10 +113,11 @@ for i=1:n
   tl_d50     =F(7*nx+4+[1:nx],i);
   tl_d90     =F(8*nx+4+[1:nx],i);
   tl_params.fv   =F(9*nx+5,i);
-  tl_params.n    =F(9*nx+6,i);
-  tl_params.m    =F(9*nx+7,i);
-  tl_params.xi   =F(9*nx+8,i);
-  tl_params.alpha=F(9*nx+9,i);
+  tl_params.ks   =F(9*nx+6,i);
+  tl_params.n    =F(9*nx+7,i);
+  tl_params.m    =F(9*nx+8,i);
+  tl_params.xi   =F(9*nx+9,i);
+  tl_params.alpha=F(9*nx+10,i);
 
   [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout] = ...
       tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,...
@@ -143,10 +145,11 @@ for i=1:n
   g(7*nx+4+[1:nx],i)     =ad_d50     ;
   g(8*nx+4+[1:nx],i)     =ad_d90     ;
   g(9*nx+5,i)            =ad_params.fv;
-  g(9*nx+6,i)=ad_params.n    ;
-  g(9*nx+7,i)=ad_params.m    ;
-  g(9*nx+8,i)=ad_params.xi   ;
-  g(9*nx+9,i)=ad_params.alpha;
+  g(9*nx+6,i)            =ad_params.ks;
+  g(9*nx+7,i)=ad_params.n    ;
+  g(9*nx+8,i)=ad_params.m    ;
+  g(9*nx+9,i)=ad_params.xi   ;
+  g(9*nx+10,i)=ad_params.alpha;
 
 end
 

@@ -67,6 +67,7 @@ bkgd.detady=.001;
 bkgd.windW =[1 1]*.5;
 bkgd.Dr    =waves.eps_r(i)*1030;
 bkgd.fv    =.1;
+bkgd.ks=.008;
 bkgd.d50   =200e-6;
 
 % bkgd NL state
@@ -79,12 +80,13 @@ bkgd.d50   =200e-6;
                                             bkgd.windW,...
                                             bkgd.Dr,...
                                             bkgd.fv,...
+                                            bkgd.ks,...
                                             bkgd.d50);%,'working_nl.mat');
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(13,n);  % 1st dim is number of tl input parameters
+F = eps*rand(14,n);  % 1st dim is number of tl input parameters
 for i=1:n
 
   % TL model: TL*F
@@ -97,17 +99,18 @@ for i=1:n
   tl_tau_wind=F(9:10,i)';
   tl_Dr    =F(11,i);
   tl_fv    =F(12,i);
-  tl_d50   =F(13,i);
+  tl_ks    =F(13,i);
+  tl_d50   =F(14,i);
   [tl_udelta,tl_delta]=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,...
                                              tl_h,tl_Hrms,tl_detady,...
-                                             tl_tau_wind,tl_Dr,tl_fv,tl_d50,...
+                                             tl_tau_wind,tl_Dr,tl_fv,tl_ks,tl_d50,...
                                              udel_bkgd);%,inoutvar);
 
   % AD model: g=AD*(TL*F)
-  [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_d50] = ...
+  [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_ks,ad_d50] = ...
       ad_udelta_reniers2004(tl_udelta,tl_delta,udel_bkgd);%,inoutvar);
   g(:,i)=[ad_ubar(:);ad_k(:);ad_omega;ad_h;ad_Hrms;...
-          ad_detady;ad_tau_wind(:);ad_Dr;ad_fv;ad_d50];
+          ad_detady;ad_tau_wind(:);ad_Dr;ad_fv;ad_ks;ad_d50];
 
 end
 

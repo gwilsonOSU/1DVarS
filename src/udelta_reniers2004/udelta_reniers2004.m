@@ -1,6 +1,6 @@
-function [udelta,delta,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,d50)
+function [udelta,delta,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,d50)
 %
-% [udelta,delta]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,d50)
+% [udelta,delta]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,sd50)
 %
 % Solves for bottom boundary velocity u_delta, see Reniers et al. (2004)
 % eqn. (B12).
@@ -31,8 +31,6 @@ nintegral=100;  % number of gridpionts for sigma-integration
 kabs=sqrt(k(:,1).^2+k(:,2).^2);
 A=Hrms./(2*sinh(kabs.*h));
 uorb=A*omega;
-% ks=2.5*d50;
-ks=.0082;  % Reniers et al. 2004, calibrated for Duck (Table 4).  TODO-TL-AD
 z0=ks/33;
 fw=1.39*(A./z0).^(-.52);  % eqn (19)
 Df=1/(2*sqrt(pi))*rho*fw.*uorb.^3;  % eqn (18)
