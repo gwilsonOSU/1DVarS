@@ -71,7 +71,7 @@ c=omega/kabs;
 % while Ruessink et al. (2012) uses rms.  Uwave_ruessink2012() follows the
 % Ruessink et al. (2012) convention, so I need to revert to van der A's
 % convention here as a special case.
-% Uw=1.4*Uw;
+Uw=1.4*Uw;
 
 % intra-wave velocities using Ruessink et al. (2012).  Then extract stats
 % relevant to van Der A
@@ -181,6 +181,10 @@ thetat=.5*fwdt.*utrabs.^2/((s-1)*g*d50);  % eqn 17
 % boundary layer streaming, either with VDA13 model or Nielsen
 alphaw = 4/(3*pi);
 if(~isfield(param,'streamingType') || param.streamingType=='v')
+  f25    =nan;  % not used
+  theta25=nan;  % not used
+  r      =nan;  % not used
+  fws    =nan;  % not used
   fwd = alpha*fd+(1-alpha)*fw;
   tauwRe = fwd*alphaw*uhat^3/2/c;
 elseif(param.streamingType=='n')
@@ -194,8 +198,15 @@ elseif(param.streamingType=='n')
   fws = exp(5.5*(r/ahat)^.2-6.3);
   tauwRe = fws*alphaw*uhat^3/2/c;
   % tauRe = 1/T/2*fws*trapz(t,abs(uw).^3)/c;  % same but integrate uw(t)
+elseif(param.streamingType=='0')
+  f25    =nan;  % not used
+  theta25=nan;  % not used
+  r      =nan;  % not used
+  fws    =nan;  % not used
+  fwd    =nan;  % not used
+  tauwRe=0;
 else
-  error('must provide param.streamingType as either ''n'' or ''v''')
+  error('must provide param.streamingType as either ''n'', ''v'', or ''0''')
 end
 streamingEffect = tauwRe/((s-1)*g*d50);  % eqns 15 and 22
 

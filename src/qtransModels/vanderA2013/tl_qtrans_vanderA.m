@@ -151,6 +151,12 @@ end
 tl_Hmo=tl_Hrms*1.4;
 tl_c=-omega/kabs^2*tl_kabs + tl_omega/kabs;
 
+% note, van der A specifies to use significant orbital velocity amplitude,
+% while Ruessink et al. (2012) uses rms.  Uwave_ruessink2012() follows the
+% Ruessink et al. (2012) convention, so I need to revert to van der A's
+% convention here as a special case.
+tl_Uw=1.4*tl_Uw;
+
 % intra-wave velocities using Ruessink et al. (2012).  Then extract stats
 % relevant to van Der A
 [tl_uw,tl_r_r2012,tl_phi_r2012]=tl_Uwave_ruessink2012(tl_Aw,tl_Sw,tl_Uw,omega*t,uwave_wksp);
@@ -353,6 +359,8 @@ elseif(param.streamingType=='n')
   tl_tauwRe = tl_fws*alphaw*uhat^3/2/c ...
       + 3*fws*alphaw*uhat^2/2/c*tl_uhat ...
       - fws*alphaw*uhat^3/2/c^2*tl_c;
+elseif(param.streamingType=='0')
+  tl_tauwRe=0;
 else
   error('must provide param.streamingType as either ''n'' or ''v''')
 end

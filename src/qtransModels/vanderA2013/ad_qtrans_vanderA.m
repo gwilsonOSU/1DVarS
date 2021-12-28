@@ -779,6 +779,9 @@ elseif(param.streamingType=='n')
   ad_d50 =ad_d50 + exp(5.5*(2.5*d50/ahat)^2-6.3)*2*5.5*(2.5*d50/ahat)*2.5/ahat      *ad_f25;
   ad_ahat=ad_ahat- exp(5.5*(2.5*d50/ahat)^2-6.3)*2*5.5*(2.5*d50/ahat)*2.5*d50/ahat^2*ad_f25;
   ad_f25=0;
+elseif(param.streamingType=='0')
+  % tl_tauwRe=0;
+  ad_tauwRe=0;
 else
   error('must provide param.streamingType as either ''n'' or ''v''')
 end
@@ -1117,6 +1120,13 @@ ad_uw = ad_uw + 2*uw*ad_uw2mean/nt;
 ad_Aw=ad_Aw+ad1_Aw;
 ad_Sw=ad_Sw+ad1_Sw;
 ad_Uw=ad_Uw+ad1_Uw;
+
+% note, van der A specifies to use significant orbital velocity amplitude,
+% while Ruessink et al. (2012) uses rms.  Uwave_ruessink2012() follows the
+% Ruessink et al. (2012) convention, so I need to revert to van der A's
+% convention here as a special case.
+% tl_Uw=1.4*tl_Uw;
+ad_Uw=1.4*ad_Uw;
 
 % %b1 derived params
 %2 tl_c=-omega/kabs^2*tl_kabs + tl_omega/kabs;
