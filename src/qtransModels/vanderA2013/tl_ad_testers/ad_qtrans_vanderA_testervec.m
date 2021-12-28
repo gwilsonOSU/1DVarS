@@ -4,7 +4,7 @@
 clear
 addpath(genpath('../../..'));
 
-param.streamingType='n';  % choose either 'n' or 'v'.  NOTE, should test both
+param.streamingType='v';  % choose either 'n' or 'v'.  NOTE, should test both
 
 % TEST-CODE: choose a test variable.  These are in the order they appear in
 % TL model.  This is a very effective debugging technique for the AD model.
@@ -162,6 +162,7 @@ kabs=sqrt(sum(kvec.^2,2));
 % reniers model for udelta
 nx=length(x);
 param.fv=.1;
+param.ks=.0083;
 for i=1:nx
   if(Dr(i)==0)
     udelta(i,:)=[0 0];
@@ -169,7 +170,7 @@ for i=1:nx
     [udelta(i,:),udel_bkgd(i)]= ...
         udelta_reniers2004(ubar(i,:),kvec(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
-                           windW(i,:),Dr(i),param.fv,d50);
+                           windW(i,:),Dr(i),param.fv,param.ks,d50);
   end
 end
 
