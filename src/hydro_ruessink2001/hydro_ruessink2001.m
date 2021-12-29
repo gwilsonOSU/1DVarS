@@ -53,8 +53,9 @@ if(~exist('dgamma'))
 end
 
 % dispersion
+opt=optimset('Display','off');
 for i=1:nx
-  kabs(i)=fzero(@(kabs)omega^2-g*kabs.*tanh(kabs.*h(i)),omega./sqrt(g*h(i)),optimset('Display','off'));
+  kabs(i)=fzero(@(kabs)omega^2-g*kabs.*tanh(kabs.*h(i)),omega./sqrt(g*h(i)),opt);
 end
 kabs=kabs(:);
 c=max(0,real(omega./kabs));
