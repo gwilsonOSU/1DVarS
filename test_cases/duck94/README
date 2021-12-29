@@ -1,62 +1,36 @@
+---
+MAIN SCRIPTS IN THIS DIRECTORY:
 
-NOTE: files in the 'initialExperiments' directory may be outdated, and
-in particular they include outdated path variables in matlab.  These
-were created before migrating the 1DVarS code to a github repo.
+This directory contains tests of the 1DVarS codes, using data from the
+Duck94 field experiment.  The tests are organized into two main
+scripts, which themselves call a few utilities (directory 'util').
 
-However, duck94ForwardModel.m contains most of the functionality of
-the scripts in 'initialExperiments'.  If you are looking to develop
-new code based on a test case, I highly recommended to base your code
-on duck94ForwardModel.m since it's been kept up-to-date and tested.
+1) duck94TwoPhaseInversion.m: Uses a two-phase approach to assimilate
+   data and predict bar migrations.  Phase-1 corrects hydrodynamic
+   errors, while phase-2 corrects sediment transport errors.  The two
+   phases are cycled iteratively, until both hydro and sediment
+   transport are accurate.
 
---
-Basic Idea:
+2) (TODO) duck94AdjiontSensitivity.m: Demonstration of uncertainty
+   quantification, using adjoint sensitivity analysis to quantify how
+   different model variables impact model accuracy for Duck94.
 
-The sediment transport model's purpose is to provide a dynamical
-update to bathymetry and its covariance between forecast cycles, by
-considering the basic sediment transport equations and parameter
-uncertainty.  As a bonus, uncertain sediment transport parameters can
-be estimated based on the updates, BUT I will not include them as
-time-dependent sequentially updated parameters, i.e. I will assume
-such parameters are temporally uncorrelated between forecast cycles.
+NOTE, if you are running these, make sure that the main src directory
+of the 1DVarS repo, and all its' sub-directories, are in your path.
 
-Put another way, we are assimilating hydrodynamic data to provide
-constraints on the uncertain morphodynamics.
+---> addpath(genpath('/path/to/1DVarS/src/'))
 
-The key advantage of this scheme is that it keeps the full sediment
-transport model out of the "outer loop" during assimlation.  It only
-comes in at the forecast step.
+---
+OTHER SUB-DIRECTORIES IN THIS DIRECTORY:
 
---
-Assimilation cycle:
+A) data: Contains a LOT of observational data from the Duck94
+   experiment.  This is *not* stored in the github repo because it's
+   4.7GB total size.  If you are reading ./util/prepObsData.m and
+   wondering where the 'data' directory is, there is your answer.
 
-0a) Define initial bathymetry at time t=t(0).  Initialize covariances
-    for (a) the initial bathymetry, (b) sediment transport parameters,
-    and (c) wave model parameters.  Note, parameters (b)-(c) and their
-    covariances will not be updated sequentially, but they serve to
-    provide uncertainty estimates for bathymetry.
+B) obsdataCache: Contains cached versions of specific observational
+   data used by duck94TwoPhaseInversion.m.  These *are* stored on
+   github and provide the minimal datasets needed for running
+   duck94TwoPhaseInversion.m.
 
-0b) Use the initial bathymetry plus covariances to make a forecasted
-    bathymetry for t(1), including forecast covariance.  Provide the
-    full covariance matrix for the updated bathymetry including
-    cross-covariances with sediment transport parameters.
-
-for n = 1..N
-
-  1a) Assimilate hydrodynamic data from time t=t(n) to obtain an
-      updated bathymetry at t(n).  Note, there is no need to consider
-      the full sediment transport model here, as we are only updating
-      the forecasted bathymetry from the previous time step time
-      t(n-1).  That is, assume the hydrodynamics are only sensitive to
-      bathymetry at time t(n), not to bathymetry at some later time
-      dependent on sediment transport.
-
-      That said, do use the previous cross-covariances to estimate
-      sediment transport parameters from time t(n-1).  Record these
-      estimates, but do not update them for the next forecast cycle.
-
-  1b) After the outer loop iterations, make a new forecast for t(n+1)
-      based on the updated initial bathymetry.  Provide the full
-      covariance matrix for the updated bathymetry including
-      cross-covariances with sediment transport parameters.
-
-end
+C) utils: Contains sub-functions called by the main scripts.
