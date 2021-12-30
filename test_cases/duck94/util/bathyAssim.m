@@ -5,6 +5,12 @@ function [params,diagnostics]=bathyAssim(bkgd,bathyobs)
 % Phase-2 assimilation.  Use bathymetry observations to correct sediment
 % transport parameters.
 %
+% NOTE: This function will use the local directory /tmp/bathyAssimCache as a
+% disk cache to work around memory limitation.  If the directory doesn't
+% exist, it will be created, and the cached data will be deleted when
+% finished..  You must have ~5GB free in /tmp, for typical runs with ~500
+% time steps.
+%
 % INPUTS:
 %
 % bkgd = array of structs of model output, produced by hydroAssimLoop.m
@@ -18,18 +24,55 @@ function [params,diagnostics]=bathyAssim(bkgd,bathyobs)
 % (OPTIONAL) diagnostics = matrices and such used in assimilation
 %
 
-% prep params_std, allow for 20% error in all parameters.  NOTE, when
-% defining 'fld' below the order is important!!!
+% Phase-2 inversion code bathyAssim.m has been massaged into working with
+% parfor, but is very memory-bound. Explanation: parfor allocates a copy of
+% the 'bkgd' struct-array (~4.5GB) for every worker, in addition to the
+% "local" copy.  I seemed to be able to get away with 2 workers on plank
+% which has 62GB RAM.  This led to implementing disk caching, where the
+% 'bkgd' variable is cached to disk rather than fed to parallel workers in
+% RAM.  With caching, up to 12 parallel workers is fine.
+parpoolN=12;
+currentPool=gcp('nocreate');
+if(isempty(currentPool) | currentPool.NumWorkers ~= parpoolN)
+  if(~isempty(currentPool))
+    delete(gcp('nocreate'));
+  end
+  parpool('local',parpoolN);
+end
+disp('Caching bkgd struct to disk')
+tmpdir='/tmp/bathyAssimCache';
+if(isempty(dir(tmpdir)))
+  mkdir(tmpdir);
+end
+nt=length(bkgd);
+for n=1:nt
+  if(floor(n/nt*10)>floor((n-1)/nt*10))
+    disp(['   ' num2str(floor(n/nt*100)) '%'])
+  end
+  this=bkgd(n);
+  save([tmpdir '/bkgd' num2str(n) '.mat'],'-struct','this');
+end
+
+% prep params_std, allow for 10% error in all parameters.  NOTE, the order
+% of indexes in params_std is important, it must match the ordering
+% convention used by paramsHandler.m
 params=bkgd(1).params;
 if(strcmp(bkgd(1).sedmodel,'vanderA'))
-  fld={'fv','ks','n','m','xi','alpha'};
+  params_std(1)=.0101;  % default params.fv = 0.101
+  params_std(2)=.00082; % default params.ks = 0.0082
+  params_std(3)=.12;    % default params.n = 1.2
+  params_std(4)=1.1;    % default params.m = 11
+  params_std(5)=.17;    % default params.xi = 1.7
+  params_std(6)=.82;    % default params.alpha = 8.2
+  params_std(7)=.001;   % default params.Cc = 0.01
+  params_std(8)=.003;   % default params.Cf = 0.03
 elseif(strcmp(bkgd(1).sedmodel,'dubarbier'))
   fld={'fv','ks','Cw','Cc','Cf','Ka'};
+  for i=1:length(fld)
+    params_std(i)=abs(getfield(params,fld{i}))*.1;
+  end
 else
   error(['sedmodel=' num2str(bkgd(1).sedmodel) ' is not supported for full-run assimilation']);
-end
-for i=1:length(fld)
-  params_std(i)=abs(getfield(params,fld{i}))*.2;
 end
 Cd50=diag((.1*bkgd(1).d50).^2);  % optional, allow for correction to d50
 Cd50=0;  % disable d50 corrections
@@ -73,7 +116,16 @@ for n=1:obsnt
     ad_h(bathyobs.measind(i),bathyobs(n).obsn+1)=1;  % comb
 
     % initialize adjoint outputs
-    ad_params=paramsHandler(0,bkgd(1).sedmodel,0,0,0,0,0,0);  % init ad_params struct to zero
+    % if(isempty(tmpdir))
+    %   bkgd1=bkgd(1);
+    % else
+      bkgd1=load([tmpdir '/bkgd1.mat']);
+    % end
+    if(strcmp(bkgdn2.sedmodel,'vanderA'))
+      ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(8,1));  % init ad_params struct to zero
+    elseif(strcmp(bkgdn2.sedmodel,'dubarbier'))
+      ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(6,1));  % init ad_params struct to zero
+    end
     ad_ka_drag=0;
     ad_d50=zeros(modelnx,1);
     ad_d90=zeros(modelnx,1);
@@ -88,21 +140,28 @@ for n=1:obsnt
 
     % propagate adjoint backwards from time bathyobs(n) to 1
     for n2=bathyobs(n).obsn:-1:1
+      % if(isempty(tmpdir))
+      %   bkgdn2=bkgd(n2);
+      % else
+        bkgdn2=load([tmpdir '/bkgd' num2str(n2) '.mat']);
+      % end
       [ad_h(:,n2),ad_H0(n2),ad_theta0(n2),ad_omega(n2),ad1_ka_drag,ad_tau_wind(:,:,n2),...
        ad_detady(:,n2),ad_dgamma(:,n2),ad_dAw(:,n2),ad_dSw(:,n2),...
        ad1_d50,ad1_d90,ad1_params] = ...
-          ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_h(:,n2+1),bkgd(n2));
+          ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_h(:,n2+1),bkgdn2);
       ad_ka_drag     =ad_ka_drag     +ad1_ka_drag     ;
       ad_d50         =ad_d50         +ad1_d50         ;
       ad_d90         =ad_d90         +ad1_d90         ;
       ad_params.fv   =ad_params.fv   +ad1_params.fv   ;
       ad_params.ks   =ad_params.ks   +ad1_params.ks   ;
-      if(strcmp(bkgd(1).sedmodel,'vanderA'))
+      if(strcmp(bkgdn2.sedmodel,'vanderA'))
         ad_params.n    =ad_params.n    +ad1_params.n    ;
         ad_params.m    =ad_params.m    +ad1_params.m    ;
         ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
         ad_params.alpha=ad_params.alpha+ad1_params.alpha;
-      elseif(strcmp(bkgd(1).sedmodel,'dubarbier'))
+        ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
+        ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
+      elseif(strcmp(bkgdn2.sedmodel,'dubarbier'))
         ad_params.Cw = ad_params.Cw + ad1_params.Cw;
         ad_params.Cc = ad_params.Cc + ad1_params.Cc;
         ad_params.Cf = ad_params.Cf + ad1_params.Cf;
@@ -118,14 +177,15 @@ for n=1:obsnt
     % other things, e.g. initial bathymetry, you would have to mulitply by
     % nonzero covariance here, then measure the covariance vs. time.
     Cparam=diag(params_std.^2);
-    [ad_fv,ad_ks,ad_n,ad_m,ad_xi,ad_alpha]=paramsHandler(1,bkgd(1).sedmodel,ad_params);
-    if(strcmp(bkgd(1).sedmodel,'vanderA'))
-      ad_pp=[ad_fv; ad_ks; ad_n; ad_m; ad_xi; ad_alpha];
-    elseif(strcmp(bkgd(1).sedmodel,'dubarbier'))
+    if(strcmp(bkgdn2.sedmodel,'vanderA'))
+      [ad_fv,ad_ks,ad_n,ad_m,ad_xi,ad_alpha,ad_Cc,ad_Cf]=paramsHandler(1,bkgdn2.sedmodel,ad_params);
+      ad_pp=[ad_fv; ad_ks; ad_n; ad_m; ad_xi; ad_alpha; ad_Cc; ad_Cf];
+    elseif(strcmp(bkgdn2.sedmodel,'dubarbier'))
+      [ad_fv,ad_ks,ad_Cw,ad_Cc,ad_Cf,ad_Ka]=paramsHandler(1,bkgdn2.sedmodel,ad_params);
       ad_pp=[ad_fv; ad_ks; ad_Cw; ad_Cc; ad_Cf; ad_Ka];
     end
     tl_pp = Cparam*ad_pp;
-    tl_params=paramsHandler(0,bkgd(1).sedmodel,tl_pp(1),tl_pp(2),tl_pp(3),tl_pp(4),tl_pp(5),tl_pp(6));
+    tl_params=paramsHandler(0,bkgdn2.sedmodel,tl_pp);
     tl_h = zeros(modelnx,modelnt+1);
     tl_h(:,1)      =0*ad_h(:,1);  % bathymetry at time n=1
     tl_H0          =0*ad_H0      ;
@@ -146,12 +206,17 @@ for n=1:obsnt
 
     % Run TL model forwards in time for full simulation period
     for n2=1:modelnt
+      % if(isempty(tmpdir))
+      %   bkgdn2=bkgd(n2);
+      % else
+        bkgdn2=load([tmpdir '/bkgd' num2str(n2) '.mat']);
+      % end
       [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_h(:,n2+1)] = ...
           tl_hydroSedModel(tl_h(:,n2),tl_H0(n2),tl_theta0(n2),tl_omega(n2),...
                            tl_ka_drag,tl_tau_wind(:,:,n2),...
                            tl_detady(:,n2),tl_dgamma(:,n2),...
                            tl_dAw(:,n2),tl_dSw(:,n2),...
-                           tl_d50,tl_d90,tl_params,bkgd(n2));
+                           tl_d50,tl_d90,tl_params,bkgdn2);
     end  % TL forward time loop (index n2)
 
     % measure the TL output to get representers for observation (n,i)
@@ -191,11 +256,20 @@ if(strcmp(bkgd(1).sedmodel,'vanderA'))
   params.m    =params0.m    +update(4);
   params.xi   =params0.xi   +update(5);
   params.alpha=params0.alpha+update(6);
+  params.Cc   =params0.Cc   +update(7);
+  params.Cf   =params0.Cf   +update(8);
 elseif(strcmp(bkgd(1).sedmodel,'dubarbier'))
   params.Cw = params0.Cw + update(3);
   params.Cc = params0.Cc + update(4);
   params.Cf = params0.Cf + update(5);
   params.Ka = params0.Ka + update(6);
+end
+
+% clean up disk cache
+disp('Deleting cached bkgd struct data')
+nt=length(bkgd);
+for n=1:nt
+  unix(['rm ' tmpdir '/bkgd' num2str(n) '.mat']);
 end
 
 % pack output struct with assimilation diagnostics

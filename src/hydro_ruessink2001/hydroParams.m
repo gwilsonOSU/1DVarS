@@ -18,4 +18,4 @@ gammaType=2003;
 % x-dependent beta based on Rafati et al., (2021) eqn 10, which they
 % recommended for duck94 simulations
 betaType='const';
-beta0=0.1;
+beta0=0.05;

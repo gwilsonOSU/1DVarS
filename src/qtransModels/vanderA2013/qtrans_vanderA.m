@@ -28,7 +28,7 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws
 %        m    : MPM leading coefficient, eqn (36).  Default 11.0
 %        n    : MPM exponent, eqn (36).  Default 1.2
 %        Cc   : suspended sediment stirring+undertow effect.  Default 0.01
-%        Cf   : suspended sediment stirring+slope effect. Default 0.01
+%        Cf   : suspended sediment stirring+slope effect. Default 0.01, but 0.03 may be good
 %
 % param.streamingType : select from 'v' (van der A, 2013) or 'n' (Nielsen,
 % 2006).  The Nielsen formulation uses a larger roughness for calculating

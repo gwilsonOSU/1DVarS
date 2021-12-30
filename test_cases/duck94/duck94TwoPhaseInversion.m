@@ -24,7 +24,7 @@
 % code and hopefully make things easier to follow.  It generates some
 % output .mat files of the results.
 %
-addpath(genpath('../../../src'))  % hydroSedModel.m and its dependencies
+addpath(genpath('../../src'))  % hydroSedModel.m and its dependencies
 addpath util  % helper functions
 % clear
 
@@ -40,7 +40,7 @@ addpath util  % helper functions
 sedmodel='vanderA';
 
 % number of two-phase assimilation iterations
-nitermax=6;
+nitermax=3;
 
 % output options
 dosave=1;  % save figures and .mat files for each iteration
@@ -104,10 +104,10 @@ switch duck94Case
   dnum(2)=datenum(1994,10,4,12,0,0);
   bathyfn='data/duck94_fulldataset/Dropbox/Duck94_profiles/0930_profile';
 
-  % OPTIONAL: case-c has a long quiescent period at the beginning.  For
-  % testing purposes, just skip to the storm period.
-  warning('saving time by starting case-c at oct3,0000EST. Be sure the obsdataCache reflects this!');
-  dnum(1)=datenum(1994,10,3,0,0,0);
+  % % OPTIONAL: case-c has a long quiescent period at the beginning.  For
+  % % testing purposes, just skip to the storm period.
+  % warning('saving time by starting case-c at oct3,0000EST. Be sure the obsdataCache reflects this!');
+  % dnum(1)=datenum(1994,10,3,0,0,0);
 
  case 'd'
 
@@ -130,42 +130,39 @@ else
   save(obsdatafn,'hydroobs','bathyobs','grid','waves8m','windEOP');
 end
 
-% Phase-2 inversion code bathyAssim.m has been massaged into working with
-% parfor, but is very memory-bound. (Hypothesis: parfor tries to allocate
-% many copies of the 'bkgd' struct-array, which is about 4.5GB.)  Hence need
-% to limit the number of workers, I seem to be able to get away with 2
-% workers on plank which has 62GB RAM.
-poolN=2;
-currentPool=gcp('nocreate');
-if(isempty(currentPool) | currentPool.NumWorkers ~= poolN)
-  if(~isempty(currentPool))
-    delete(gcp('nocreate'));
-  end
-  parpool('local',poolN);
-end
-
-% First phase-1 hydro-assimilating time loop, using default parameter values
+% Initial phase-1 hydro-assimilating time loop, using default parameter values
 modelinput=initModelInputs(duck94Case,grid,sedmodel);
+
+% % TEST CODE: override with case-c undertow params
+% warning('TEST CODE: override with case-c undertow params (for testing in case-b)')
+% modelinput.params.fv=.07;
+% modelinput.params.ks=2.5*180e-6;  % 2.5*d50
+
+% phase-1 loop
 bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs);
 
-% two-phase iterative assimlation
+% two-phase iterative assimilation
 for iter=1:nitermax
+  disp(['starting iteration ' num2str(iter) ' of ' num2str(nitermax)])
 
   % phase 2, then phase 1
-  [newparams,diagnostics]=bathyAssim(bkgd,bathyobs);
+  disp('continue manually'); return;
+  [newparams,diagnostics]=bathyAssim(bkgd,bathyobs,tmpdir);
   modelinput.params=newparams;
+  bkgd0=bkgd;
   bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs);
 
   % overview of results for this iteration
   clf, hold on
   cc='rbk';
   clear lstr
+  obsnt=length(bathyobs);
   for n=1:obsnt
-    plot(grid.xFRF,bkgd2(bathyobs(n).obsn).hp,'-','color',cc(n))
+    plot(grid.xFRF,bkgd0(bathyobs(n).obsn).hp,'--','color',cc(n))
     lstr{n}=['obs-time ' num2str(n)];
   end
   for n=1:obsnt
-    plot(grid.xFRF,bkgd(bathyobs(n).obsn).hp,'--','color',cc(n))
+    plot(grid.xFRF,bkgd(bathyobs(n).obsn).hp,'-','color',cc(n))
   end
   for n=1:obsnt
     plot(grid.xFRF(bathyobs(n).h.ind),bathyobs(n).h.d,'o','color',cc(n))
@@ -173,6 +170,7 @@ for iter=1:nitermax
   title('OLD: dashed, NEW: solid, OBS: symbols')
   legend(lstr)
   set(gca,'ydir','r')
+  xlim([100 400])
 
   % optional, save outputs
   if(dosave)
@@ -181,7 +179,12 @@ for iter=1:nitermax
     print('-dpng','-r300',[outdir '/bathyOutput.png'])
     bkgd_obsn = bkgd([bathyobs.obsn]);
     bkgd_1=bkgd(1);
-    save([outdir '/output.mat'],'bkgd_obsn','bkgd_1','bathyobs','newparams','diagnostics')
+    save([outdir '/output.mat'],'bkgd_obsn','bkgd_1',...
+         'bathyobs','newparams','diagnostics')
+    diary([outdir '/params_log.txt'])
+    diagnostics.params0
+    newparams
+    diary off
   end
 
 end  % two-phase iteration loop

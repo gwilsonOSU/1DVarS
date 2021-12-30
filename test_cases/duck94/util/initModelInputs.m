@@ -11,11 +11,6 @@ function modelinput=initModelInputs(duck94Case,grid,sedmodel)
 params=struct;
 params.fv=0.101;  % breaking-induced eddy viscosity calib parameter, default 0.101
 params.ks=0.0082;  % roughness calib parameter, default 0.083 m
-if(duck94Case=='c')  % special tuning for offshore migration
-  warning('using tuned undertow for offshore migration')
-  params.fv=.03;
-  params.ks=2.5*180e-6;  % 2.5*d50
-end
 if(strcmp(sedmodel,'dubarbier'))
   params.Cw=.00483;  % default 0.000483;  % hsu et al. 0.0046
   params.Cc=.02002 ;  % default 0.02002;  % hsu et al. 0.0053
@@ -26,6 +21,8 @@ elseif(strcmp(sedmodel,'vanderA'))
   params.m=11;  % vanderA 11; hsu et al. 11.  Just scales everything up
   params.xi=1.7;  % O(1) according to Kranenburg (2013).  VDA pg. 35 says 1.7
   params.alpha=8.2;  % comes in eqn 27-28, not the same as eqn 19.  Default 8.2
+  params.Cc=0.01;  % suspended sediment stirring+undertow effect.  Default 0.01
+  params.Cf=0.03;  % suspended sediment stirring+slope effect. Default 0.01, but 0.03 may be good
   params.streamingType='v';  % 'n' for nielsen2006 BL-streaming, 'v' for VDA13's formulation, or '0' for off
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   params.alphab=1.6;
@@ -33,6 +30,15 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))
 else
   error(['invalid sedmodel=' sedmodel])
 end
+
+% % OLD: If not using suspended sediment in vanderA model, will need to
+% % amplify the undertow to get sufficient offshore transport for the offshore
+% % bar migration events.  The below parameters do the trick.
+% if(duck94Case~='b')
+%   warning('using tuned undertow for offshore migration')
+%   params.fv=.03;
+%   params.ks=2.5*180e-6;  % 2.5*d50
+% end
 
 % initialize other model params
 modelinput=grid;  % initialize: x,h,xFRF

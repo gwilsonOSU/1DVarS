@@ -1,4 +1,4 @@
-function bkgdall=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs)
+function bkgdall=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs,nsubsteps)
 %
 % bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs)
 %
@@ -19,15 +19,19 @@ function bkgdall=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs)
 % hydroAssimOneStep.m and hydroSedModel.m.
 %
 
-% hard-coded options
-doCovUpdate=0;  % not updating Ch over time, so set this to 0
-nsubsteps=1;  % number of time-sub-steps for hydroSedModel.m.  Sometimes
-              % improves stability. but =1 seems to work fine for duck94
-              % tests
+% Define number of time-sub-steps for hydroSedModel.m.  Sometimes
+% sub-stepping improves stability, but nsubsteps=1 seems to work fine as a
+% default for duck94 tests
+if(~exist('nsubsteps'))
+  nsubsteps=1;
+elseif(nsubsteps>1)
+  warning('Using sub-stepping might break phase-2 bathy assimilation, not sure.')
+end
 
 nx=grid.nx;
 
 % begin time loop
+% warning('truncated run, n=220:290')
 for n=1:(length(obs)-1)
   disp(['time ' num2str(n) ' of ' num2str(length(obs))])
 
@@ -111,6 +115,7 @@ for n=1:(length(obs)-1)
   plot(grid.xFRF,grid.h,'g','linewidth',lw)
   plot(grid.xFRF,bkgd.h,'b','linewidth',lw)
   plot(grid.xFRF(obs(n).h.ind),obs(n).h.d,'ko')
+  ylim([-4 6])
   set(gca,'ydir','r')
   ylabel('h [m]')
   subplot(322), hold on
@@ -120,7 +125,7 @@ for n=1:(length(obs)-1)
   subplot(323), hold on
   plot(grid.xFRF,bkgd.Q,'b','linewidth',lw)
   ylabel('Q [m^2/s]')
-  ylim([-1 1]*1e-4)
+  ylim([-1 1]*5e-4)
   subplot(324), hold on
   plot(grid.xFRF,bkgd.ubar(:,2),'b','linewidth',lw)
   plot(grid.xFRF,bkgd.udelta(:,2),'b--','linewidth',lw)

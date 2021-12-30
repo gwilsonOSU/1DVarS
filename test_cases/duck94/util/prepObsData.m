@@ -133,13 +133,15 @@ mea=mea2; clear mea2
 
 % extract just the data in the desired time period for this case
 for i=1:length(mea)
-  if(mea(i).meta.dnum_est<dnum(1))
+  if(mea(i).meta.dnum_est<=dnum(1))
     istart=i;
-  elseif(mea(i).meta.dnum_est>dnum(2))
+  elseif(mea(i).meta.dnum_est>=dnum(2))
     iend=i;
     break;
   end
 end
+disp(['starting at ' datestr(mea(istart).meta.dnum_est) ' EST'])
+disp(['ending   at ' datestr(mea(iend  ).meta.dnum_est) ' EST'])
 mea=mea(istart:iend);
 
 %--------------------------------------
