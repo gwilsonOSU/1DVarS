@@ -1,6 +1,6 @@
-function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
+function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 %
-% [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
+% [qs,workspc]=qtrans_vanderA(x,d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 %
 % Calculates transport following van der A (2013).  This version 
 %
@@ -9,17 +9,18 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,U
 %
 % INPUTS:
 %
-% d50   : in meters
-% d90   : in meters 
-% h     : water depth, m
-% Hrms  : rms wave height, m
-% kabs  : wavenumber, scalar, rad/m
-% omega : wave frequency, rad/m
-% udelta: near-bed mean velocity, m/s
-%         Note: wave angle is assumed to be zero in this code.  To
-%         incorporate a nonzero wave angle, you should rotate udelta to
-%         align with the wave direction.
-% ws    : sediment settling velocity, m/s
+% d50    : in meters
+% d90    : in meters 
+% h      : water depth, m
+% tanbeta: bottom slope, dimensionless (see calcTanbeta.m)
+% Hrms   : rms wave height, m
+% kabs   : wavenumber, scalar, rad/m
+% omega  : wave frequency, rad/m
+% udelta : near-bed mean velocity, m/s
+%          Note: wave angle is assumed to be zero in this code.  To
+%          incorporate a nonzero wave angle, you should rotate udelta to
+%          align with the wave direction.
+% ws     : sediment settling velocity, m/s
 % Aw,Sw,Uw : wave shape params (as calcualted by Uwave_ruessink2012_params())
 % param.{alpha,xi,m,n}: tuning parameters struct
 %        alpha: phase lag effect, eqns (24)-(28).  Default 8.2
@@ -48,14 +49,14 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,U
 % this wrapper loop serves to handle vector inputs
 nx=length(h);
 for i=1:nx
-  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),Aw(i),Sw(i),Uw(i),param);
+  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),Aw(i),Sw(i),Uw(i),param);
 end
 qs=qs(:);
 workspc=workspc(:);
 
 end  % end of wrapper function, start of main function
 
-function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
+function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 
 physicalConstants;
 
@@ -318,6 +319,22 @@ qst=sqrt(abs(thetat)).*Tt.*(Omegatt+Tt./(2*Ttu).*Omegact).*thetatx./abs(thetat);
 qs = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3);
 qs = qs/(1-psed);  % account for bed porosity
 
+% Add suspended load contribution from currents, based on energetics model.
+% Code borrowed from qtrans_dubarbier.m.  Note the dubarbier code is tuned
+% for rms wave velocity, while VDA uses significant wave velocity, so I have
+% to divide uw by 1.4.  The "wave-driven" part of the suspended transport is
+% omitted since arguably VDA already includes its contribution, and its
+% value is very similar to the VDA prediction.
+uwmo=uw/1.4;
+% param.Cc=0.01;  % stirring+undertow effect
+% param.Cf=0.01;  % stirring+slope effect
+% param.eps_s=0.015;
+qs2=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^3*udelta(1));
+qs3=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^5);
+qsCc = + qs2*param.eps_s/ws*param.Cc                        /(g*(s-1)*(1-psed));
+qsCf = - qs3*param.eps_s/ws*param.Cf*param.eps_s*tanbeta/ws/(g*(s-1)*(1-psed));
+qs = qs + qsCc + qsCf;
+
 % save all relevant variables for passing to TL model.  Note this runs
 % faster if the variables are hard-coded, don't use eval
 if(nargout>1)
@@ -438,6 +455,12 @@ if(nargout>1)
   workspc.theta25      =theta25        ;
   workspc.r            =r              ;
   workspc.fws          =fws            ;
+  workspc.uwmo         =uwmo           ;
+  workspc.qs2          =qs2            ;
+  workspc.qs3          =qs3            ;
+  workspc.qsCc         =qsCc           ;
+  workspc.qsCf         =qsCf           ;
+  workspc.tanbeta      =tanbeta        ;
 end
 
 end  % end of main function

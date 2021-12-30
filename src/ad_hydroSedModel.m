@@ -298,13 +298,14 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
   ad_params.alphab=ad_params.alphab+ad1_params.alphab;
   ad_Q=0;
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
-  %15c1 tl_Q = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,...
+  %15c1 tl_Q = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
   %                          tl_udelta,tl_ws,tl_params,bkgd_qtrans);
-  [ad1_d50,ad1_d90,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_params] = ...
+  [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_params] = ...
       ad_qtrans_vanderA(ad_Q,bkgd_qtrans);
   ad_d50        =ad_d50        +ad1_d50        ;
   ad_d90        =ad_d90        +ad1_d90        ;
   ad_h          =ad_h          +ad1_h          ;
+  ad_tanbeta    =ad_tanbeta    +ad1_tanbeta    ;
   ad_Hrms       =ad_Hrms       +ad1_Hrms       ;
   ad_kabs       =ad_kabs       +ad1_kabs       ;
   ad_omega      =ad_omega      +ad1_omega      ;

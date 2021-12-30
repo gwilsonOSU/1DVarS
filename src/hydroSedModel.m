@@ -203,7 +203,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
                             omega,theta,ubar,Dr,params);
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   [Q,bkgd_qtrans] = ...
-      qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta_w,ws,Aw,Sw,Uw,params);
+      qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta_w,ws,Aw,Sw,Uw,params);
 end
 Q=real(Q);
 

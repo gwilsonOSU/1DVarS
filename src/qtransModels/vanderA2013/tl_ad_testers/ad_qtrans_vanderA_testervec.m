@@ -173,6 +173,7 @@ for i=1:nx
                            windW(i,:),Dr(i),param.fv,param.ks,d50);
   end
 end
+tanbeta=calcTanbeta(x,h)';
 
 % bkgd NL model run
 param.n=1.2;
@@ -181,12 +182,15 @@ param.xi=1;  % ??? tuning parameter, O(1) according to Kranenburg (2013)
 param.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
 param.fv=0.1;  % breaking-induced eddy viscosity calibration parameter, see
                 % Reniers et al. (2004) Table 4.  Scalar, of order 0.1 (default)
-[Q,bkgd]=qtrans_vanderA(d50,d90,h,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param);
+param.Cc=0.01;  % stirring+undertow effect
+param.Cf=0.01;  % stirring+slope effect
+param.eps_s=0.015;
+[Q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(11*nx+5,n);  % 1st dim is number of tl input parameters
+F = eps*rand(12*nx+8,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -194,44 +198,52 @@ for i=1:n
   tl_d50        =F(0*nx+0+[1:nx],i);
   tl_d90        =F(1*nx+0+[1:nx],i);
   tl_h          =F(2*nx+0+[1:nx],i);
-  tl_Hrms       =F(3*nx+0+[1:nx],i);
-  tl_kabs       =F(4*nx+0+[1:nx],i);
-  tl_omega      =F(5*nx+1       ,i);
-  tl_udelta(:,1)=F(5*nx+1+[1:nx],i);
-  tl_udelta(:,2)=F(6*nx+1+[1:nx],i);
-  tl_ws         =F(7*nx+1+[1:nx],i);
-  tl_Aw         =F(8*nx+1+[1:nx],i);
-  tl_Sw         =F(9*nx+1+[1:nx],i);
-  tl_Uw         =F(10*nx+1+[1:nx],i);
-  tl_param.n    =F(11*nx+2       ,i);
-  tl_param.m    =F(11*nx+3       ,i);
-  tl_param.xi   =F(11*nx+4       ,i);
-  tl_param.alpha=F(11*nx+5       ,i);
+  tl_tanbeta    =F(3*nx+0+[1:nx],i);
+  tl_Hrms       =F(4*nx+0+[1:nx],i);
+  tl_kabs       =F(5*nx+0+[1:nx],i);
+  tl_omega      =F(6*nx+1       ,i);
+  tl_udelta(:,1)=F(6*nx+1+[1:nx],i);
+  tl_udelta(:,2)=F(7*nx+1+[1:nx],i);
+  tl_ws         =F(8*nx+1+[1:nx],i);
+  tl_Aw         =F(9*nx+1+[1:nx],i);
+  tl_Sw         =F(10*nx+1+[1:nx],i);
+  tl_Uw         =F(11*nx+1+[1:nx],i);
+  tl_param.n    =F(12*nx+2       ,i);
+  tl_param.m    =F(12*nx+3       ,i);
+  tl_param.xi   =F(12*nx+4       ,i);
+  tl_param.alpha=F(12*nx+5       ,i);
+  tl_param.Cc   =F(12*nx+6       ,i);
+  tl_param.Cf   =F(12*nx+7       ,i);
+  tl_param.eps_s=F(12*nx+8       ,i);
 
   % TL model: TL*F
-  tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,inoutvar);
+  tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,inoutvar);
 
   % AD model: g=AD*(TL*F)
-  [ad_d50,ad_d90,ad_h,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
+  [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
       ad_qtrans_vanderA(tl_qs,bkgd);%,inoutvar);
 
   % create output vector
   g(0*nx+0+[1:nx],i) =ad_d50        ;
   g(1*nx+0+[1:nx],i) =ad_d90        ;
   g(2*nx+0+[1:nx],i) =ad_h          ;
-  g(3*nx+0+[1:nx],i) =ad_Hrms       ;
-  g(4*nx+0+[1:nx],i) =ad_kabs       ;
-  g(5*nx+1       ,i) =ad_omega      ;
-  g(5*nx+1+[1:nx],i) =ad_udelta(:,1);
-  g(6*nx+1+[1:nx],i) =ad_udelta(:,2);
-  g(7*nx+1+[1:nx],i) =ad_ws         ;
-  g(8*nx+1+[1:nx],i) =ad_Aw         ;
-  g(9*nx+1+[1:nx],i) =ad_Sw         ;
-  g(10*nx+1+[1:nx],i)=ad_Uw         ;
-  g(11*nx+2       ,i)=ad_param.n    ;
-  g(11*nx+3       ,i)=ad_param.m    ;
-  g(11*nx+4       ,i)=ad_param.xi   ;
-  g(11*nx+5       ,i)=ad_param.alpha;
+  g(3*nx+0+[1:nx],i) =ad_tanbeta    ;
+  g(4*nx+0+[1:nx],i) =ad_Hrms       ;
+  g(5*nx+0+[1:nx],i) =ad_kabs       ;
+  g(6*nx+1       ,i) =ad_omega      ;
+  g(6*nx+1+[1:nx],i) =ad_udelta(:,1);
+  g(7*nx+1+[1:nx],i) =ad_udelta(:,2);
+  g(8*nx+1+[1:nx],i) =ad_ws         ;
+  g(9*nx+1+[1:nx],i) =ad_Aw         ;
+  g(10*nx+1+[1:nx],i) =ad_Sw         ;
+  g(11*nx+1+[1:nx],i)=ad_Uw         ;
+  g(12*nx+2       ,i)=ad_param.n    ;
+  g(12*nx+3       ,i)=ad_param.m    ;
+  g(12*nx+4       ,i)=ad_param.xi   ;
+  g(12*nx+5       ,i)=ad_param.alpha;
+  g(12*nx+6       ,i)=ad_param.Cc   ;
+  g(12*nx+7       ,i)=ad_param.Cf   ;
+  g(12*nx+8       ,i)=ad_param.eps_s;
 
 end
 

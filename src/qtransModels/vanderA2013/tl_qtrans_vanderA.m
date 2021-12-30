@@ -1,4 +1,4 @@
-function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
+function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
 %
 % TL code for qtrans_vanderA.m
 %
@@ -8,14 +8,14 @@ nx=length(tl_h);
 tl_Q=zeros(nx,1);
 for i=1:nx
   tl_qs(i)= ...
-      tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_Hrms(i),tl_kabs(i),...
+      tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
                              tl_omega,tl_udelta(i,:),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i));%,outvar);
 end
 tl_qs=tl_qs(:);
 
 end  % end of wrapper function, start of main function
 
-function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
+function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
 
 physicalConstants;
 
@@ -146,6 +146,12 @@ elseif(param.streamingType=='n')
   r      =bkgd.r      ;
   fws    =bkgd.fws    ;
 end
+uwmo=bkgd.uwmo;
+qs2 =bkgd.qs2 ;
+qs3 =bkgd.qs3 ;
+qsCc=bkgd.qsCc;
+qsCf=bkgd.qsCf;
+tanbeta=bkgd.tanbeta;
 
 % derived params
 tl_Hmo=tl_Hrms*1.4;
@@ -559,6 +565,28 @@ tl_term3 = .5/sqrt((s-1)*g*d50^3)*3*(s-1)*g*d50^2*tl_d50/(1-psed);
 tl_qs = (tl_qsc + tl_qst)/T*term3 ...
         - (qsc + qst)/T^2*term3*tl_T ...
         + (qsc + qst)/T*tl_term3;
+
+% Add suspended load contribution from currents, based on energetics model
+tl_uwmo=tl_uw/1.4;
+% arg_qs2 = (uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*udelta(1);
+tl_arg_qs2 = 3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1).*( ...
+    uwmo.*tl_uwmo + udelta(1)*tl_udelta(1) + udelta(2)*tl_udelta(2) ) ...
+    + (uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*tl_udelta(1);
+tl_qs2 = mean(tl_arg_qs2);
+% arg_qs3 = (uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(5/2);
+tl_arg_qs3 = 5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2).*( ...
+    uwmo.*tl_uwmo + udelta(1)*tl_udelta(1) + udelta(2)*tl_udelta(2) );
+tl_qs3 = mean(tl_arg_qs3);
+tl_qsCc = + tl_qs2*param.eps_s/ws*param.Cc     /(g*(s-1)*(1-psed)) ...
+          + qs2*tl_param.eps_s/ws*param.Cc     /(g*(s-1)*(1-psed)) ...
+          - qs2*param.eps_s/ws^2*param.Cc*tl_ws/(g*(s-1)*(1-psed)) ...
+          + qs2*param.eps_s/ws*tl_param.Cc     /(g*(s-1)*(1-psed));
+tl_qsCf = - tl_qs3*param.eps_s^2/ws^2*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
+          - 2*qs3*param.eps_s*tl_param.eps_s/ws^2*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
+          + 2*qs3*param.eps_s^2/ws^3*tl_ws*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
+          - qs3*param.eps_s^2/ws^2*tl_param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
+          - qs3*param.eps_s^2/ws^2*param.Cf*tl_tanbeta/(g*(s-1)*(1-psed));
+tl_qs = tl_qs + tl_qsCc + tl_qsCf;
 
 % % TEST-CODE: override output variable
 % eval(['tl_qs = tl_' outvar ';']);
