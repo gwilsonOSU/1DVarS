@@ -30,6 +30,9 @@ elseif(strcmp(bkgd(1).sedmodel,'vanderA'))
   ad_params.m    =0;
   ad_params.xi   =0;
   ad_params.alpha=0;
+  ad_params.Cc   =0;
+  ad_params.Cf   =0;
+  ad_params.eps_s=0;
 elseif(strcmp(bkgd(1).sedmodel,'soulsbyVanRijn'))
   ad_params.alphab=0;
   ad_params.facua =0;
@@ -92,6 +95,9 @@ for n=bkgd(1).nsubsteps:-1:1
     ad_params.m    =ad_params.m     + ad1_params.m    ;
     ad_params.xi   =ad_params.xi    + ad1_params.xi   ;
     ad_params.alpha=ad_params.alpha + ad1_params.alpha;
+    ad_params.Cc   =ad_params.Cc    + ad1_params.Cc   ;
+    ad_params.Cf   =ad_params.Cf    + ad1_params.Cf   ;
+    ad_params.eps_s=ad_params.eps_s + ad1_params.eps_s;
   elseif(strcmp(bkgd(1).sedmodel,'soulsbyVanRijn'))
     ad_params.alphab=ad_params.alphab+ad1_params.alphab;
     ad_params.facua =ad_params.facua +ad1_params.facua ;
@@ -151,6 +157,9 @@ elseif(strcmp(bkgd.sedmodel,'vanderA'))
   ad_params.m    =0;
   ad_params.xi   =0;
   ad_params.alpha=0;
+  ad_params.Cc   =0;
+  ad_params.Cf   =0;
+  ad_params.eps_s=0;
 elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
   ad_params.alphab=0;
   ad_params.facua =0;
@@ -315,6 +324,9 @@ elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   ad_params.m    =ad_params.m    +ad1_params.m    ;
   ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
   ad_params.alpha=ad_params.alpha+ad1_params.alpha;
+  ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
+  ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
+  ad_params.eps_s=ad_params.eps_s+ad1_params.eps_s;
   ad_Aw    =ad_Aw    +ad1_Aw    ;
   ad_Sw    =ad_Sw    +ad1_Sw    ;
   ad_Uw    =ad_Uw    +ad1_Uw    ;
