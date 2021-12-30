@@ -59,7 +59,6 @@ elseif(strcmp(sedmodel,'vanderA'))
   params.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
   params.Cc=0.01;
   params.Cf=0.01;
-  params.eps_s=0.015;
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   params.alphab=1.6;
   params.facua =1.0;
@@ -96,7 +95,7 @@ d90=400e-6*ones(nx,1);
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(9*nx+13,n);  % 1st dim is number of tl input parameters
+F = eps*rand(9*nx+12,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -123,7 +122,6 @@ for i=1:n
   tl_params.alpha=F(9*nx+10,i);
   tl_params.Cc   =F(9*nx+11,i);
   tl_params.Cf   =F(9*nx+12,i);
-  tl_params.eps_s=F(9*nx+13,i);
 
   [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout] = ...
       tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,...
@@ -158,7 +156,6 @@ for i=1:n
   g(9*nx+10,i)=ad_params.alpha;
   g(9*nx+11,i)=ad_params.Cc;
   g(9*nx+12,i)=ad_params.Cf;
-  g(9*nx+13,i)=ad_params.eps_s;
 
 end
 

@@ -27,6 +27,8 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws
 %        xi   : phase lag effect, eqns (24)-(28).  Default 1.7.  O(1) according to Kranenburg (2013)
 %        m    : MPM leading coefficient, eqn (36).  Default 11.0
 %        n    : MPM exponent, eqn (36).  Default 1.2
+%        Cc   : suspended sediment stirring+undertow effect.  Default 0.01
+%        Cf   : suspended sediment stirring+slope effect. Default 0.01
 %
 % param.streamingType : select from 'v' (van der A, 2013) or 'n' (Nielsen,
 % 2006).  The Nielsen formulation uses a larger roughness for calculating
@@ -325,14 +327,12 @@ qs = qs/(1-psed);  % account for bed porosity
 % to divide uw by 1.4.  The "wave-driven" part of the suspended transport is
 % omitted since arguably VDA already includes its contribution, and its
 % value is very similar to the VDA prediction.
+eps_s=0.015;
 uwmo=uw/1.4;
-% param.Cc=0.01;  % stirring+undertow effect
-% param.Cf=0.01;  % stirring+slope effect
-% param.eps_s=0.015;
 qs2=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^3*udelta(1));
 qs3=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^5);
-qsCc = + qs2*param.eps_s/ws*param.Cc                        /(g*(s-1)*(1-psed));
-qsCf = - qs3*param.eps_s/ws*param.Cf*param.eps_s*tanbeta/ws/(g*(s-1)*(1-psed));
+qsCc = + qs2*eps_s/ws*param.Cc                 /(g*(s-1)*(1-psed));
+qsCf = - qs3*eps_s/ws*param.Cf*eps_s*tanbeta/ws/(g*(s-1)*(1-psed));
 qs = qs + qsCc + qsCf;
 
 % save all relevant variables for passing to TL model.  Note this runs
@@ -461,6 +461,7 @@ if(nargout>1)
   workspc.qsCc         =qsCc           ;
   workspc.qsCf         =qsCf           ;
   workspc.tanbeta      =tanbeta        ;
+  workspc.eps_s        =eps_s          ;
 end
 
 end  % end of main function

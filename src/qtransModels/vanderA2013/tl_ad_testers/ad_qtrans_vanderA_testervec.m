@@ -184,13 +184,12 @@ param.fv=0.1;  % breaking-induced eddy viscosity calibration parameter, see
                 % Reniers et al. (2004) Table 4.  Scalar, of order 0.1 (default)
 param.Cc=0.01;  % stirring+undertow effect
 param.Cf=0.01;  % stirring+slope effect
-param.eps_s=0.015;
 [Q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(12*nx+8,n);  % 1st dim is number of tl input parameters
+F = eps*rand(12*nx+7,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -214,7 +213,6 @@ for i=1:n
   tl_param.alpha=F(12*nx+5       ,i);
   tl_param.Cc   =F(12*nx+6       ,i);
   tl_param.Cf   =F(12*nx+7       ,i);
-  tl_param.eps_s=F(12*nx+8       ,i);
 
   % TL model: TL*F
   tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,inoutvar);
@@ -243,7 +241,6 @@ for i=1:n
   g(12*nx+5       ,i)=ad_param.alpha;
   g(12*nx+6       ,i)=ad_param.Cc   ;
   g(12*nx+7       ,i)=ad_param.Cf   ;
-  g(12*nx+8       ,i)=ad_param.eps_s;
 
 end
 
