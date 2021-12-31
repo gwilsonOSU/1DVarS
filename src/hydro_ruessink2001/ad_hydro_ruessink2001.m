@@ -1,10 +1,8 @@
-function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw2d,ad_detady,ad_dgamma]=ad_hydro_ruessink2001(ad_Hrms,ad_theta,ad_vbar,ad_kabs,ad_Ew,ad_Er,ad_Dr,bkgd)%,invar)
+function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw2d,ad_detady,ad_dgamma,ad_beta0]=ad_hydro_ruessink2001(ad_Hrms,ad_theta,ad_vbar,ad_kabs,ad_Ew,ad_Er,ad_Dr,bkgd)%,invar)
 %
 % AD-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
 % directly from output of hydro_ruessink2001.m
 %
-
-[g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
 
 % break out the bkgd vars
 Ew   =bkgd.Ew;  % convert back from W/m2
@@ -32,6 +30,14 @@ Qb=bkgd.Qb;
 ka_drag=bkgd.ka_drag;
 detady=bkgd.detady;
 beta=bkgd.beta;
+g        =bkgd.g        ;
+alpha    =bkgd.alpha    ;
+beta0    =bkgd.beta0    ;
+nu       =bkgd.nu       ;
+rho      =bkgd.rho      ;
+hmin     =bkgd.hmin     ;
+gammaType=bkgd.gammaType;
+betaType =bkgd.betaType ;
 
 h(h<hmin)=hmin;  % min depth constraint
 
@@ -78,6 +84,7 @@ ad_c1=0;
 ad_omega=0;
 ad_beta=zeros(nx,1);
 ad_Hmo=zeros(nx,1);
+ad_beta0=0;
 
 % % TEST: look at a specific variable
 % ad_theta=zeros(nx,1);
@@ -432,10 +439,13 @@ ad_kabs=0;
 ad_tauw2d(:,2)=ad_tau_wind;
 ad_tau_wind=zeros(nx,1);
 
-if(strcmp(betaType,'const') | strcmp(betaType,'none'))
-  ad_beta=zeros(nx,1);
-end
-if(strcmp(betaType,'none'))
+if(strcmp(betaType,'const'))
+  % tl_beta=tl_beta0*ones(nx,1);
+  ad_beta0=sum(ad_beta);
+  ad_beta=0;
+elseif(strcmp(betaType,'none'))
+  % tl_beta=0;
+  ad_beta=0;
   ad_Dr=zeros(nx,1);
 end
 if(~exist('dgamma'))

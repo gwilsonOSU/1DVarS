@@ -52,14 +52,17 @@ ka_drag=waves.ka_drag;
 tauw=.001*ones(nx,2);
 detady=ones(nx,1)*.001;
 dgamma=zeros(nx,1);
+beta0=0.1;
+betaType='const';
+gammaType=2003;
 
 % background NL model run
-[Hrms,theta,vbar,kabs,Ew,Er,Dr,Aw,Sw,Uw,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma);
+[Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tauw,detady,dgamma,beta0,gammaType,betaType);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(5*nx+4,n);  % 1st dim is number of tl input parameters
+F = eps*rand(5*nx+5,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -74,12 +77,13 @@ for i=1:n
   tl_tauw(:,2)=F(2*nx+4+[1:nx],i);
   tl_detady =F(3*nx+4+[1:nx],i);
   tl_dgamma =F(4*nx+4+[1:nx],i);
-  [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr,tl_Aw,tl_Sw,tl_Uw] = ...
-      tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw,tl_detady,tl_dgamma,bkgd);%,inoutvar);
+  tl_beta0  =F(5*nx+5       ,i);
+  [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
+      tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw,tl_detady,tl_dgamma,tl_beta0,bkgd);%,inoutvar);
 
   % AD model: g=AD*(TL*F)
-  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw,ad_detady,ad_dgamma] = ...
-      ad_hydro_ruessink2001(tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr,tl_Aw,tl_Sw,tl_Uw,bkgd);%,inoutvar);
+  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tauw,ad_detady,ad_dgamma,ad_beta0] = ...
+      ad_hydro_ruessink2001(tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr,bkgd);%,inoutvar);
 
   % create output vector
   g(0*nx+[1:nx],i)    =ad_h      ;
@@ -91,6 +95,7 @@ for i=1:n
   g(2*nx+4+[1:nx],i)  =ad_tauw(:,2);
   g(3*nx+4+[1:nx],i)  =ad_detady ;
   g(4*nx+4+[1:nx],i)  =ad_dgamma ;
+  g(5*nx+5       ,i)  =ad_beta0  ;
 
 end
 

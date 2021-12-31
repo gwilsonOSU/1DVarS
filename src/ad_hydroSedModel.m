@@ -1,4 +1,4 @@
-function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tau_wind,...
+function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_beta0,ad_tau_wind,...
           ad_detady,ad_dgamma,ad_dAw,ad_dSw,...
           ad_d50,ad_d90,ad_params] = ...
     ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hpout,bkgd)%,invar)
@@ -11,6 +11,7 @@ ad_H0=0;
 ad_theta0=0;
 ad_omega=0;
 ad_ka_drag=0;
+ad_beta0=0;
 ad_tau_wind=zeros(nx,1);
 ad_detady=zeros(nx,1);
 ad_dgamma=zeros(nx,1);
@@ -53,11 +54,11 @@ end
 for n=bkgd(1).nsubsteps:-1:1
 
   % [tl_Hrms(:,n),tl_vbar(:,n),tl_theta(:,n),tl_kabs(:,n),tl_Qx(:,n),tl_hp(:,n+1)] = ...
-  %     tl_hydroSedModel_main(tl_hp(:,n),tl_H0,tl_theta0,tl_omega,tl_ka_drag,...
+  %     tl_hydroSedModel_main(tl_hp(:,n),tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_beta0,...
   %                           tl_tau_wind,tl_detady,...
   %                           tl_dgamma,tl_d50,tl_d90,tl_params,...
   %                           bkgd(n),outvar);
-  [ad_hp(:,n),ad1_H0,ad1_theta0,ad1_omega,ad1_ka_drag,ad1_tau_wind,...
+  [ad_hp(:,n),ad1_H0,ad1_theta0,ad1_omega,ad1_ka_drag,ad1_beta0,ad1_tau_wind,...
    ad1_detady,ad1_dgamma,ad1_dAw,ad1_dSw,ad1_d50,ad1_d90,ad1_params] = ...
       ad_hydroSedModel_main(ad_Hrms(:,n),ad_vbar(:,n),ad_theta(:,n),...
                             ad_kabs(:,n),ad_Qx(:,n),ad_hp(:,n+1),...
@@ -67,6 +68,7 @@ for n=bkgd(1).nsubsteps:-1:1
   ad_theta0  =ad_theta0  +ad1_theta0  ;
   ad_omega   =ad_omega   +ad1_omega   ;
   ad_ka_drag =ad_ka_drag +ad1_ka_drag ;
+  ad_beta0   =ad_beta0   +ad1_beta0   ;
   ad_tau_wind=ad_tau_wind+ad1_tau_wind;
   ad_detady  =ad_detady  +ad1_detady  ;
   ad_dgamma  =ad_dgamma  +ad1_dgamma  ;
@@ -108,7 +110,7 @@ ad_h=ad_h+ad_hp(:,1);
 end  % end wrapper function (for sub-stepping loop logic)
 
 % begin main function, for single time step
-function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tau_wind,...
+function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_beta0,ad_tau_wind,...
           ad_detady,ad_dgamma,ad_dAw,ad_dSw,ad_d50,ad_d90,ad_params] = ...
     ad_hydroSedModel_main(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hp,bkgd)%,invar)
 
@@ -131,6 +133,7 @@ ad_H0=0;
 ad_theta0=0;
 ad_omega=0;
 ad_ka_drag=0;
+ad_beta0  =0;
 ad_tau_wind=zeros(nx,2);
 ad_detady=zeros(nx,1);
 ad_dgamma=zeros(nx,1);
@@ -470,8 +473,8 @@ ad_Hmo=0;
 
 % 1DH wave and longshore current balance
 % [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
-%     tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,hydro_bkgd);
-[ad1_h,ad1_H0,ad1_theta0,ad1_omega,ad1_ka_drag,ad1_tau_wind,ad1_detady,ad1_dgamma] = ...
+%     tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,tl_beta0,hydro_bkgd);
+[ad1_h,ad1_H0,ad1_theta0,ad1_omega,ad1_ka_drag,ad1_tau_wind,ad1_detady,ad1_dgamma,ad1_beta0] = ...
     ad_hydro_ruessink2001(ad_Hrms,ad_theta,ad_vbar,ad_kabs,ad_Ew,ad_Er,ad_Dr,hydro_bkgd);
 ad_h       =ad_h       +ad1_h       ;
 ad_H0      =ad_H0      +ad1_H0      ;
@@ -481,6 +484,7 @@ ad_ka_drag =ad_ka_drag +ad1_ka_drag ;
 ad_tau_wind=ad_tau_wind+ad1_tau_wind;
 ad_detady  =ad_detady  +ad1_detady  ;
 ad_dgamma  =ad_dgamma  +ad1_dgamma  ;
+ad_beta0   =ad_beta0   +ad1_beta0   ;
 
 %1 tl_h(imask)=0;  % min depth constraint
 ad_h(imask)=0;

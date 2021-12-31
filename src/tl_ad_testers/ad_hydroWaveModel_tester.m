@@ -25,15 +25,18 @@ detady=ones(nx,1)*.0001;
 dgamma=zeros(nx,1);
 dAw   =ones(nx,1)*+.01;
 dSw   =ones(nx,1)*-.01;
+gammaType=2003;
+betaType='const';
+beta0=0.1;
 
 % background NL model run
 [Hrms,vbar,theta,kabs,Ew,Er,Dr,Aw,Sw,Uw,bkgd] = ...
-    hydroWaveModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw);
+    hydroWaveModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,gammaType,betaType);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(9*nx+9,n);  % 1st dim is number of tl input parameters
+F = eps*rand(7*nx+5,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -50,13 +53,14 @@ for i=1:n
   tl_dgamma  =F(4*nx+4+[1:nx],i);
   tl_dAw     =F(5*nx+4+[1:nx],i);
   tl_dSw     =F(6*nx+4+[1:nx],i);
+  tl_beta0   =F(7*nx+5,i);
 
   [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Ew,tl_Er,tl_Dr,tl_Aw,tl_Sw,tl_Uw] = ...
-      tl_hydroWaveModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,...
+      tl_hydroWaveModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_beta0,tl_tau_wind,...
                        tl_detady,tl_dgamma,tl_dAw,tl_dSw,bkgd);
 
   % AD model: g=AD*(TL*F)
-  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tau_wind,...
+  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_beta0,ad_tau_wind,...
    ad_detady,ad_dgamma,ad_dAw,ad_dSw] = ...
       ad_hydroWaveModel(tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Ew,tl_Er,tl_Dr,tl_Aw,tl_Sw,tl_Uw,bkgd);
 
@@ -72,6 +76,7 @@ for i=1:n
   g(4*nx+4+[1:nx],i)     =ad_dgamma  ;
   g(5*nx+4+[1:nx],i)     =ad_dAw     ;
   g(6*nx+4+[1:nx],i)     =ad_dSw     ;
+  g(7*nx+5       ,i)     =ad_beta0   ;
 
 end
 

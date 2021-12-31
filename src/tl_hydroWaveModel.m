@@ -1,5 +1,5 @@
 function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Ew,tl_Er,tl_Dr,tl_Aw,tl_Sw,tl_Uw] = ...
-    tl_hydroWaveModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,...
+    tl_hydroWaveModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_beta0,tl_tau_wind,...
                      tl_detady,tl_dgamma,tl_dAw,tl_dSw,bkgd)%,outvar)
 
 
@@ -21,7 +21,7 @@ tl_h(imask)=0;  % min depth constraint
 
 % 1DH wave and longshore current balance
 [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
-    tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,hydro_bkgd);
+    tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,tl_beta0,hydro_bkgd);
 
 % wave shape parameters.  Note Uwave_ruessink2012 specifies Hmo as input
 tl_Hmo=1.4*tl_Hrms;

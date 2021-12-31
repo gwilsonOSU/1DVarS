@@ -1,18 +1,18 @@
 function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
-    hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw,...
-                  d50,d90,params,sedmodel,dt,nsubsteps)
+    hydroSedModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,...
+                  d50,d90,params,sedmodel,gammaType,betaType,dt,nsubsteps)
 %
 % RECOMMENDED-USAGE: struct output
 %
-% out = hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,dAw,dSw,...
-%                     tau_wind,detady,d50,d90,sedparams,...
-%                     sedmodel,dt,nsubsteps)
+% out =     hydroSedModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,...
+%                         d50,d90,params,sedmodel,gammaType,betaType,dt,nsubsteps)
+%
 %
 % ALTERNATIVE-USAGE: individual variables output
 %
-% [Hrms,vbar,theta,kabs,Q,hp,out]=hydroSedModel(x,h,H0,theta0,omega,ka_drag,dgamma,...
-%                                               tau_wind,detady,d50,d90,sedparams,...
-%                                               sedmodel,dt,nsubsteps)
+% [Hrms,vbar,theta,kabs,Q,hp,out] = hydroSedModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,...
+%                                                 d50,d90,sedparams,sedmodel,gammaType,betaType,dt,nsubsteps)
+%
 %
 % PURPOSE: Main front-end code for hydrodynamics and sediment transport
 %
@@ -24,18 +24,25 @@ function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
 % theta0   : wave angle at offshore boundary, rads
 % omega    : wave frequency, rad/m
 % ka_drag  : hydraulic roughness factor, m
+% beta0    : assuming betaType=='const', sets the value of beta for roller model
+% tau_wind : wind stress, vector Nx2, N/m2
+% detady   : alongshore pressure gradient, m/m units
 % dgamma   : linear correction factor for wave model gamma
 % dAw      : linear correction factor for wave model Aw
 % dSw      : linear correction factor for wave model Sw
-% tau_wind : wind stress, vector Nx2, N/m2
-% detady   : alongshore pressure gradient, m/m units
 % d50      : median grain diameter, m
 % d90      : 90th percentile grain diameter, m
 % params.fv: breaking-induced eddy viscosity calibration parameter, see
 %            Reniers et al. (2004) Table 4.  Scalar, recommended 0.1
+% params.* : other parameters as required by sediment transport model (see
+%            below)
 % sedmodel : can be 'dubarbier', 'vanderA', or 'soulsbyVanRijn'.  See
 %            corresponding codes qtrans_*.m and note their differing 'param'
 %            struct, to be passed in here as part of 'params'
+% gammaType: can be 2001 or 2003 (numbers), for wave breaking gamma
+%            formulation used by Ruessink et al. 2001 or 2003
+% betaType : sets roller model beta(x) formulation.  Can be 'const', 'none',
+%             or 'rafati21' (variable beta model of Rafati et al., 2001)
 % dt       : time step (s) for integrating Exner equation to obtain update hp
 % nsubsteps: number of sub-steps to divide integration over dt, for
 %            numerical stability.  Each substep uses the same boundary
@@ -66,8 +73,8 @@ for n=1:nsubsteps
   % disp(['hydroSedModel substep ' num2str(n) ' of ' num2str(nsubsteps)])
   [Hrms(:,n),vbar(:,n),theta(:,n),kabs(:,n),...
    Qx(:,n),hp(:,n+1),workspc(n)] = ...
-      hydroSedModel_main(x,hp(:,n),H0,theta0,omega,ka_drag,tau_wind,detady,...
-                         dgamma,dAw,dSw,d50,d90,params,sedmodel,dt/nsubsteps);
+      hydroSedModel_main(x,hp(:,n),H0,theta0,omega,ka_drag,beta0,tau_wind,detady,...
+                         dgamma,dAw,dSw,d50,d90,params,sedmodel,gammaType,betaType,dt/nsubsteps);
 end
 for n=1:nsubsteps
   workspc(n).nsubsteps=nsubsteps;
@@ -88,8 +95,8 @@ end  % end wrapper function (for sub-stepping loop logic)
 
 % begin main function, for single time step
 function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
-    hydroSedModel_main(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw,...
-                  d50,d90,params,sedmodel,dt)
+    hydroSedModel_main(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,...
+                  d50,d90,params,sedmodel,gammaType,betaType,dt)
 
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)
@@ -115,7 +122,7 @@ nx=length(x);
 
 % 1DH wave and longshore current balance
 [Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
-    hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma);
+    hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType);
 
 % wave shape parameters.  Note Uwave_ruessink2012 specifies Hmo as input
 Hmo=1.4*Hrms;

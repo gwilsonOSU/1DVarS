@@ -1,6 +1,6 @@
-function [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma)
+function [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType)
 %
-% [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma)
+% [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType)
 %
 % Wave energy balance equation solver, explicit spatial stepping scheme,
 % followed by longshore current momentum balance solver with constant
@@ -19,6 +19,15 @@ function [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,o
 % ka_drag : hydraulic roughness factor, m
 % tau_wind    : vector (x,y) components of wind stress, N/m2.  Only tau_wind(:,2) (longshore) is actually used.
 % detady  : longshore pressure gradient, m/m units
+% beta0    : roller parameter beta used for params.betaType=='const'
+% gammaType: switch for breaker model.  Use '2001' Battjes and Stive
+%            (1985) (as used by Ruessink et al. 2001), or '2003' for
+%            Ruessink et al. (2003).  Default '2003'.
+% betaType : switch for roller model.  Use 'none' to turn off the
+%            roller, 'const' to set constant beta=beta0 for all
+%            gridpoints, or 'rafati21' to compute x-dependent beta
+%            based on Rafati et al., (2021) eqn 10, which they
+%            recommended for duck94 simulations.  Default 'const'.
 %
 % OUTPUTS:
 %
@@ -29,14 +38,17 @@ function [Hrms,theta,vbar,kabs,Ew,Er,Dr,bkgd]=hydro_ruessink2001(x,h,H0,theta0,o
 % wkspc : struct containing all NL variables, used for TL-AD models
 %
 
-[g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
+g=9.8126;
+alpha=1;
+nu=.1;
+rho=1030;
+hmin=0.5;
 
 h(h<hmin)=hmin;  % min depth constraint
 
 tauw2d=tau_wind;
 tau_wind=tau_wind(:,2);  % for compatibility
 
-% grid
 nx=length(x);
 dx=diff(x(1:2));
 

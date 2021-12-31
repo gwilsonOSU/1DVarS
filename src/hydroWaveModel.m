@@ -1,14 +1,14 @@
 function [Hrms,vbar,theta,kabs,Ew,Er,Dr,Aw,Sw,Uw,workspc] = ...
-    hydroWaveModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw)
+    hydroWaveModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,gammaType,betaType)
 %
 % RECOMMENDED-USAGE: struct output
 %
-% out = hydroWaveModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw)
+% out = hydroWaveModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,gammaType,betaType)
 %
 % ALTERNATIVE-USAGE: individual variables output
 %
 % [Hrms,vbar,theta,kabs,Aw,Sw,Uw,workspc] = ...
-%    hydroWaveModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw)
+%    hydroWaveModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,gammaType,betaType)
 %
 % PURPOSE: Main front-end code for waves and currents.  If you also want
 % morphology, use hydroSedModel.m.  This code is the same, but strips out
@@ -22,11 +22,16 @@ function [Hrms,vbar,theta,kabs,Ew,Er,Dr,Aw,Sw,Uw,workspc] = ...
 % theta0   : wave angle at offshore boundary, rads
 % omega    : wave frequency, rad/m
 % ka_drag  : hydraulic roughness factor, m
+% beta0    : assuming betaType=='const', sets the value of beta for roller model
+% tau_wind : wind stress, vector Nx2, N/m2
+% detady   : alongshore pressure gradient, m/m units
 % dgamma   : linear correction factor for wave model gamma
 % dAw      : linear correction factor for wave model Aw
 % dSw      : linear correction factor for wave model Sw
-% tau_wind : wind stress, vector Nx2, N/m2
-% detady   : alongshore pressure gradient, m/m units
+% gammaType: can be 2001 or 2003 (numbers), for wave breaking gamma
+%            formulation used by Ruessink et al. 2001 or 2003
+% betaType : sets roller model beta(x) formulation.  Can be 'const', 'none',
+%             or 'rafati21' (variable beta model of Rafati et al., 2001)
 %
 % OUTPUTS:
 %
@@ -58,7 +63,7 @@ nx=length(x);
 
 % 1DH wave and longshore current balance
 [Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
-    hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma);
+    hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType);
 
 % wave shape parameters.  Note Uwave_ruessink2012 specifies Hmo as input
 Hmo=1.4*Hrms;

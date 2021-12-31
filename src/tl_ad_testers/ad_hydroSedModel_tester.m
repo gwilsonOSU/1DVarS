@@ -86,16 +86,19 @@ dAw   =ones(nx,1)*+.01;
 dSw   =ones(nx,1)*-.01;
 d50=180e-6*ones(nx,1);
 d90=400e-6*ones(nx,1);
+gammaType=2003;
+betaType='const';
+beta0=0.1;
 
 % background NL model run
 [Hrms,vbar,theta,kabs,Qx,hpout,bkgd] = ...
-    hydroSedModel(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,dAw,dSw,...
-                  d50,d90,params,sedmodel,dt,nsubsteps);
+    hydroSedModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,...
+                  d50,d90,params,sedmodel,gammaType,betaType,dt,nsubsteps);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(9*nx+12,n);  % 1st dim is number of tl input parameters
+F = eps*rand(9*nx+13,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -122,14 +125,15 @@ for i=1:n
   tl_params.alpha=F(9*nx+10,i);
   tl_params.Cc   =F(9*nx+11,i);
   tl_params.Cf   =F(9*nx+12,i);
+  tl_beta0       =F(9*nx+13,i);
 
   [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout] = ...
-      tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,...
+      tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_beta0,tl_tau_wind,...
                        tl_detady,tl_dgamma,tl_dAw,tl_dSw,...
                        tl_d50,tl_d90,tl_params,bkgd);
 
   % AD model: g=AD*(TL*F)
-  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_tau_wind,...
+  [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_beta0,ad_tau_wind,...
    ad_detady,ad_dgamma,ad_dAw,ad_dSw,...
    ad_d50,ad_d90,ad_params] = ...
       ad_hydroSedModel(tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout,bkgd);
@@ -156,6 +160,7 @@ for i=1:n
   g(9*nx+10,i)=ad_params.alpha;
   g(9*nx+11,i)=ad_params.Cc;
   g(9*nx+12,i)=ad_params.Cf;
+  g(9*nx+13,i)=ad_beta0;
 
 end
 

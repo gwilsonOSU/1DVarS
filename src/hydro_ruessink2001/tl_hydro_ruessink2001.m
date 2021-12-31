@@ -1,10 +1,8 @@
-function [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw2d,tl_detady,tl_dgamma,bkgd);%,outvar)
+function [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr]=tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tauw2d,tl_detady,tl_dgamma,tl_beta0,bkgd);%,outvar)
 %
 % TL-code for hydro_ruessink2001.m.  Background state 'bkgd' can be a struct taken
 % directly from output of hydro_ruessink2001.m
 %
-
-[g,alpha,beta0,nu,rho,hmin,gammaType,betaType]=hydroParams();
 
 % break out the bkgd vars
 Ew   =bkgd.Ew;  % convert back from W/m2
@@ -32,6 +30,14 @@ Qb=bkgd.Qb;
 ka_drag=bkgd.ka_drag;
 detady=bkgd.detady;
 beta=bkgd.beta;
+g        =bkgd.g        ;
+alpha    =bkgd.alpha    ;
+beta0    =bkgd.beta0    ;
+nu       =bkgd.nu       ;
+rho      =bkgd.rho      ;
+hmin     =bkgd.hmin     ;
+gammaType=bkgd.gammaType;
+betaType =bkgd.betaType ;
 
 h(h<hmin)=hmin;  % min depth constraint
 
@@ -42,10 +48,10 @@ dx=diff(x(1:2));
 % begin tangent-linear code
 %-----------------------------
 
-if(strcmp(betaType,'const') | strcmp(betaType,'none'))
+if(strcmp(betaType,'const'))
+  tl_beta=tl_beta0*ones(nx,1);
+elseif(strcmp(betaType,'none'))
   tl_beta=zeros(nx,1);
-end
-if(strcmp(betaType,'none'))
   tl_Dr=zeros(nx,1);
 end
 if(~exist('dgamma'))
