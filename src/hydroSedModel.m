@@ -100,7 +100,7 @@ function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
 
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)
-doDubarbierHack=0;  % shift velocities shoreward per Dubarbier's approxmiation
+doDubarbierHack=1;  % shift velocities shoreward per Dubarbier's approxmiation
 doMarieu=0;  % use Marieu's dh/dt instead of upwind differencing
 if(doMarieu==1)
   warning('Marieu code TL-AD appears to have stability issues!')
@@ -145,8 +145,8 @@ c=omega./kabs;
 
 % depth averaged mean flow, Nx2 vector, +'ve onshore
 ubarx=-(Ew+2*Er)./(rho*c.*h);  % e.g., Dubarbier et al. (2015) eqn 8
-ubar(:,1)=ubarx;
-ubar(:,2)=vbar;
+ubar0(:,1)=ubarx;
+ubar0(:,2)=vbar;
 
 % settling velocity: Brown & Lawler.  For vanderA use 0.8*d50 per
 % explanation on page 29
@@ -157,21 +157,34 @@ else
 end
 
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
-% prior to calculation of undertow (udelta).  TODO, need TL-AD code
+% prior to calculation of undertow (udelta)
 if(doDubarbierHack)
-  % warning('no TL-AD model exists for this optional code yet')
   lambda=1.57;
   xb=lambda*2*pi./kabs;
   for i=1:nx
     ind=find(x(i)-xb(i)<=x&x<=x(i));
     if(length(ind)<=1)
-      ur(i,:)=ubar(i,:);
+      ur(i,1)=ubar0(i,1);
+      ur(i,2)=ubar0(i,2);
     else
       xx=xb(i)-x(i)+x(ind);
-      ur(i,:)=trapz(x(ind),xx.*ubar(ind,:))/trapz(x(ind),xx);
+      xx=xx(:);
+      term2=0;
+      for n=1:length(ind)
+        term2=term2+xx(n);
+      end
+      for j=1:2
+        term1=0;
+        for n=1:length(ind)
+          term1 = term1 + xx(n)*ubar0(ind(n),j);
+        end
+        ur(i,j)=term1/term2;
+      end
     end
   end
   ubar=ur;
+else
+  ubar=ubar0;
 end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
@@ -202,18 +215,18 @@ udelta_w(:,2) = -udelta(:,1).*sin(theta) + udelta(:,2).*cos(theta);
 % run the requested model for sediment flux (m2/s)
 tanbeta=calcTanbeta(x,h)';
 if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
-  [Q,Qb,Qs,Qa,bkgd_qtrans] = ...
+  [Q0,Qb,Qs,Qa,bkgd_qtrans] = ...
       qtrans_dubarbier(tanbeta,h,Hrms,kabs,omega,udelta_w,ws,Aw,Sw,Uw,...
                        params.Cw,params.Cc,params.Cf,params.Ka);
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
-  [Q,~] = ...
+  [Q0,~] = ...
       qtrans_soulsbyVanRijn(x,d50,d90,h,tanbeta,Hrms,kabs,...
                             omega,theta,ubar,Dr,params);
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
-  [Q,bkgd_qtrans] = ...
+  [Q0,bkgd_qtrans] = ...
       qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta_w,ws,Aw,Sw,Uw,params);
 end
-Q=real(Q);
+Q0=real(Q0);
 
 % Dubarbier et al. suggest a threshold to exclude bed level change in the
 % swash zone.  Use this, or the imposed minimum depth criteria, whichever
@@ -228,7 +241,8 @@ end
 if(~isempty(imask))
   imax=min(min(imask),imax);
 end
-Q(imax:end)=0;
+Q1=Q0;
+Q1(imax:end)=0;
 
 % OPTIONAL: use filtering to suppress instabilities.  This is necessary for
 % vanderA model, to suppress discontinuities associated with switching
@@ -237,7 +251,9 @@ if(doFilterQ)
   fc = 1/50;   % band lower bound in 1/m
   fs=1/abs(x(2)-x(1));
   [b,a] = butter(5,fc/(fs/2),'low');
-  Q = filtfilt(b,a,Q);
+  Q = filtfilt(b,a,Q1);
+else
+  Q = Q1;
 end
 
 % TEST-CODE: weighting fn for damping out step function transport at shore.
@@ -287,6 +303,7 @@ vname{end+1}='H0';      % input
 vname{end+1}='theta0';  % input
 vname{end+1}='omega';   % input
 vname{end+1}='ka_drag'; % input
+vname{end+1}='beta0';   % input
 vname{end+1}='tau_wind';% input
 vname{end+1}='detady';  % input
 vname{end+1}='dgamma';  % input
@@ -308,6 +325,9 @@ vname{end+1}='Aw';
 vname{end+1}='Sw';
 vname{end+1}='Hrms';
 vname{end+1}='Q';
+vname{end+1}='Q0';
+vname{end+1}='Q1';
+vname{end+1}='imax';
 vname{end+1}='Qx';
 vname{end+1}='dQdx';
 vname{end+1}='c';
@@ -320,6 +340,7 @@ vname{end+1}='nx';
 vname{end+1}='tanbeta';
 vname{end+1}='theta';
 vname{end+1}='ubar';
+vname{end+1}='ubar0';
 vname{end+1}='udel_bkgd';
 vname{end+1}='hydro_bkgd';
 vname{end+1}='uwave_bkgd';

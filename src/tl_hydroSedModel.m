@@ -75,8 +75,8 @@ tl_ubarx = ...
     - (tl_Ew+2*tl_Er)./(rho*c.*h) ...
     + (Ew+2*Er)./(rho*c.*h).^2.*rho.*( ...
         tl_c.*h + tl_h.*c );
-tl_ubar(:,1) = tl_ubarx;
-tl_ubar(:,2) = tl_vbar;
+tl_ubar0(:,1) = tl_ubarx;
+tl_ubar0(:,2) = tl_vbar;
 
 % settling velocity: use Brown & Lawler.  TODO, for vanderA use 0.8*d50
 % here, per explanation on page 29
@@ -85,6 +85,44 @@ if(strcmp(sedmodel,'vanderA'))
   tl_ws = tl_ws_brownLawler(tl_d50_8,.8*d50);
 else
   tl_ws = tl_ws_brownLawler(tl_d50,d50);
+end
+
+% OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
+% prior to calculation of undertow (udelta)
+if(doDubarbierHack)
+  lambda=1.57;
+  xb=lambda*2*pi./kabs;
+  tl_xb = -lambda*2*pi./kabs.^2.*tl_kabs;
+  for i=1:nx
+    ind=find(x(i)-xb(i)<=x&x<=x(i));
+    if(length(ind)<=1)
+      tl_ur(i,1) = tl_ubar0(i,1);
+      tl_ur(i,2) = tl_ubar0(i,2);
+    else
+      xx=xb(i)-x(i)+x(ind);
+      xx=xx(:);
+      for n=1:length(ind)
+        tl_xx(n)=tl_xb(i);
+      end
+      tl_xx=tl_xx(:);
+      term2=sum(xx);
+      tl_term2=0;
+      for n=1:length(ind)
+        tl_term2 = tl_term2 + tl_xx(n);
+      end
+      for j=1:2
+        term1=sum(xx.*ubar0(ind,j));
+        tl_term1=0;
+        for n=1:length(ind)
+          tl_term1 = tl_term1 + tl_xx(n)*ubar0(ind(n),j) + xx(n)*tl_ubar0(ind(n),j);
+        end
+        tl_ur(i,j) = tl_term1/term2 - term1/term2^2*tl_term2;
+      end
+    end
+  end
+  tl_ubar = tl_ur;
+else
+  tl_ubar = tl_ubar0;
 end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
@@ -118,20 +156,27 @@ tl_udelta_w(:,2) = ...
 % run the requested model for sediment flux (m2/s)
 tl_tanbeta = tl_calcTanbeta(tl_h,x)';
 if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
-  tl_Q =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,...
+  tl_Q0 =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,...
                             tl_params.Cw,tl_params.Cc,tl_params.Cf,tl_params.Ka,...
                             bkgd_qtrans);
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
-  tl_Q = tl_qtrans_soulsbyVanRijn(tl_d50,tl_d90,tl_h,tl_tanbeta,...
+  tl_Q0 = tl_qtrans_soulsbyVanRijn(tl_d50,tl_d90,tl_h,tl_tanbeta,...
                                   tl_Hrms,tl_kabs,tl_omega,tl_theta,tl_ubar,...
                                   tl_Dr,tl_param,bkgd_qtrans);
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
-  tl_Q = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
+  tl_Q0 = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
                            tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_params,bkgd_qtrans);
 end
 
 % mitigate transport discontinuity at the shoreline
-tl_Q(imask)=0;
+% Q1=Q0;
+tl_Q1 = tl_Q0;
+% Q1(imax:end)=0;
+tl_Q1(imax:end)=0;
+
+% filtering is applied in NL model, neglected in TL
+% Q = Q1;
+tl_Q = tl_Q1;
 
 % rotate output from wave-following coords to cartesian
 tl_Qx = ...

@@ -176,11 +176,14 @@ ad_udelta_w=zeros(nx,2);
 ad_delta_bl=zeros(nx,1);
 ad_ubarvec=zeros(nx,2);
 ad_ubar=zeros(nx,2);
+ad_ubar0=zeros(nx,2);
 ad_ubarx=zeros(nx,1);
 ad_w1=zeros(nx,1);
 ad_Dr=zeros(nx,1);
 ad_tanbeta=zeros(nx,1);
 ad_Q=zeros(nx,1);
+ad_Q0=zeros(nx,1);
+ad_Q1=zeros(nx,1);
 ad_dQdx=zeros(nx,1);
 ad_ws=0;
 if(doMarieu)
@@ -258,18 +261,26 @@ ad_Q    =ad_Q    + cos(theta)   .*ad_Qx;
 ad_theta=ad_theta- Q.*sin(theta).*ad_Qx;
 ad_Qx=0;
 
+% filtering is applied in NL model, neglected in TL
+% tl_Q = tl_Q1;
+ad_Q1 = ad_Q1 + ad_Q;
+ad_Q=0;
+
 % mitigate transport discontinuity at the shoreline
-%16 tl_Q(imask)=0;
-ad_Q(imask)=0;
+% tl_Q1(imax:end)=0;
+ad_Q1(imax:end)=0;
+% tl_Q1 = tl_Q0;
+ad_Q0 = ad_Q0 + ad_Q1;
+ad_Q1=0;
 
 % run the requested model for sediment flux (m2/s)
 if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
-  %15a1 tl_Q =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,...
+  %15a1 tl_Q0 =tl_qtrans_dubarbier(tl_tanbeta,tl_h,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,...
   %                           tl_params.Cw,tl_params.Cc,tl_params.Cf,tl_params.Ka,...
   %                           bkgd_qtrans);
   [ad1_tanbeta,ad1_h,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,...
    ad1_params_Cw,ad1_params_Cc,ad1_params_Cf,ad1_params_Ka] = ...
-      ad_qtrans_dubarbier(ad_Q,bkgd_qtrans);
+      ad_qtrans_dubarbier(ad_Q0,bkgd_qtrans);
   ad_tanbeta  =ad_tanbeta  +ad1_tanbeta  ;
   ad_h        =ad_h        +ad1_h        ;
   ad_Hrms     =ad_Hrms     +ad1_Hrms     ;
@@ -284,15 +295,15 @@ if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
   ad_params.Cc=ad_params.Cc+ad1_params_Cc;
   ad_params.Cf=ad_params.Cf+ad1_params_Cf;
   ad_params.Ka=ad_params.Ka+ad1_params_Ka;
-  ad_Q=0;
+  ad_Q0=0;
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
-  %15b1 tl_Q = tl_qtrans_soulsbyVanRijn(tl_d50,tl_d90,tl_h,tl_tanbeta,...
+  %15b1 tl_Q0 = tl_qtrans_soulsbyVanRijn(tl_d50,tl_d90,tl_h,tl_tanbeta,...
   %                                 tl_Hrms,tl_kabs,tl_omega,tl_theta,tl_ubar,...
   %                                 tl_Dr,tl_param,bkgd_qtrans);
   [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,...
    ad1_Hrms,ad1_kabs,ad1_omega,ad1_theta,ad1_ubar,...
    ad1_Dr,ad1_params] = ...
-      ad_qtrans_soulsbyVanRijn(ad_Q,bkgd_qtrans);
+      ad_qtrans_soulsbyVanRijn(ad_Q0,bkgd_qtrans);
   ad_d50         =ad_d50         +ad1_d50         ;
   ad_d90         =ad_d90         +ad1_d90         ;
   ad_h           =ad_h           +ad1_h           ;
@@ -305,12 +316,12 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
   ad_Dr          =ad_Dr          +ad1_Dr          ;
   ad_params.facua =ad_params.facua +ad1_params.facua ;
   ad_params.alphab=ad_params.alphab+ad1_params.alphab;
-  ad_Q=0;
+  ad_Q0=0;
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
-  %15c1 tl_Q = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
+  %15c1 tl_Q0 = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
   %                          tl_udelta,tl_ws,tl_params,bkgd_qtrans);
   [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_params] = ...
-      ad_qtrans_vanderA(ad_Q,bkgd_qtrans);
+      ad_qtrans_vanderA(ad_Q0,bkgd_qtrans);
   ad_d50        =ad_d50        +ad1_d50        ;
   ad_d90        =ad_d90        +ad1_d90        ;
   ad_h          =ad_h          +ad1_h          ;
@@ -329,7 +340,7 @@ elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   ad_Aw    =ad_Aw    +ad1_Aw    ;
   ad_Sw    =ad_Sw    +ad1_Sw    ;
   ad_Uw    =ad_Uw    +ad1_Uw    ;
-  ad_Q=0;
+  ad_Q0=0;
 end
 %14 tl_tanbeta = tl_calcTanbeta(tl_h,x)';
 ad_h = ad_h + ad_calcTanbeta(ad_tanbeta,x);
@@ -391,6 +402,69 @@ for i=nx:-1:1
   end
 end
 
+% OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
+% prior to calculation of undertow (udelta)
+if(doDubarbierHack)
+  lambda=1.57;
+  xb=lambda*2*pi./kabs;
+  ad_xb=zeros(nx,1);  % init
+  ad_ur=zeros(nx,2);   % init
+  %3 tl_ubar = tl_ur;
+  ad_ur = ad_ur + ad_ubar;
+  ad_ubar=0;
+  for i=1:nx
+    ind=find(x(i)-xb(i)<=x&x<=x(i));
+    if(length(ind)<=1)
+      %2a2 tl_ur(i,2) = tl_ubar0(i,2);
+      ad_ubar0(i,2)=ad_ubar0(i,2)+ad_ur(i,2);
+      ad_ur(i,2)=0;
+      %2a1 tl_ur(i,1) = tl_ubar0(i,1);
+      ad_ubar0(i,1)=ad_ubar0(i,1)+ad_ur(i,1);
+      ad_ur(i,1)=0;
+    else
+      xx=xb(i)-x(i)+x(ind);
+      xx=xx(:);
+      term2=sum(xx);
+      ad_xx=zeros(length(ind),1);  % init
+      ad_term2=0;  % init
+      for j=1:2
+        term1=sum(xx.*ubar0(ind,j));
+        ad_term1=0;  % init
+        %2b7 tl_ur(i,j) = tl_term1/term2 - term1/term2^2*tl_term2;
+        ad_term1=ad_term1+ 1/term2      *ad_ur(i,j);
+        ad_term2=ad_term2- term1/term2^2*ad_ur(i,j);
+        ad_ur(i,j)=0;
+        for n=1:length(ind)
+          %2b6 tl_term1 = tl_term1 + tl_xx(n)*ubar0(ind(n),j) + xx(n)*tl_ubar0(ind(n),j);
+          ad_xx(n)          =ad_xx(n)          + ubar0(ind(n),j)*ad_term1;
+          ad_ubar0(ind(n),j)=ad_ubar0(ind(n),j)+ xx(n)          *ad_term1;
+        end
+        %2b5 tl_term1=0;
+        ad_term1=0;
+      end
+      for n=1:length(ind)
+        %2b4 tl_term2 = tl_term2 + tl_xx(n);
+        ad_xx(n)=ad_xx(n)+ad_term2;
+      end
+      %2b3 tl_term2=0;
+      ad_term2=0;
+      %2b2 tl_xx=tl_xx(:);
+      for n=1:length(ind)
+        %2b1 tl_xx(n)=tl_xb(i);
+        ad_xb(i)=ad_xb(i)+ad_xx(n);
+        ad_xx(n)=0;
+      end
+    end
+  end
+  %1 tl_xb = -lambda*2*pi./kabs.^2.*tl_kabs;
+  ad_kabs=ad_kabs- lambda*2*pi./kabs.^2.*ad_xb;
+  ad_xb=0;
+else
+  % tl_ubar = tl_ubar0;
+  ad_ubar0 = ad_ubar0 + ad_ubar;
+  ad_ubar=0;
+end
+
 % settling velocity: use Brown & Lawler.  For vanderA use 0.8*d50
 % here, per explanation on page 29
 if(strcmp(sedmodel,'vanderA'))
@@ -405,12 +479,12 @@ else
 end
 
 % depth averaged mean flow, Nx2 vector, +'ve onshore
-%9 tl_ubar(:,2) = tl_vbar;
-ad_vbar=ad_vbar+ad_ubar(:,2);
-ad_ubar(:,2)=0;
-%8 tl_ubar(:,1) = tl_ubarx;
-ad_ubarx=ad_ubarx+ad_ubar(:,1);
-ad_ubar(:,1)=0;
+%9 tl_ubar0(:,2) = tl_vbar;
+ad_vbar=ad_vbar+ad_ubar0(:,2);
+ad_ubar0(:,2)=0;
+%8 tl_ubar0(:,1) = tl_ubarx;
+ad_ubarx=ad_ubarx+ad_ubar0(:,1);
+ad_ubar0(:,1)=0;
 %7 tl_ubarx = ...
 %     - (tl_Ew+2*tl_Er)./(rho*c.*h) ...
 %     + (Ew+2*Er)./(rho*c.*h).^2.*rho.*( ...
