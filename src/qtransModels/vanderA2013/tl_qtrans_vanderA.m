@@ -176,25 +176,6 @@ tl_uw2mean=mean(2*uw.*tl_uw);
 % uhat=sqrt(2*mean(uw.^2));   % rms wave velocity for full wave cycle, eqn 8
 tl_uhat=.5./sqrt(2*uw2mean)*2.*tl_uw2mean;
 
-% % timing of wave velocity direction change, crest, and trough, based on
-% % Ruessink et al 2012.
-% asinarg=-r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2));
-% tl_asinarg = -tl_r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)) ...
-%     - r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))*tl_phi_r2012 ...
-%     + r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)).^2.*( ...
-%         .5./sqrt(1-r_r2012^2)*(-2*r_r2012*tl_r_r2012) );
-% 
-% % Tc=asin(asinarg)/omega;
-% tl_Tc = 1/sqrt(1-asinarg^2)*tl_asinarg/omega ...
-%         - asin(asinarg)/omega^2*tl_omega;
-% tl_Tt=-tl_Tc;
-% tl_T=tl_Tc+tl_Tt;
-% tl_Tcu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
-%                                       omega,r_r2012,phi_r2012,Tcu);
-% tl_Ttu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
-%                                       omega,r_r2012,phi_r2012,Ttu);
-% tl_Ttu=tl_Tt-tl_Tc;  % duration of deceleration under trough
-
 % timing of wave velocity direction change, crest, and trough, based on
 % Ruessink et al 2012.
 asinarg=-r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2));
