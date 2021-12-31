@@ -11,22 +11,27 @@ scripts, which themselves call a few utilities (directory 'util').
    phases are cycled iteratively, until both hydro and sediment
    transport are accurate.
 
-2) (TODO) duck94AdjiontSensitivity.m: Demonstration of uncertainty
-   quantification, using adjoint sensitivity analysis to quantify how
-   different model variables impact model accuracy for Duck94.
+2) (work in progress) duck94AdjiontSensitivity*.m: Demonstration of
+   uncertainty quantification, using adjoint sensitivity analysis to
+   quantify how different model variables impact outputs for Duck94.
 
-NOTE, if you are running these, make sure that the main src directory
-of the 1DVarS repo, and all its' sub-directories, are in your path.
+NOTE, if you are running any of these tests, make sure that the main
+src directory of the 1DVarS repo, and all its' sub-directories, are in
+your path.
 
 ---> addpath(genpath('/path/to/1DVarS/src/'))
+
+Also check the git 'tags' for versions that are known-good with duck94
+test cases.  New features may creep in that are untested for duck94.
 
 ---
 OTHER SUB-DIRECTORIES IN THIS DIRECTORY:
 
 A) data: Contains a LOT of observational data from the Duck94
-   experiment.  This is *not* stored in the github repo because it's
+   experiment.  Most is *not* stored in the github repo because it's
    4.7GB total size.  If you are reading ./util/prepObsData.m and
-   wondering where the 'data' directory is, there is your answer.
+   wondering about apparently-missing subdirectories in the 'data'
+   directory, there is your answer.
 
 B) obsdataCache: Contains cached versions of specific observational
    data used by duck94TwoPhaseInversion.m.  These *are* stored on
