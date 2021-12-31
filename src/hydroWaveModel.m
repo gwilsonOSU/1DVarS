@@ -80,6 +80,7 @@ vname{end+1}='H0';      % input
 vname{end+1}='theta0';  % input
 vname{end+1}='omega';   % input
 vname{end+1}='ka_drag'; % input
+vname{end+1}='beta0';   % input
 vname{end+1}='tau_wind';% input
 vname{end+1}='detady';  % input
 vname{end+1}='dgamma';  % input
