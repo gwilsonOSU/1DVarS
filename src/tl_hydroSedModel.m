@@ -171,4 +171,7 @@ end  % catch for special case dt==0
 % tl_Qx   =zeros(nx,1);
 % tl_hp   =zeros(nx,1);
 
+% TEST: tweak output for TL testing
+% eval(['tl_Qx=tl_' outvar ';']);
+
 end  % main function for single time step

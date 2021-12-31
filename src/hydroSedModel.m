@@ -1,6 +1,6 @@
 function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
     hydroSedModel(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,...
-                  d50,d90,params,sedmodel,gammaType,betaType,dt,nsubsteps)
+                  d50,d90,params,sedmodel,gammaType,betaType,dt,nsubsteps)%,outvar)
 %
 % RECOMMENDED-USAGE: struct output
 %
@@ -74,7 +74,7 @@ for n=1:nsubsteps
   [Hrms(:,n),vbar(:,n),theta(:,n),kabs(:,n),...
    Qx(:,n),hp(:,n+1),workspc(n)] = ...
       hydroSedModel_main(x,hp(:,n),H0,theta0,omega,ka_drag,beta0,tau_wind,detady,...
-                         dgamma,dAw,dSw,d50,d90,params,sedmodel,gammaType,betaType,dt/nsubsteps);
+                         dgamma,dAw,dSw,d50,d90,params,sedmodel,gammaType,betaType,dt/nsubsteps);%,outvar);
 end
 for n=1:nsubsteps
   workspc(n).nsubsteps=nsubsteps;
@@ -96,11 +96,11 @@ end  % end wrapper function (for sub-stepping loop logic)
 % begin main function, for single time step
 function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
     hydroSedModel_main(x,h,H0,theta0,omega,ka_drag,beta0,tau_wind,detady,dgamma,dAw,dSw,...
-                  d50,d90,params,sedmodel,gammaType,betaType,dt)
+                  d50,d90,params,sedmodel,gammaType,betaType,dt)%,outvar)
 
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)
-doDubarbierHack=1;  % shift velocities shoreward per Dubarbier's approxmiation
+doDubarbierHack=0;  % shift velocities shoreward per Dubarbier's approxmiation
 doMarieu=0;  % use Marieu's dh/dt instead of upwind differencing
 if(doMarieu==1)
   warning('Marieu code TL-AD appears to have stability issues!')
@@ -145,7 +145,8 @@ c=omega./kabs;
 
 % depth averaged mean flow, Nx2 vector, +'ve onshore
 ubarx=-(Ew+2*Er)./(rho*c.*h);  % e.g., Dubarbier et al. (2015) eqn 8
-ubar=cat(2,ubarx(:),vbar(:));
+ubar(:,1)=ubarx;
+ubar(:,2)=vbar;
 
 % settling velocity: Brown & Lawler.  For vanderA use 0.8*d50 per
 % explanation on page 29
@@ -346,5 +347,8 @@ for i=1:length(vname)
     workspc=setfield(workspc,vname{i},eval(vname{i}));
   end
 end
+
+% TEST: tweak output for TL testing
+% eval(['Qx=' outvar ';']);
 
 end  % main function for single time step
