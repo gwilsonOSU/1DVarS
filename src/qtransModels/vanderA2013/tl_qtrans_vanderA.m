@@ -153,6 +153,10 @@ qsCc=bkgd.qsCc;
 qsCf=bkgd.qsCf;
 tanbeta=bkgd.tanbeta;
 eps_s=bkgd.eps_s;
+phiuc=bkgd.phiuc;
+phidc=bkgd.phidc;
+icu_guess    =bkgd.icu_guess      ;
+itu_guess    =bkgd.itu_guess      ;
 
 % derived params
 tl_Hmo=tl_Hrms*1.4;
@@ -169,7 +173,27 @@ tl_Uw=1.4*tl_Uw;
 [tl_uw,tl_r_r2012,tl_phi_r2012]=tl_Uwave_ruessink2012(tl_Aw,tl_Sw,tl_Uw,omega*t,uwave_wksp);
 uw2mean=mean(uw.^2);
 tl_uw2mean=mean(2*uw.*tl_uw);
+% uhat=sqrt(2*mean(uw.^2));   % rms wave velocity for full wave cycle, eqn 8
 tl_uhat=.5./sqrt(2*uw2mean)*2.*tl_uw2mean;
+
+% % timing of wave velocity direction change, crest, and trough, based on
+% % Ruessink et al 2012.
+% asinarg=-r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2));
+% tl_asinarg = -tl_r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)) ...
+%     - r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))*tl_phi_r2012 ...
+%     + r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)).^2.*( ...
+%         .5./sqrt(1-r_r2012^2)*(-2*r_r2012*tl_r_r2012) );
+% 
+% % Tc=asin(asinarg)/omega;
+% tl_Tc = 1/sqrt(1-asinarg^2)*tl_asinarg/omega ...
+%         - asin(asinarg)/omega^2*tl_omega;
+% tl_Tt=-tl_Tc;
+% tl_T=tl_Tc+tl_Tt;
+% tl_Tcu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
+%                                       omega,r_r2012,phi_r2012,Tcu);
+% tl_Ttu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
+%                                       omega,r_r2012,phi_r2012,Ttu);
+% tl_Ttu=tl_Tt-tl_Tc;  % duration of deceleration under trough
 
 % timing of wave velocity direction change, crest, and trough, based on
 % Ruessink et al 2012.
@@ -178,17 +202,28 @@ tl_asinarg = -tl_r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)) ...
     - r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))*tl_phi_r2012 ...
     + r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)).^2.*( ...
         .5./sqrt(1-r_r2012^2)*(-2*r_r2012*tl_r_r2012) );
-
-% Tc=asin(asinarg)/omega;
-tl_Tc = 1/sqrt(1-asinarg^2)*tl_asinarg/omega ...
-        - asin(asinarg)/omega^2*tl_omega;
-tl_Tt=-tl_Tc;
-tl_T=tl_Tc+tl_Tt;
-tl_Tcu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
-                                      omega,r_r2012,phi_r2012,Tcu);
-tl_Ttu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
-                                      omega,r_r2012,phi_r2012,Ttu);
-tl_Ttu=tl_Tt-tl_Tc;  % duration of deceleration under trough
+% phiuc=asin(asinarg)/omega;   % phase at first upcrossing
+tl_phiuc = 1./sqrt(1-asinarg^2)/omega*tl_asinarg - asinarg/omega^2*tl_omega;
+% phidc=pi-phiuc;  % phase at first downcrossing
+tl_phidc=-tl_phiuc;
+% tuc=phiuc/omega;  % time of first upcrossing
+tl_tuc = tl_phiuc/omega - phiuc/omega^2*tl_omega;
+% tdc=phidc/omega;  % time of first downcrossing
+tl_tdc = tl_phidc/omega - phidc/omega^2*tl_omega;
+% tcr=Uwave_ruessink2012_tcrest(omega,r_r2012,phi_r2012,t(icu_guess));  % time of crest
+tl_tcr = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,omega,r_r2012,phi_r2012,t(icu_guess));
+% ttr=Uwave_ruessink2012_tcrest(omega,r_r2012,phi_r2012,t(itu_guess));  % time of trough
+tl_ttr = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,omega,r_r2012,phi_r2012,t(itu_guess));
+% T=2*pi/omega;  % full wave period
+tl_T=-2*pi/omega^2*tl_omega;
+% Tc = tdc-tuc;  % duration of crest
+tl_Tc = tl_tdc-tl_tuc;
+% Tt=T-Tc;     % duration of trough
+tl_Tt=tl_T-tl_Tc;
+% Ttu=ttr-tdc;  % duration of deceleration under trough
+tl_Ttu=tl_ttr-tl_tdc;
+% Tcu=tcr-tuc;  % duration of acceleration under crest
+tl_Tcu=tl_tcr-tl_tuc;
 
 % for crest velocities, best I can do without being too fancy and screwing
 % up the AD code is just to consider the TL velocity at the location of the
@@ -587,7 +622,7 @@ tl_qsCf = - tl_qs3*eps_s^2/ws^2*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
           - qs3*eps_s^2/ws^2*param.Cf*tl_tanbeta/(g*(s-1)*(1-psed));
 tl_qs = tl_qs + tl_qsCc + tl_qsCf;
 
-% % TEST-CODE: override output variable
+% TEST-CODE: override output variable
 % eval(['tl_qs = tl_' outvar ';']);
 
 end  % end of main function

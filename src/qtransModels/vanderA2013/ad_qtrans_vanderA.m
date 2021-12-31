@@ -219,6 +219,10 @@ qsCc=bkgd.qsCc;
 qsCf=bkgd.qsCf;
 tanbeta=bkgd.tanbeta;
 eps_s=bkgd.eps_s;
+phiuc=bkgd.phiuc;
+phidc=bkgd.phidc;
+icu_guess    =bkgd.icu_guess      ;
+itu_guess    =bkgd.itu_guess      ;
 
 %------------------------------------
 % begin AD code
@@ -358,6 +362,12 @@ ad_qs3    =0;
 ad_qsCc   =0;
 ad_qsCf   =0;
 ad_tanbeta=0;
+ad_tcr=0;
+ad_ttr=0;
+ad_tuc=0;
+ad_tdc=0;
+ad_phidc=0;
+ad_phiuc=0;
 
 % % TEST-CODE: override input variable
 % if(~strcmp(invar,'qs'))
@@ -1137,42 +1147,60 @@ ad_uhatt=0;
 ad_uw(ic)=ad_uw(ic)+ad_uhatc;
 ad_uhatc=0;
 
-% %b3-4 timing of wave velocity direction change, crest, and trough, based on
-% % Ruessink et al 2012.
+% timing of wave velocity direction change, crest, and trough, based on
+% Ruessink et al 2012.
 asinarg=-r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2));
-%7 tl_Ttu=tl_Tt-tl_Tc;  % duration of deceleration under trough
-ad_Tt=ad_Tt+ad_Ttu;
-ad_Tc=ad_Tc-ad_Ttu;
+%12 tl_Tcu=tl_tcr-tl_tuc;
+ad_tcr=ad_tcr+ad_Tcu;
+ad_tuc=ad_tuc-ad_Tcu;
+ad_Tcu=0;
+%11 tl_Ttu=tl_ttr-tl_tdc;
+ad_ttr=ad_ttr+ad_Ttu;
+ad_tdc=ad_tdc-ad_Ttu;
 ad_Ttu=0;
-%6 tl_Ttu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
-%                                       omega,r_r2012,phi_r2012,Ttu);
-%5 tl_Tcu = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,...
-%                                       omega,r_r2012,phi_r2012,Tcu);
-[ad1_omega,ad1_r_r2012,ad1_phi_r2012] = ad_Uwave_ruessink2012_tcrest(ad_Ttu,omega,r_r2012,phi_r2012,Ttu);
-[ad2_omega,ad2_r_r2012,ad2_phi_r2012] = ad_Uwave_ruessink2012_tcrest(ad_Tcu,omega,r_r2012,phi_r2012,Tcu);
-ad_r_r2012  =ad_r_r2012 + ad1_r_r2012 + ad2_r_r2012  ;
-ad_phi_r2012=ad_phi_r2012 + ad1_phi_r2012 + ad2_phi_r2012;
-ad_omega = ad_omega + ad1_omega + ad2_omega;
-%4 tl_T=tl_Tc+tl_Tt;
-ad_Tc=ad_Tc+ad_T;
-ad_Tt=ad_Tt+ad_T;
-ad_T=0;
-%3 tl_Tt=-tl_Tc;
+%10 tl_Tt=tl_T-tl_Tc;
+ad_T =ad_T +ad_Tt;
 ad_Tc=ad_Tc-ad_Tt;
 ad_Tt=0;
-%2 tl_Tc = 1/sqrt(1-asinarg^2)*tl_asinarg/omega ...
-%        - asin(asinarg)/omega^2*tl_omega;
-ad_asinarg=ad_asinarg+ 1/sqrt(1-asinarg^2)/omega*ad_Tc;
-ad_omega=ad_omega- asin(asinarg)/omega^2*ad_Tc;
+%9 tl_Tc = tl_tdc-tl_tuc;
+ad_tdc=ad_tdc+ad_Tc;
+ad_tuc=ad_tuc-ad_Tc;
 ad_Tc=0;
+%8 tl_T=-2*pi/omega^2*tl_omega;
+ad_omega=ad_omega-2*pi/omega^2*ad_T;
+ad_T=0;
+%7 tl_ttr = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,omega,r_r2012,phi_r2012,t(itu_guess));
+[ad1_omega,ad1_r_r2012,ad1_phi_r2012] = ad_Uwave_ruessink2012_tcrest(ad_ttr,omega,r_r2012,phi_r2012,t(itu_guess));
+ad_omega    =ad_omega    +ad1_omega    ;
+ad_r_r2012  =ad_r_r2012  +ad1_r_r2012  ;
+ad_phi_r2012=ad_phi_r2012+ad1_phi_r2012;
+%6 tl_tcr = tl_Uwave_ruessink2012_tcrest(tl_omega,tl_r_r2012,tl_phi_r2012,omega,r_r2012,phi_r2012,t(icu_guess));
+[ad1_omega,ad1_r_r2012,ad1_phi_r2012] = ad_Uwave_ruessink2012_tcrest(ad_tcr,omega,r_r2012,phi_r2012,t(icu_guess));
+ad_omega    =ad_omega    +ad1_omega    ;
+ad_r_r2012  =ad_r_r2012  +ad1_r_r2012  ;
+ad_phi_r2012=ad_phi_r2012+ad1_phi_r2012;
+%5 tl_tdc = tl_phidc/omega - phidc/omega^2*tl_omega;
+ad_phidc=ad_phidc+ 1/omega      *ad_tdc;
+ad_omega=ad_omega- phidc/omega^2*ad_tdc;
+ad_tdc=0;
+%4 tl_tuc = tl_phiuc/omega - phiuc/omega^2*tl_omega;
+ad_phiuc=ad_phiuc+1/omega       *ad_tuc;
+ad_omega=ad_omega- phiuc/omega^2*ad_tuc;
+ad_tuc=0;
+%3 tl_phidc=-tl_phiuc;
+ad_phiuc=ad_phiuc-ad_phidc;
+ad_phidc=0;
+%2 tl_phiuc = 1./sqrt(1-asinarg^2)/omega*tl_asinarg - asinarg/omega^2*tl_omega;
+ad_asinarg=ad_asinarg+ 1./sqrt(1-asinarg^2)/omega*ad_phiuc;
+ad_omega  =ad_omega  - asinarg/omega^2           *ad_phiuc;
+ad_phiuc=0;
 %1 tl_asinarg = -tl_r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)) ...
 %     - r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))*tl_phi_r2012 ...
 %     + r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)).^2.*( ...
 %         .5./sqrt(1-r_r2012^2)*(-2*r_r2012*tl_r_r2012) );
-coef=r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)).^2;
-ad_r_r2012  =ad_r_r2012  - sin(phi_r2012)/(1+sqrt(1-r_r2012^2))        *ad_asinarg;
-ad_phi_r2012=ad_phi_r2012- r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))*ad_asinarg;
-ad_r_r2012  =ad_r_r2012  - coef*.5./sqrt(1-r_r2012^2)*2*r_r2012        *ad_asinarg;
+ad_r_r2012  =ad_r_r2012  - sin(phi_r2012)/(1+sqrt(1-r_r2012^2))                                             *ad_asinarg;
+ad_phi_r2012=ad_phi_r2012- r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))                                     *ad_asinarg;
+ad_r_r2012  =ad_r_r2012  + r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2))^2*.5./sqrt(1-r_r2012^2)*(-2)*r_r2012*ad_asinarg;
 ad_asinarg=0;
 
 % %b2 intra-wave velocities using Ruessink et al. (2012).  Then extract stats

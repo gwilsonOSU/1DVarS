@@ -1,11 +1,8 @@
-function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
+function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)%,outvar)
 %
 % [qs,workspc]=qtrans_vanderA(x,d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 %
-% Calculates transport following van der A (2013).  This version 
-%
-% The following effects are neglected:
-
+% Calculates transport following van der A (2013)
 %
 % INPUTS:
 %
@@ -51,14 +48,14 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws
 % this wrapper loop serves to handle vector inputs
 nx=length(h);
 for i=1:nx
-  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),Aw(i),Sw(i),Uw(i),param);
+  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
 end
 qs=qs(:);
 workspc=workspc(:);
 
 end  % end of wrapper function, start of main function
 
-function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
+function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)%,outvar)
 
 physicalConstants;
 
@@ -462,6 +459,13 @@ if(nargout>1)
   workspc.qsCf         =qsCf           ;
   workspc.tanbeta      =tanbeta        ;
   workspc.eps_s        =eps_s          ;
+  workspc.phiuc        =phiuc          ;
+  workspc.phidc        =phidc          ;
+  workspc.icu_guess    =icu_guess      ;
+  workspc.itu_guess    =itu_guess      ;
 end
+
+% TEST-CODE: override output variable
+% eval(['qs = ' outvar ';']);
 
 end  % end of main function
