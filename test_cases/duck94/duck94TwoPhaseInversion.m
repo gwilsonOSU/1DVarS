@@ -26,7 +26,7 @@
 %
 addpath(genpath('../../src'))  % hydroSedModel.m and its dependencies
 addpath util  % helper functions
-% clear
+clearvars -except duck94Case sedmodel nitermax dosave
 
 %--------------------------------------
 % user inputs
@@ -130,15 +130,8 @@ else
   save(obsdatafn,'hydroobs','bathyobs','grid','waves8m','windEOP');
 end
 
-% Initial phase-1 hydro-assimilating time loop, using default parameter values
+% initial phase-1 hydro-assimilating time loop, using default parameter values
 modelinput=initModelInputs(duck94Case,grid,sedmodel);
-
-% % TEST CODE: override with case-c undertow params
-% warning('TEST CODE: override with case-c undertow params (for testing in case-b)')
-% modelinput.params.fv=.07;
-% modelinput.params.ks=2.5*180e-6;  % 2.5*d50
-
-% phase-1 loop
 bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs);
 
 % two-phase iterative assimilation
@@ -146,8 +139,7 @@ for iter=1:nitermax
   disp(['starting iteration ' num2str(iter) ' of ' num2str(nitermax)])
 
   % phase 2, then phase 1
-  disp('continue manually'); return;
-  [newparams,diagnostics]=bathyAssim(bkgd,bathyobs,tmpdir);
+  [newparams,diagnostics]=bathyAssim(bkgd,bathyobs);
   modelinput.params=newparams;
   bkgd0=bkgd;
   bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs);
