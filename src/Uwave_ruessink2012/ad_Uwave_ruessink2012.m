@@ -19,8 +19,6 @@ u  =bkgd.u  ;
 Aw =bkgd.Aw ;
 Sw =bkgd.Sw ;
 
-bra=2*(1-b.^2);  % not calculated in NL code
-
 %----------------------------
 % begin AD code
 %----------------------------
@@ -90,8 +88,8 @@ ad_f=0;
 %2 tl_r = (1+f)./(1+r.^2./(f.*(1+f))).*tl_b;  % uses dr/db
 ad_b=ad_b+(1+f)./(1+r.^2./(f.*(1+f))).*ad_r;
 ad_r=0;
-%1 tl_b = sqrt(bra)./(3-6*b.^2./bra).*tl_B;  % uses db/dB eqn.
-ad_B=ad_B+ sqrt(bra)./(3-6*b.^2./bra).*ad_b;
+% tl_b = sqrt(2)/3*(1-b.^2).^(3/2).*tl_B;    % uses analytical db/db
+ad_B=ad_B+ sqrt(2)/3*(1-b.^2).^(3/2).*ad_b;
 ad_b=0;
 
 %b05 phi parameter, eqn (12)

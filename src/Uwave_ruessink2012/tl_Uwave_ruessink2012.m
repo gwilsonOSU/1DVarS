@@ -23,8 +23,6 @@ u  =bkgd.u  ;
 Aw =bkgd.Aw ;
 Sw =bkgd.Sw ;
 
-bra=2*(1-b.^2);  % not calculated in NL code
-
 %----------------------------
 % begin TL code
 %----------------------------
@@ -42,18 +40,21 @@ tl_phi = -tl_psi;  % verified
 % solve for r as a function of b.  TL code then follows based on derivation
 % of partial derivatives from the 2 trancendental functions being solved,
 % see ./Uwave_TLbB_deriv/*.jpg for derivations
-tl_b = sqrt(bra)./(3-6*b.^2./bra).*tl_B;  % uses db/dB eqn.
-tl_r = (1+f)./(1+r.^2./(f.*(1+f))).*tl_b;  % uses dr/db
-% TODO: tl_b and tl_r both look to be a bit systematically biased in testing...
+tl_b = sqrt(2)/3*(1-b.^2).^(3/2).*tl_B;    % uses analytical db/db
+tl_r = (1+f)./(1+r.^2./(f.*(1+f))).*tl_b;  % uses analytical dr/db
 
-% Abreu et al. (2010) time series formula, eqn (4)
-tl_f = .5./f.*( -2*r.*tl_r );  % ok
-tl_f1 = tl_r.*sin(phi)./(1+f) ...
+% Abreu et al. (2010) time series formula, eqn (4).  Note tl_phs==0
+% f = sqrt(1-r.^2);
+tl_f = .5./f.*( -2*r.*tl_r );
+% f1 = sin(phs) + r.*sin(phi)./(1+f);
+tl_f1 = + tl_r.*sin(phi)./(1+f) ...
         + r.*cos(phi)./(1+f).*tl_phi ...
-        - r.*sin(phi)./(1+f).^2.*tl_f; % ok
+        - r.*sin(phi)./(1+f).^2.*tl_f;
+% f2 = 1 - r.*cos(phs+phi);
 tl_f2 = -tl_r.*cos(phs+phi) ...
         + r.*sin(phs+phi).*tl_phi;
+% u = Uw.*f.*f1./f2;
 tl_u = tl_Uw.*f.*f1./f2 ...
        + Uw.*tl_f.*f1./f2 ...
        + Uw.*f.*tl_f1./f2 ...
-       - Uw.*f.*f1./f2.^2.*tl_f2;  % ok
+       - Uw.*f.*f1./f2.^2.*tl_f2;
