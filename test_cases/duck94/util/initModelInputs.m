@@ -11,6 +11,7 @@ function modelinput=initModelInputs(duck94Case,grid,sedmodel)
 params=struct;
 params.fv=0.101;  % breaking-induced eddy viscosity calib parameter, default 0.101
 params.ks=0.0082;  % roughness calib parameter, default 0.083 m
+params.lambda=1.57;  % Dubarbier et al.'s eqn 9 to shift velocities shoreward, default 1.57
 if(strcmp(sedmodel,'dubarbier'))
   params.Cw=.00483;  % default 0.000483;  % hsu et al. 0.0046
   params.Cc=.02002 ;  % default 0.02002;  % hsu et al. 0.0053
@@ -43,6 +44,7 @@ end
 % initialize other model params
 modelinput=grid;  % initialize: x,h,xFRF
 modelinput.ka_drag=0.0125;  % tuned by Ruessink et al. (2001)
+modelinput.beta0=0.05;
 modelinput.d50=zeros(grid.nx,1);
 modelinput.d90=zeros(grid.nx,1);
 modelinput.d50(grid.xFRF<150)=400e-6;  % shoreface coarse sand, Birkemeier et al. (1985)
@@ -51,6 +53,8 @@ modelinput.d50(grid.xFRF>=150)=180e-6; % Dubarbier et al. (2015) used 170um here
 modelinput.d90(grid.xFRF>=150)=240e-6;  % Birkemeier et al., 1985
 modelinput.params=params;
 modelinput.sedmodel=sedmodel;
+modelinput.betaType='const';
+modelinput.gammaType=2003;
 
 % initialize covariances for hydro-assimilation step
 xx=meshgrid(grid.xFRF);
