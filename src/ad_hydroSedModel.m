@@ -21,6 +21,7 @@ ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
 ad_params.fv =0;
 ad_params.ks =0;
+ad_params.lambda=0;
 if(strcmp(bkgd(1).sedmodel,'dubarbier'))
   ad_params.Cw   =0;
   ad_params.Cc   =0;
@@ -86,6 +87,7 @@ for n=bkgd(1).nsubsteps:-1:1
 
   ad_params.fv = ad_params.fv + ad1_params.fv;
   ad_params.ks = ad_params.ks + ad1_params.ks;
+  ad_params.lambda = ad_params.lambda + ad1_params.lambda;
   if(strcmp(bkgd(1).sedmodel,'dubarbier'))
     ad_params.Cw   =ad_params.Cw + ad1_params.Cw;
     ad_params.Cc   =ad_params.Cc + ad1_params.Cc;
@@ -148,6 +150,7 @@ ad_d50=zeros(nx,1);
 ad_d90=zeros(nx,1);
 ad_params.fv =0;
 ad_params.ks =0;
+ad_params.lambda =0;
 if(strcmp(bkgd.sedmodel,'dubarbier'))
   ad_params.Cw   =0;
   ad_params.Cc   =0;
@@ -404,9 +407,8 @@ end
 
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
 % prior to calculation of undertow (udelta)
-if(doDubarbierHack)
-  lambda=1.57;
-  xb=lambda*2*pi./kabs;
+if(params.lambda>0)
+  xb=params.lambda*2*pi./kabs;
   ad_xb=zeros(nx,1);  % init
   ad_ur=zeros(nx,2);   % init
   %3 tl_ubar = tl_ur;
@@ -456,8 +458,10 @@ if(doDubarbierHack)
       end
     end
   end
-  %1 tl_xb = -lambda*2*pi./kabs.^2.*tl_kabs;
-  ad_kabs=ad_kabs- lambda*2*pi./kabs.^2.*ad_xb;
+  % tl_xb = -params.lambda*2*pi./kabs.^2.*tl_kabs ...
+  %         + tl_params.lambda*2*pi./kabs;
+  ad_kabs=ad_kabs- params.lambda*2*pi./kabs.^2.*ad_xb;
+  ad_params.lambda = ad_params.lambda + sum(2*pi./kabs.*ad_xb);
   ad_xb=0;
 else
   % tl_ubar = tl_ubar0;

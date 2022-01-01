@@ -89,10 +89,10 @@ end
 
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
 % prior to calculation of undertow (udelta)
-if(doDubarbierHack)
-  lambda=1.57;
-  xb=lambda*2*pi./kabs;
-  tl_xb = -lambda*2*pi./kabs.^2.*tl_kabs;
+if(params.lambda>0)
+  xb=params.lambda*2*pi./kabs;
+  tl_xb = -params.lambda*2*pi./kabs.^2.*tl_kabs ...
+          + tl_params.lambda*2*pi./kabs;
   for i=1:nx
     ind=find(x(i)-xb(i)<=x&x<=x(i));
     if(length(ind)<=1)

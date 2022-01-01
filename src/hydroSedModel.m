@@ -34,6 +34,8 @@ function [Hrms,vbar,theta,kabs,Qx,hpout,workspc] = ...
 % d90      : 90th percentile grain diameter, m
 % params.fv: breaking-induced eddy viscosity calibration parameter, see
 %            Reniers et al. (2004) Table 4.  Scalar, recommended 0.1
+% params.lambda: Dubarbier et al.'s eqn 9 to shift velocities shoreward.
+%                Set lambda=0 to turn this off.  Default lambda=1.57.
 % params.* : other parameters as required by sediment transport model (see
 %            below)
 % sedmodel : can be 'dubarbier', 'vanderA', or 'soulsbyVanRijn'.  See
@@ -100,7 +102,6 @@ function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
 
 % experimental features
 doFilterQ=1;  % apply a filter to avoid sharp discontinuities in Q(x)
-doDubarbierHack=1;  % shift velocities shoreward per Dubarbier's approxmiation
 doMarieu=0;  % use Marieu's dh/dt instead of upwind differencing
 if(doMarieu==1)
   warning('Marieu code TL-AD appears to have stability issues!')
@@ -158,9 +159,8 @@ end
 
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
 % prior to calculation of undertow (udelta)
-if(doDubarbierHack)
-  lambda=1.57;
-  xb=lambda*2*pi./kabs;
+if(params.lambda>0)
+  xb=params.lambda*2*pi./kabs;
   for i=1:nx
     ind=find(x(i)-xb(i)<=x&x<=x(i));
     if(length(ind)<=1)
@@ -352,7 +352,6 @@ vname{end+1}='vbar';
 vname{end+1}='ws';
 vname{end+1}='doMarieu';
 vname{end+1}='doFilterQ';
-vname{end+1}='doDubarbierHack';
 if(strcmp(sedmodel,'dubarbier'))
   vname{end+1}='Qb';
   vname{end+1}='Qs';

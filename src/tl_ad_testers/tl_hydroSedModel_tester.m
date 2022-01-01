@@ -62,6 +62,7 @@ dt=60*60;  % one hour time step
 nsubsteps=1;
 params.fv=0.1;
 params.ks=0.0082;
+params.lambda=1.5;
 x=waves.x;
 nx=length(x);
 h=flipud(filtfilt(ones(5,1)/5,1,waves.h));
@@ -103,6 +104,7 @@ tl_d50    =d50    *frac_tl*myrand();
 tl_d90    =d90    *frac_tl*myrand();
 tl_params.fv  =params.fv   *frac_tl*myrand();
 tl_params.ks  =params.ks   *frac_tl*myrand();
+tl_params.lambda=params.lambda*frac_tl*myrand();
 if(strcmp(sedmodel,'dubarbier'))
   tl_params.Cw  =params.Cw*frac_tl*myrand();
   tl_params.Cc  =params.Cc*frac_tl*myrand();
@@ -123,6 +125,7 @@ end
 % pack perturbed variables into params struct for running NL model
 params1.fv=params.fv+tl_params.fv;
 params1.ks=params.ks+tl_params.ks;
+params1.lambda=params.lambda+tl_params.lambda;
 if(strcmp(sedmodel,'dubarbier'))
   params1.Cw  =params.Cw+tl_params.Cw;
   params1.Cc  =params.Cc+tl_params.Cc;
