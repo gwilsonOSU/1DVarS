@@ -1,6 +1,6 @@
-function bkgdall=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs,nsubsteps)
+function bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs,cachedir,nsubsteps,doplot)
 %
-% bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs)
+% bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,cachedir,nsubsteps,doplot)
 %
 % Phase-1 assimilation.  Run a time-loop to predict bathymetry, while
 % assimilating hydro data to keep wave model errors in check.
@@ -11,12 +11,15 @@ function bkgdall=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs,nsubsteps)
 % waves8m: 8m-array wave data, see prepObsData.m
 % windEOP: wind data from end of FRF pier, see prepObsData.m
 % hydroobs: time-dependent observation data to be assimilated, see prepObsData.m
+% cachedir: location to store time-dependent solutions.  Only the final
+%           timestep is given as an output parameter, the full list of time
+%           steps is written to disk due to memory limitations
 %
 % OUTPUT:
 %
-% bkgd: An array of structs with model outputs, one struct for each
-% observation time step.  Its fields are described in more detail in
-% hydroAssimOneStep.m and hydroSedModel.m.
+% bkgd: struct with model outputs, for the final time step.  Its fields are
+%       described in more detail in hydroAssimOneStep.m and hydroSedModel.m.
+%       Similar structs for all such time steps are written to 'cachedir'
 %
 
 % Define number of time-sub-steps for hydroSedModel.m.  Sometimes
@@ -26,6 +29,15 @@ if(~exist('nsubsteps'))
   nsubsteps=1;
 elseif(nsubsteps>1)
   warning('Using sub-stepping might break phase-2 bathy assimilation, not sure.')
+end
+if(~exist('doplot'))
+  doplot=0;
+end
+
+% make sure cache directory exists
+if(isempty(dir(cachedir)))
+  disp(['cache directory ' cachedir ' does not exist, creating it now'])
+  mkdir(cachedir);
 end
 
 nx=grid.nx;
@@ -97,7 +109,7 @@ for n=1:(length(obs)-1)
   bkgd.tide=tide;
   bkgd.h =bkgd.h -tide;
   bkgd.hp=bkgd.hp-tide;
-  bkgdall(n)=bkgd;
+  save([cachedir '/bkgd' num2str(n) '.mat'],'-struct','bkgd');
 
   % Use the forecasted bathymetry as inputs for the next time step t(n+1).
   % Note, this code does not attempt to propagate bathymetry covariance
@@ -107,61 +119,64 @@ for n=1:(length(obs)-1)
   %-----------------------------------------
   % plot results for this time step
   %-----------------------------------------
+  if(doplot)
 
-  % figure(2)
-  clf
-  lw=1.5;
-  subplot(321), hold on
-  plot(grid.xFRF,grid.h,'g','linewidth',lw)
-  plot(grid.xFRF,bkgd.h,'b','linewidth',lw)
-  plot(grid.xFRF(obs(n).h.ind),obs(n).h.d,'ko')
-  ylim([-4 6])
-  set(gca,'ydir','r')
-  ylabel('h [m]')
-  subplot(322), hold on
-  plot(grid.xFRF,bkgd.Hrms,'b','linewidth',lw)
-  plot(grid.xFRF(obs(n).H.ind),obs(n).H.d,'ko')
-  ylabel('H_{rms} [m]')
-  subplot(323), hold on
-  plot(grid.xFRF,bkgd.Q,'b','linewidth',lw)
-  ylabel('Q [m^2/s]')
-  ylim([-1 1]*5e-4)
-  subplot(324), hold on
-  plot(grid.xFRF,bkgd.ubar(:,2),'b','linewidth',lw)
-  plot(grid.xFRF,bkgd.udelta(:,2),'b--','linewidth',lw)
-  plot(grid.xFRF(obs(n).v.ind),obs(n).v.d,'ko')
-  ylabel('v [m/s]')
-  subplot(325), hold on
-  plot(grid.xFRF,bkgd.ubar(:,1),'b','linewidth',lw)
-  plot(grid.xFRF,bkgd.udelta(:,1),'b--','linewidth',lw)
-  plot(grid.xFRF(obs(n).u.ind),obs(n).u.d,'ko')
-  ylim([-.5 .1])
-  ylabel('u [m/s]')
-  subplot(326), hold on
-  plot(grid.xFRF,bkgd.Aw(:,1),'b','linewidth',lw)
-  plot(grid.xFRF(obs(n).A.ind),obs(n).A.d,'bo')
-  plot(grid.xFRF,bkgd.Sw(:,1),'r','linewidth',lw)
-  plot(grid.xFRF(obs(n).S.ind),obs(n).S.d,'ro')
-  ylim([-1 1])
-  ylabel('A_w,S_w')
-  for j=1:6
-    subplot(3,2,j)
-    box on
-    xlim([100 400])
-    ax=axis;
-    if(j==1)
-      [~,ishore]=min(abs(bkgd.h));
-      plot(ax(1:2),-[1 1]*0,'k--')
-    else
-      plot(ax(1:2),[0 0],'k--')
+    % figure(2)
+    clf
+    lw=1.5;
+    subplot(321), hold on
+    plot(grid.xFRF,grid.h,'g','linewidth',lw)
+    plot(grid.xFRF,bkgd.h,'b','linewidth',lw)
+    plot(grid.xFRF(obs(n).h.ind),obs(n).h.d,'ko')
+    ylim([-4 6])
+    set(gca,'ydir','r')
+    ylabel('h [m]')
+    subplot(322), hold on
+    plot(grid.xFRF,bkgd.Hrms,'b','linewidth',lw)
+    plot(grid.xFRF(obs(n).H.ind),obs(n).H.d,'ko')
+    ylabel('H_{rms} [m]')
+    subplot(323), hold on
+    plot(grid.xFRF,bkgd.Q,'b','linewidth',lw)
+    ylabel('Q [m^2/s]')
+    ylim([-1 1]*5e-4)
+    subplot(324), hold on
+    plot(grid.xFRF,bkgd.ubar(:,2),'b','linewidth',lw)
+    plot(grid.xFRF,bkgd.udelta(:,2),'b--','linewidth',lw)
+    plot(grid.xFRF(obs(n).v.ind),obs(n).v.d,'ko')
+    ylabel('v [m/s]')
+    subplot(325), hold on
+    plot(grid.xFRF,bkgd.ubar(:,1),'b','linewidth',lw)
+    plot(grid.xFRF,bkgd.udelta(:,1),'b--','linewidth',lw)
+    plot(grid.xFRF(obs(n).u.ind),obs(n).u.d,'ko')
+    ylim([-.5 .1])
+    ylabel('u [m/s]')
+    subplot(326), hold on
+    plot(grid.xFRF,bkgd.Aw(:,1),'b','linewidth',lw)
+    plot(grid.xFRF(obs(n).A.ind),obs(n).A.d,'bo')
+    plot(grid.xFRF,bkgd.Sw(:,1),'r','linewidth',lw)
+    plot(grid.xFRF(obs(n).S.ind),obs(n).S.d,'ro')
+    ylim([-1 1])
+    ylabel('A_w,S_w')
+    for j=1:6
+      subplot(3,2,j)
+      box on
+      xlim([100 400])
+      ax=axis;
+      if(j==1)
+        [~,ishore]=min(abs(bkgd.h));
+        plot(ax(1:2),-[1 1]*0,'k--')
+      else
+        plot(ax(1:2),[0 0],'k--')
+      end
+      plot(grid.xFRF(ishore)*[1 1],ax(3:4),'k--')
+      axis(ax)
     end
-    plot(grid.xFRF(ishore)*[1 1],ax(3:4),'k--')
-    axis(ax)
-  end
-  subplot(321)
-  title(['yday ' num2str(obs(n).dnum_est-datenum(1994,1,0)) ...
-        ', ' datestr(obs(n).dnum_est) 'EST'])
-  legend('initial, n=1',['n=' num2str(n) ' of ' num2str(length(obs))],'observed')
-  pause(.01)
+    subplot(321)
+    title(['yday ' num2str(obs(n).dnum_est-datenum(1994,1,0)) ...
+           ', ' datestr(obs(n).dnum_est) 'EST'])
+    legend('initial, n=1',['n=' num2str(n) ' of ' num2str(length(obs))],'observed')
+    pause(.01)
+
+  end  % if(doplot)
 
 end

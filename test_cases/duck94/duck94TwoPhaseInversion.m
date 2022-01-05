@@ -34,16 +34,25 @@ clearvars -except duck94Case sedmodel nitermax dosave
 
 % duck94 case: set this to a,b,c, or d
 % duck94Case='d';
+duck94Case
 
-% sediment model: uncomment one of the following...
-% sedmodel='dubarbier';
-sedmodel='vanderA';
+% sediment model: uncomment one of the following
+if(~exist('sedmodel'))
+  % sedmodel='dubarbier';
+  sedmodel='vanderA';
+end
+sedmodel
 
 % number of two-phase assimilation iterations
-nitermax=3;
+nitermax=8
 
-% output options
-dosave=1;  % save figures and .mat files for each iteration
+% save figures and .mat files for each iteration
+dosave=1;
+
+% location of cache directories.  Each should have a ~5-10 GB available
+% storage depending on run length
+priorCacheDir='/tmp/bathyAssimCachePrior';
+bkgdCacheDir='/tmp/bathyAssimCache';
 
 %--------------------------------------
 % End user inputs.  Do not edit beyond this point if you are just running cases.
@@ -65,9 +74,9 @@ dosave=1;  % save figures and .mat files for each iteration
 % that as my start/end time-of-day in all cases.
 %
 switch duck94Case
- 
+
  case 'a'
- 
+
   % NOTE: case-a is special case, cannot use CRAB bathy for initialization!
   % Hence there is no bathyfn defined here.  The initial bathy will instead
   % be handled as a special case later on in this code.
@@ -115,6 +124,13 @@ switch duck94Case
   dnum(2)=datenum(1994,10,14,12,0,0);
   bathyfn='data/duck94_fulldataset/Dropbox/Duck94_profiles/1010_profile';
 
+ case 'e'
+  % Case-e is a concatenation of cases b-c, so covers the onshore and offshore
+  % bar migration in sequence
+  bathyfn='data/duck94_fulldataset/Dropbox/Duck94_profiles/0924_profile';
+  dnum(1)=datenum(1994,9,24,12,0,0);
+  dnum(2)=datenum(1994,10,4,12,0,0);
+
 end
 
 % Load the model grid and grid-referenced observational data for this case.
@@ -130,19 +146,56 @@ else
   save(obsdatafn,'hydroobs','bathyobs','grid','waves8m','windEOP');
 end
 
-% initial phase-1 hydro-assimilating time loop, using default parameter values
+% redo bathyobs.h.e
+warning('using obs-error 0.1m for bathy observations')
+for n=1:length(bathyobs)
+  bathyobs(n).h.e=ones(size(bathyobs(n).h.d))*.1;
+end
+
+% initial phase-1 hydro-assimilating time loop, using default parameter
+% values.  Cache the results as the prior, which will be used throughout the
+% iterations below.
 modelinput=initModelInputs(duck94Case,grid,sedmodel);
-bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs);
+hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,priorCacheDir);
 
 % two-phase iterative assimilation
 for iter=1:nitermax
   disp(['starting iteration ' num2str(iter) ' of ' num2str(nitermax)])
 
-  % phase 2, then phase 1
-  [newparams,diagnostics]=bathyAssim(bkgd,bathyobs);
+  % For 1st iteration, prior==bkgd.  For subsequent iterations, prior~=bkgd.
+  % Note, if you want to update the prior with each iteration, you can pass
+  % thisPriorCache=='' for every iteration.  In that case, corrections are
+  % allowed to stray far away from the initial prior, which may/not be
+  % desirable (usually not).
+  if(iter==1)
+    thisBkgdCache=priorCacheDir;
+  else
+    thisBkgdCache=bkgdCacheDir;
+  end
+
+  % phase 2
+  [newparams,diagnostics]=bathyAssim(bathyobs,priorCacheDir,thisBkgdCache);
   modelinput.params=newparams;
-  bkgd0=bkgd;
-  bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs);
+  modelinput.beta0=newparams.beta0;
+
+  % if saving outputs, define the output directory
+  if(dosave)
+    outdir=['case_' duck94Case '_outputs/assimIter' num2str(iter)];
+    unix(['mkdir -p ' outdir]);
+  end
+
+  % optional, save phase-2 results
+  if(dosave)
+    save([outdir '/phase2_output.mat'],'bathyobs','newparams','diagnostics')
+    diary([outdir '/phase2_log.txt'])
+    diagnostics.params0
+    newparams
+    diary off
+  end
+
+  % phase 1.  Note, this time we save the bkgd to bkgdCacheDir, not
+  % priorCacheDir, so now bkgd~=prior
+  hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,bkgdCacheDir);
 
   % overview of results for this iteration
   clf, hold on
@@ -150,33 +203,35 @@ for iter=1:nitermax
   clear lstr
   obsnt=length(bathyobs);
   for n=1:obsnt
-    plot(grid.xFRF,bkgd0(bathyobs(n).obsn).hp,'--','color',cc(n))
+    bkgd0=load([priorCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+    plot(grid.xFRF,bkgd0.hp,'--','color',cc(n))
     lstr{n}=['obs-time ' num2str(n)];
   end
   for n=1:obsnt
-    plot(grid.xFRF,bkgd(bathyobs(n).obsn).hp,'-','color',cc(n))
+    bkgd=load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+    plot(grid.xFRF,bkgd.hp,'-','color',cc(n))
   end
   for n=1:obsnt
     plot(grid.xFRF(bathyobs(n).h.ind),bathyobs(n).h.d,'o','color',cc(n))
   end
-  title('OLD: dashed, NEW: solid, OBS: symbols')
+  title('PRIOR: dashed, NEW: solid, OBS: symbols')
   legend(lstr)
   set(gca,'ydir','r')
   xlim([100 400])
 
   % optional, save outputs
   if(dosave)
-    outdir=['case_' duck94Case '_outputs/assimIter' num2str(iter)];
-    unix(['mkdir -p ' outdir]);
     print('-dpng','-r300',[outdir '/bathyOutput.png'])
-    bkgd_obsn = bkgd([bathyobs.obsn]);
-    bkgd_1=bkgd(1);
-    save([outdir '/output.mat'],'bkgd_obsn','bkgd_1',...
-         'bathyobs','newparams','diagnostics')
-    diary([outdir '/params_log.txt'])
-    diagnostics.params0
-    newparams
-    diary off
+    for n=1:length(bathyobs)
+      bkgd_obsn(n) = load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+    end
+    bkgd_1 = load([bkgdCacheDir '/bkgd1.mat']);
+    save([outdir '/phase2_output.mat'],'bkgd_obsn','bkgd_1')
   end
 
 end  % two-phase iteration loop
+
+% clean up disk cache
+disp('Deleting cached data')
+unix(['rm ' priorCacheDir '/bkgd' num2str(n) '*.mat']);
+unix(['rm ' bkgdCacheDir  '/bkgd' num2str(n) '*.mat']);
