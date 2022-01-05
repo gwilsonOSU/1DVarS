@@ -11,19 +11,19 @@ function modelinput=initModelInputs(duck94Case,grid,sedmodel)
 params=struct;
 params.fv=0.101;  % breaking-induced eddy viscosity calib parameter, default 0.101
 params.ks=0.0082;  % roughness calib parameter, default 0.083 m
-params.lambda=1.57;  % Dubarbier et al.'s eqn 9 to shift velocities shoreward, default 1.57
+params.lambda=1.5;  % Dubarbier et al.'s eqn 9 to shift velocities shoreward, default 1.57
 if(strcmp(sedmodel,'dubarbier'))
-  params.Cw=.00483;  % default 0.000483;  % hsu et al. 0.0046
-  params.Cc=.02002 ;  % default 0.02002;  % hsu et al. 0.0053
-  params.Cf=0.01173;  % default 0.01173 ; hsu et al. 0.0
-  params.Ka=0.631e-4;  % default 0.631e-4;  % hoefel & elgar 1.4e-4; hsu et al. 0.0
+  params.Cw=.002;  % default 0.000483;  % hsu et al. 0.0046
+  params.Cc=0.01;  % default 0.02002;  % hsu et al. 0.0053
+  params.Cf=0.01;  % default 0.01173 ; hsu et al. 0.0
+  params.Ka=.75e-4;  % default 0.631e-4;  % hoefel & elgar 1.4e-4; hsu et al. 0.0
 elseif(strcmp(sedmodel,'vanderA'))
-  params.n=1.2;  % vanderA 1.2, ribberink98 1.65.  Larger values -> offshore transport
+  params.n=1.2;  % vanderA 1.2.  Larger values -> offshore transport
   params.m=11;  % vanderA 11; hsu et al. 11.  Just scales everything up
   params.xi=1.7;  % O(1) according to Kranenburg (2013).  VDA pg. 35 says 1.7
   params.alpha=8.2;  % comes in eqn 27-28, not the same as eqn 19.  Default 8.2
   params.Cc=0.01;  % suspended sediment stirring+undertow effect.  Default 0.01
-  params.Cf=0.03;  % suspended sediment stirring+slope effect. Default 0.01, but 0.03 may be good
+  params.Cf=0.01;  % suspended sediment stirring+slope effect. Default 0.01, but 0.03 may be good
   params.streamingType='v';  % 'n' for nielsen2006 BL-streaming, 'v' for VDA13's formulation, or '0' for off
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   params.alphab=1.6;
