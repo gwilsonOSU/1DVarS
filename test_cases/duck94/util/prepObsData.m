@@ -9,7 +9,8 @@ function [obs,bathyobs,grid,waves8m,windEOP]=prepObsData(dnum,bathyfn,duck94Case
 %
 % dnum(1),dnum(2) = date limits for model run (EST)
 % bathyfn = string pointing to location of CRAB profile data for model initialization
-% duck94Case = 'a' 'b' 'c' or 'd', corresponding to which bar migration "case" is being simulated
+% duck94Case = 'a' 'b' 'c' 'd' or 'e', corresponding to which bar migration
+%              "case" is being simulated
 %
 % OUTPUTS:
 %
@@ -428,6 +429,36 @@ end
 clear spuv
 
 %------------------------------------------
+% cases b,c,e all have a few bogus Hmo data points involved.  Cull them out.
+%------------------------------------------
+if(duck94Case=='a' | duck94Case=='d')
+  warning('data QC step for H is not tested for cases a or d!!')
+end
+
+clear tmp
+for i=1:length(obs)
+  tmp(i)=max(abs(obs(i).H.d));
+end
+tmpfilt=medfilt1(tmp);
+for i=find(abs(tmpfilt-tmp)>std(tmp)*.5)
+  clf, hold on
+  plot(obs(i).H.ind,obs(i).H.d,'ko')
+  ibad=find(obs(i).H.d > 1.5*mean(obs(i).H.d));
+  if(isempty(ibad))
+    disp('could not find bad point?  Something is wrong, kicking you into debugger')
+    keyboard;
+  end
+  plot(obs(i).H.ind(ibad),obs(i).H.d(ibad),'ro')
+  xlabel('index')
+  ylabel('H [m]')
+  input(['Removing bad wave height point at time step i=' num2str(i) ', marked in red on plot (press enter)'])
+  igod=setdiff(1:length(obs(i).H.ind),ibad);
+  obs(i).H.ind=obs(i).H.ind(igod);
+  obs(i).H.e=obs(i).H.e(igod);
+  obs(i).H.d=obs(i).H.d(igod);
+end
+
+%------------------------------------------
 % Load data for bathy assimilation phase.  For case-a, there is no CRAB
 % survey so SPUV altimeter data are used.  For other cases, load all
 % relevant CRAB profiles and decimate.  After this block of code the
@@ -480,7 +511,7 @@ else
     this.h.ind=measind;
     [~,ii]=unique(tmpdata(:,1));
     this.h.d=interp1(tmpdata(ii,1),-tmpdata(ii,3),grid.xFRF(measind));
-    this.h.e=.2*ones(size(measind));
+    this.h.e=.05*ones(size(measind));  % obs error
     tmpdstr=strsh(tmpfn{i},'t');
     tmpdnum=datenum(1994,str2num(tmpdstr(1:2)),str2num(tmpdstr(3:4)),12,0,0);
     [dt,ind]=min(abs([obs.dnum_est]-tmpdnum));
@@ -502,11 +533,21 @@ else
 
 end
 
-% wrap everything up for output.  Note, will just assimilate the "final"
+% wrap everything up for output
+for n=1:length(bathyobs)
+  bathyobs(n).obsn=obsn(n);
+  bathyobs(n).measind=measind;
+end
+
+% Note, for everything except case-e, will just assimilate the "final"
 % bathymetry to save time, drop the rest of them
-bathyobs=bathyobs(end);
-bathyobs.obsn=obsn(end);
-bathyobs.measind=measind;
+if(duck94Case~='e')
+  disp('only keeping the final bathy profile')
+  bathyobs=bathyobs(end);
+else
+  disp(['case-e: Will assimilate ' num2str(length(bathyobs)) ' available bathymetry profiles, only dropping the initial bathymetry.'])
+  bathyobs=bathyobs(2:end);
+end
 
 % Optional check: Do the bathy data look reasonable??  It should show a nice
 % clean bar migration, else I need to curate the data a bit to ensure I only
