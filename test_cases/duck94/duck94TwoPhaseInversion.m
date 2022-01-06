@@ -26,7 +26,7 @@
 %
 addpath(genpath('../../src'))  % hydroSedModel.m and its dependencies
 addpath util  % helper functions
-clearvars -except duck94Case sedmodel nitermax dosave
+clearvars -except duck94Case sedmodel nitermax dosave parpoolN
 
 %--------------------------------------
 % user inputs
@@ -53,6 +53,22 @@ dosave=1;
 % storage depending on run length
 priorCacheDir='/tmp/bathyAssimCachePrior';
 bkgdCacheDir='/tmp/bathyAssimCache';
+
+% Parallel pool (used by bathyAssim.m). Note, if you want to go beyond ~12
+% cores then the overhead of the parallel pool may bump up against available
+% memory.  Some machines at OSU only have 25GB RAM and in that case you
+% might run out of memory.
+if(~exist('parpoolN'))
+  parpoolN=12;
+end
+parpoolN
+currentPool=gcp('nocreate');
+if(isempty(currentPool) | currentPool.NumWorkers ~= parpoolN)
+  if(~isempty(currentPool))
+    delete(gcp('nocreate'));
+  end
+  parpool('local',parpoolN);
+end
 
 %--------------------------------------
 % End user inputs.  Do not edit beyond this point if you are just running cases.
@@ -120,6 +136,7 @@ switch duck94Case
 
  case 'd'
 
+  warning('A rip channel developed on the bar after Oct 11, so case-d is suspect.')
   dnum(1)=datenum(1994,10,10,12,0,0);
   dnum(2)=datenum(1994,10,14,12,0,0);
   bathyfn='data/duck94_fulldataset/Dropbox/Duck94_profiles/1010_profile';
