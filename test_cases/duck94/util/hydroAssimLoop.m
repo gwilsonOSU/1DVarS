@@ -44,8 +44,12 @@ nx=grid.nx;
 
 % begin time loop
 % warning('truncated run, n=220:290')
-for n=1:(length(obs)-1)
-  disp(['time ' num2str(n) ' of ' num2str(length(obs))])
+timeperstep=4;  % initial estimate of seconds-per-step, to be refined
+for n=1:length(obs)
+  disp(['Time Step ' num2str(n) ' of ' num2str(length(obs)) ...
+        '.  Estimated ' num2str(timeperstep*(length(obs)-n)/60,'%.1f') ' minutes remaining.' ...
+        ' (' num2str(timeperstep) ' seconds per step)']);
+  tic
 
   % Set wave conditions for this time step.  Note, use Tm1 wave period
   % (corresponding to waves8m.sigmam) following Ruessink et al. (2012)
@@ -179,4 +183,5 @@ for n=1:(length(obs)-1)
 
   end  % if(doplot)
 
+  timeperstep = timeperstep/n + toc*(n-1)/n;  % refine running average
 end
