@@ -79,8 +79,8 @@ Cbeta0=0; %0.01;  % allow for correction of beta0
 % step always has the same number of observations (variable 'no')
 modelnx=length(bkgd1.x);
 obsnt=length(bathyobs);  % number of observation times
-modelnt=[bathyobs.obsn];  % number of model time steps for a full run
-obsno=length(bathyobs.measind);  % number of obs per time step
+modelnt=max([bathyobs.obsn]);  % number of model time steps for a full run
+obsno=length(bathyobs(1).measind);  % number of obs per time step, assumed same for all steps
 modelnp=length(params_std)+1;  % +1 is for beta0
 CMt =nan(modelnp,obsnt,obsno);  % np x (nt,no)
 MCMt=nan(obsnt,obsno,obsnt,obsno);  % (nt,no) x (nt,no)
@@ -91,6 +91,7 @@ Cd  =nan(obsnt,obsno);  % (nt,no) x 1
 % calculate representers for each observation [bathyobs.h]
 for n=1:obsnt
   disp(['Computing representers for time step ' num2str(n) ' of ' num2str(obsnt)])
+  disp(['  Start Time: ' datestr(now)])
   tic
 
   clear MCMt_thisn  % parfor requires careful handling of MCMt
@@ -106,7 +107,7 @@ for n=1:obsnt
     ad_kabs =zeros(modelnx,1);
     ad_Qx   =zeros(modelnx,1);
     ad_h   =zeros(modelnx,modelnt+1);
-    ad_h(bathyobs.measind(i),bathyobs(n).obsn+1)=1;  % comb
+    ad_h(bathyobs(n).measind(i),bathyobs(n).obsn+1)=1;  % comb
 
     % initialize adjoint outputs
     bkgd1=load([bkgdCacheDir '/bkgd1.mat']);
@@ -211,7 +212,7 @@ for n=1:obsnt
     end  % TL forward time loop (index n2)
 
     % measure the TL output to get representers for observation (n,i)
-    MCMt_thisn{i} = tl_h(bathyobs.measind,[bathyobs.obsn]+1);
+    MCMt_thisn{i} = tl_h(bathyobs(n).measind,[bathyobs.obsn]+1);
 
   end  % loop (index i) over observations at time n
 
@@ -225,9 +226,8 @@ for n=1:obsnt
 end  % bathyobs time loop (index n)
 
 % measure the "forecast" bathymetry, based on TL-extrapolation from prior,
-% linearized around the current bkgd.  Exception is if priorCacheDir=='',
-% which says "use the bkgd as the prior".
-if(~isempty(priorCacheDir))
+% linearized around the current bkgd.
+if(1)%~strcmp(priorCacheDir,bkgdCacheDir))
   disp(['Running forecast = bkgd + TL...'])
   tl_h = zeros(modelnx,modelnt+1);  % init
   tl_H0 = 0;
@@ -241,8 +241,8 @@ if(~isempty(priorCacheDir))
   tl_dSw = zeros(modelnx,1);
   tl_d50 = zeros(modelnx,1);
   tl_d90 = zeros(modelnx,1);
-  bkgd1_prior=load([priorCacheDir '/bkgd1.mat']);  % prior bkgd struct at time n=1
-  bkgd1      =load([bkgdCacheDir  '/bkgd1.mat']);  % prior bkgd struct at time n=1
+  bkgd1_prior=load([priorCacheDir '/bkgd1.mat']);  % prior at time n=1
+  bkgd1      =load([bkgdCacheDir  '/bkgd1.mat']);  % current-iteration bkgd at time n=1
   tl_params.fv    =bkgd1_prior.params.fv    -bkgd1.params.fv    ;
   tl_params.ks    =bkgd1_prior.params.ks    -bkgd1.params.ks    ;
   tl_params.lambda=bkgd1_prior.params.lambda-bkgd1.params.lambda;
@@ -259,7 +259,7 @@ if(~isempty(priorCacheDir))
     tl_params.Cf=bkgd1_prior.params.Cf-bkgd1.params.Cf;
     tl_params.Ka=bkgd1_prior.params.Ka-bkgd1.params.Ka;
   end
-  tl_beta0=bkgd1_prior.beta0-bkgd1.params.beta0;
+  tl_beta0=bkgd1_prior.beta0-bkgd1.beta0;
   for n2=1:modelnt
     if(floor(n2/modelnt*10)>floor((n2-1)/modelnt*10))
       disp([num2str(floor(n2/modelnt*100)) '%'])
@@ -288,6 +288,7 @@ if(~isempty(priorCacheDir))
     Mf(n,:) = thisbkgd.hp(thisind) + tl_h(thisind,thisn+1);
   end
 else
+  disp(['Found prior==bkgd, hence using bkgd as forecast state (skipping TL-forecast step)'])
   for n=1:length(bathyobs)
     thisbkgd=load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
     Mf(n,:)=thisbkgd.hp(bathyobs(n).h.ind);
