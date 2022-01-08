@@ -30,22 +30,10 @@ function [params,diagnostics]=bathyAssim(bathyobs,priorCacheDir,bkgdCacheDir)
 % (OPTIONAL) diagnostics = matrices and such used in assimilation
 %
 
-% Note, if you want to go beyond ~12 cores then the overhead of the parallel
-% pool may bump up against available memory.  Some machines at OSU only have
-% 25GB RAM and in that case you might run out of memory.
-parpoolN=12;
-currentPool=gcp('nocreate');
-if(isempty(currentPool) | currentPool.NumWorkers ~= parpoolN)
-  if(~isempty(currentPool))
-    delete(gcp('nocreate'));
-  end
-  parpool('local',parpoolN);
-end
-
 % prep params_std, allow for 'percError' percent error in all parameters.
 % NOTE, the order of indexes in params_std is important, it must match the
 % ordering convention used by paramsHandler.m
-percError=0.2  % as a fraction, not percentage
+percError=0.1  % as a fraction, not percentage
 bkgd1=load([priorCacheDir '/bkgd1.mat']);
 params=bkgd1.params;
 if(strcmp(bkgd1.sedmodel,'vanderA'))
@@ -227,7 +215,7 @@ end  % bathyobs time loop (index n)
 
 % measure the "forecast" bathymetry, based on TL-extrapolation from prior,
 % linearized around the current bkgd.
-if(1)%~strcmp(priorCacheDir,bkgdCacheDir))
+if(~strcmp(priorCacheDir,bkgdCacheDir))
   disp(['Running forecast = bkgd + TL...'])
   tl_h = zeros(modelnx,modelnt+1);  % init
   tl_H0 = 0;
