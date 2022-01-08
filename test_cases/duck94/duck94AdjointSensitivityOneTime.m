@@ -21,10 +21,14 @@
 %
 addpath util
 addpath(genpath('../../src'))
-clearvars -except duck94Case
+clearvars -except duck94Case sedmodel
 
 % USER-INPUT: Choose a case
 % duck94Case='b';
+
+if(~exist('sedmodel'))
+  sedmodel='vanderA';
+end
 
 cacheDir='/tmp/bathyAssimCache';
 
@@ -75,9 +79,6 @@ modelinput=initModelInputs(duck94Case,grid,sedmodel);
 
 % run forward model (with hydro assimilation)
 hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,cacheDir);
-
-disp('continue manually')
-return;
 
 %-------------------------------------------------------
 % V2, test code: Single-time adjoint for Qx
@@ -167,7 +168,7 @@ for i=1:4
   xlabel('\Delta Q @ x')
 end
 if(doprint)
-  print -dpng duck94AdjointSensitivityOneTime_Qtermsvec.png
+  print('-dpng','-r300',['duck94AdjointSensitivityOneTime_Qtermsvec_case' num2str(duck94Case) '.png'])
 end
 
 % Overlay all sensitivities, grouped by variable type
@@ -218,5 +219,5 @@ for i=1:4
   xlabel('x [m]')
 end
 if(doprint)
-  print -dpng duck94AdjointSensitivityOneTime_Qterms.png
+  print('-dpng','-r300',['duck94AdjointSensitivityOneTime_Qterms_case' num2str(duck94Case) '.png'])
 end
