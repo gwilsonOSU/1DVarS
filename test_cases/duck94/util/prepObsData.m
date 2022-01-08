@@ -545,8 +545,8 @@ if(duck94Case~='e')
   disp('only keeping the final bathy profile')
   bathyobs=bathyobs(end);
 else
-  disp(['case-e: Will assimilate ' num2str(length(bathyobs)) ' available bathymetry profiles, only dropping the initial bathymetry.'])
-  bathyobs=bathyobs(2:end);
+  disp(['case-e: Will assimilate two bathymetry profiles, one at end of each migration phase.'])
+  bathyobs=bathyobs(3:4);
 end
 
 % Optional check: Do the bathy data look reasonable??  It should show a nice
