@@ -69,34 +69,6 @@ return;
 % Full-run adjoint for h
 %-------------------------------------------------------
 
-% init full-run adjoint variables
-ad_full_tau_windx=zeros(nx,nx,nt);
-ad_full_tau_windy=zeros(nx,nx,nt);
-ad_full_h        =zeros(nx,nx,nt);
-ad_full_H0       =zeros(nx,nt);
-ad_full_theta0   =zeros(nx,nt);
-ad_full_omega    =zeros(nx,nt);
-ad_full_ka_drag  =zeros(nx,1);
-ad_full_detady   =zeros(nx,nx,nt);
-ad_full_dgamma   =zeros(nx,nx,nt);
-ad_full_dAw      =zeros(nx,nx,nt);
-ad_full_dSw      =zeros(nx,nx,nt);
-ad_full_d50      =zeros(nx,nx,nt);
-ad_full_d90      =zeros(nx,nx,nt);
-ad_full_params.fv=zeros(nx,1);
-ad_full_params.ks=zeros(nx,1);
-if(strcmp(bkgd(1).sedmodel,'vanderA'))
-  ad_full_params.n    =zeros(nx,1);
-  ad_full_params.m    =zeros(nx,1);
-  ad_full_params.xi   =zeros(nx,1);
-  ad_full_params.alpha=zeros(nx,1);
-elseif(strcmp(bkgd(1).sedmodel,'dubarbier'))
-  ad_full_params.Cw=zeros(nx,1);
-  ad_full_params.Cc=zeros(nx,1);
-  ad_full_params.Cf=zeros(nx,1);
-  ad_full_params.Ka=zeros(nx,1);
-end
-
 % start a parallel pool
 currentPool=gcp('nocreate');
 if(isempty(currentPool) | currentPool.NumWorkers ~= parpoolN)
@@ -122,8 +94,40 @@ for n=1:nt
   save([tmpdir '/bkgd' num2str(n) '.mat'],'-struct','this');
 end
 
+if(~strcmp(bkgd(1).sedmodel,'vanderA'))
+  error('code not implemented with non-vanderA sedmodels yet, it might cause issues with parfor?')
+end
+
+% init full-run adjoint variables
+ad_full_tau_windx=zeros(nx,nx,nt);
+ad_full_tau_windy=zeros(nx,nx,nt);
+ad_full_h        =zeros(nx,nx,nt);
+ad_full_H0       =zeros(nx,nt);
+ad_full_theta0   =zeros(nx,nt);
+ad_full_omega    =zeros(nx,nt);
+ad_full_ka_drag  =zeros(nx,1);
+ad_full_beta0    =zeros(nx,1);
+ad_full_detady   =zeros(nx,nx,nt);
+ad_full_dgamma   =zeros(nx,nx,nt);
+ad_full_dAw      =zeros(nx,nx,nt);
+ad_full_dSw      =zeros(nx,nx,nt);
+ad_full_d50      =zeros(nx,nx,nt);
+ad_full_d90      =zeros(nx,nx,nt);
+ad_full_params_fv=zeros(nx,1);
+ad_full_params_ks=zeros(nx,1);
+ad_full_params_lambda=zeros(nx,1);
+ad_full_params_n    =zeros(nx,1);
+ad_full_params_m    =zeros(nx,1);
+ad_full_params_xi   =zeros(nx,1);
+ad_full_params_alpha=zeros(nx,1);
+ad_full_params_Cc   =zeros(nx,1);
+ad_full_params_Cf   =zeros(nx,1);
+
 % calculate full-run bathymetry adjoints at every gridpoint
 parfor i=1:nx
+  if(floor(i/nx*10)>floor((i-1)/nx*10))
+    disp(['  checkpoint ' num2str(floor(i/nx*10)) ' of 10'])
+  end
 
   % initialize comb at gridpoint i and final time step
   ad_Hrms =zeros(nx,1);
@@ -136,8 +140,9 @@ parfor i=1:nx
 
   % initialize adjoint outputs
   bkgd1=load([tmpdir '/bkgd1.mat']);
-  ad_params=paramsHandler(0,bkgd1.sedmodel,0,0,0,0,0,0);  % init ad_params struct to zero
+  ad_params=paramsHandler(0,'vanderA',zeros(8,1));  % init ad_params struct to zero
   ad_ka_drag=0;
+  ad_beta0  =0;
   ad_d50=zeros(nx,1);
   ad_d90=zeros(nx,1);
   ad_H0=zeros(nt,1);
@@ -152,26 +157,23 @@ parfor i=1:nx
   % propagate adjoint backwards from time nt to 1
   for n2=nt:-1:1
     bkgdn2=load([tmpdir '/bkgd' num2str(n2) '.mat']);
-    [ad_h(:,n2),ad_H0(n2),ad_theta0(n2),ad_omega(n2),ad1_ka_drag,ad_tau_wind(:,:,n2),...
+    [ad_h(:,n2),ad_H0(n2),ad_theta0(n2),ad_omega(n2),ad1_ka_drag,ad1_beta0,ad_tau_wind(:,:,n2),...
      ad_detady(:,n2),ad_dgamma(:,n2),ad_dAw(:,n2),ad_dSw(:,n2),...
      ad1_d50,ad1_d90,ad1_params] = ...
         ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_h(:,n2+1),bkgdn2);
     ad_ka_drag     =ad_ka_drag     +ad1_ka_drag     ;
+    ad_beta0       =ad_beta0       +ad1_beta0       ;
     ad_d50         =ad_d50         +ad1_d50         ;
     ad_d90         =ad_d90         +ad1_d90         ;
     ad_params.fv   =ad_params.fv   +ad1_params.fv   ;
     ad_params.ks   =ad_params.ks   +ad1_params.ks   ;
-    if(strcmp(bkgdn2.sedmodel,'vanderA'))
-      ad_params.n    =ad_params.n    +ad1_params.n    ;
-      ad_params.m    =ad_params.m    +ad1_params.m    ;
-      ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
-      ad_params.alpha=ad_params.alpha+ad1_params.alpha;
-    elseif(strcmp(bkgdn2.sedmodel,'dubarbier'))
-      ad_params.Cw = ad_params.Cw + ad1_params.Cw;
-      ad_params.Cc = ad_params.Cc + ad1_params.Cc;
-      ad_params.Cf = ad_params.Cf + ad1_params.Cf;
-      ad_params.Ka = ad_params.Ka + ad1_params.Ka;
-    end
+    ad_params.lambda=ad_params.lambda+ad1_params.lambda;
+    ad_params.n    =ad_params.n    +ad1_params.n    ;
+    ad_params.m    =ad_params.m    +ad1_params.m    ;
+    ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
+    ad_params.alpha=ad_params.alpha+ad1_params.alpha;
+    ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
+    ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
   end
 
   % save adjoint info for this grid point
@@ -182,25 +184,21 @@ parfor i=1:nx
   ad_full_theta0   (i,:)  =ad_theta0   ;
   ad_full_omega    (i,:)  =ad_omega    ;
   ad_full_ka_drag  (i)    =ad_ka_drag  ;
+  ad_full_beta0    (i)    =ad_beta0    ;
   ad_full_detady   (i,:,:)=ad_detady   ;
   ad_full_dgamma   (i,:,:)=ad_dgamma   ;
   ad_full_dAw      (i,:,:)=ad_dAw      ;
   ad_full_dSw      (i,:,:)=ad_dSw      ;
   ad_full_d50      (i,:,:)=ad_d50      ;
   ad_full_d90      (i,:,:)=ad_d90      ;
-  ad_full_params.fv(i)    =ad_params.fv;
-  ad_full_params.ks(i)    =ad_params.ks;
-  if(strcmp(bkgd1.sedmodel,'vanderA'))
-    ad_full_params.n    (i)=ad_full_params.n    ;
-    ad_full_params.m    (i)=ad_full_params.m    ;
-    ad_full_params.xi   (i)=ad_full_params.xi   ;
-    ad_full_params.alpha(i)=ad_full_params.alpha;
-  elseif(strcmp(bkgd1.sedmodel,'dubarbier'))
-    ad_full_params.Cw(i)=ad_params.Cw;
-    ad_full_params.Cc(i)=ad_params.Cc;
-    ad_full_params.Cf(i)=ad_params.Cf;
-    ad_full_params.Ka(i)=ad_params.Ka;
-  end
+  ad_full_params_fv(i)    =ad_params.fv;
+  ad_full_params_lambda(i)=ad_params.lambda;
+  ad_full_params_n    (i)=ad_params.n    ;
+  ad_full_params_m    (i)=ad_params.m    ;
+  ad_full_params_xi   (i)=ad_params.xi   ;
+  ad_full_params_alpha(i)=ad_params.alpha;
+  ad_full_params_Cc   (i)=ad_params.Cc   ;
+  ad_full_params_Cf   (i)=ad_params.Cf   ;
 
 end  % loop for adjoint at each gridpoint
 
@@ -212,23 +210,27 @@ ad_H0            =ad_full_H0            ;
 ad_theta0        =ad_full_theta0        ;
 ad_omega         =ad_full_omega         ;
 ad_ka_drag       =ad_full_ka_drag       ;
+ad_beta0         =ad_full_beta0         ;
 ad_detady        =ad_full_detady        ;
 ad_dgamma        =ad_full_dgamma        ;
 ad_dAw           =ad_full_dAw           ;
 ad_dSw           =ad_full_dSw           ;
 ad_d50           =ad_full_d50           ;
 ad_d90           =ad_full_d90           ;
-ad_params.fv     =ad_full_params.fv     ;
-ad_params.ks     =ad_full_params.ks     ;
+ad_params.fv     =ad_full_params_fv     ;
+ad_params.ks     =ad_full_params_ks     ;
+ad_params.lambda =ad_full_params_lambda ;
 if(strcmp(bkgd(1).sedmodel,'vanderA'))
-  ad_params.n    =ad_full_params.n    ;
-  ad_params.m    =ad_full_params.m    ;
-  ad_params.xi   =ad_full_params.xi   ;
-  ad_params.alpha=ad_full_params.alpha;
+  ad_params.n    =ad_full_params_n    ;
+  ad_params.m    =ad_full_params_m    ;
+  ad_params.xi   =ad_full_params_xi   ;
+  ad_params.alpha=ad_full_params_alpha;
+  ad_params.Cc   =ad_full_params_Cc   ;
+  ad_params.Cf   =ad_full_params_Cf   ;
 elseif(strcmp(bkgd(1).sedmodel,'dubarbier'))
-  ad_params.Cw=ad_full_params.Cw;
-  ad_params.Cc=ad_full_params.Cc;
-  ad_params.Cf=ad_full_params.Cf;
-  ad_params.Ka=ad_full_params.Ka;
+  ad_params.Cw=ad_full_params_Cw;
+  ad_params.Cc=ad_full_params_Cc;
+  ad_params.Cf=ad_full_params_Cf;
+  ad_params.Ka=ad_full_params_Ka;
 end
 clear ad_full_*
