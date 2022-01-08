@@ -229,9 +229,13 @@ for iter=1:nitermax
     plot(grid.xFRF,bkgd.hp,'-','color',cc(n))
   end
   for n=1:obsnt
+    Mf=reshape(diagnostics.Mf,[length(bathyobs) length(bathyobs(1).measind)])';
+    plot(grid.xFRF(bathyobs(n).h.ind),Mf(:,n),':','color',cc(n))
+  end
+  for n=1:obsnt
     plot(grid.xFRF(bathyobs(n).h.ind),bathyobs(n).h.d,'o','color',cc(n))
   end
-  title('PRIOR: dashed, NEW: solid, OBS: symbols')
+  title('PRIOR: dashed, BKGD: solid, FCST: dotted, OBS: symbols')
   legend(lstr)
   set(gca,'ydir','r')
   xlim([100 400])
@@ -240,10 +244,12 @@ for iter=1:nitermax
   if(dosave)
     print('-dpng','-r300',[outdir '/bathyOutput.png'])
     for n=1:length(bathyobs)
-      bkgd_obsn(n) = load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+      bkgd_post_obsn(n) = load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+      bkgd_prior_obsn(n) = load([priorCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
     end
-    bkgd_1 = load([bkgdCacheDir '/bkgd1.mat']);
-    save([outdir '/phase2_output.mat'],'bkgd_obsn','bkgd_1')
+    bkgd_post_1 = load([bkgdCacheDir '/bkgd1.mat']);
+    bkgd_prior_1 = load([priorCacheDir '/bkgd1.mat']);
+    save([outdir '/phase1_output.mat'],'bkgd_post_obsn','bkgd_post_1','bkgd_prior_obsn','bkgd_prior_1')
   end
 
 end  % two-phase iteration loop
