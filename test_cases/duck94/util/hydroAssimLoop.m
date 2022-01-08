@@ -45,7 +45,7 @@ nx=grid.nx;
 % begin time loop
 % warning('truncated run, n=220:290')
 timeperstep=4;  % initial estimate of seconds-per-step, to be refined
-for n=1:length(obs)
+for n=1:(length(obs)-1)
   disp(['Time Step ' num2str(n) ' of ' num2str(length(obs)) ...
         '.  Estimated ' num2str(timeperstep*(length(obs)-n)/60,'%.1f') ' minutes remaining.' ...
         ' (' num2str(timeperstep) ' seconds per step)']);
