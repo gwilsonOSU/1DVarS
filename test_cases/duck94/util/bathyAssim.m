@@ -143,8 +143,10 @@ for n=1:obsnt
         ad_params.m    =ad_params.m    +ad1_params.m    ;
         ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
         ad_params.alpha=ad_params.alpha+ad1_params.alpha;
-        ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
-        ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
+        if(isfield(bkgdn2.params,'Cc'))
+          ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
+          ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
+        end
       elseif(strcmp(bkgdn2.sedmodel,'dubarbier'))
         ad_params.Cw = ad_params.Cw + ad1_params.Cw;
         ad_params.Cc = ad_params.Cc + ad1_params.Cc;
@@ -160,8 +162,13 @@ for n=1:obsnt
     % time, that is done in the time loop below.
     Cparam=diag(params_std.^2);
     if(strcmp(bkgdn2.sedmodel,'vanderA'))
-      [ad_fv,ad_ks,ad_lambda,ad_n,ad_m,ad_xi,ad_alpha,ad_Cc,ad_Cf]=paramsHandler(1,bkgdn2.sedmodel,ad_params);
-      ad_pp=[ad_fv; ad_ks; ad_lambda; ad_n; ad_m; ad_xi; ad_alpha; ad_Cc; ad_Cf];
+      if(isfield(bkgdn2.params,'Cc'))
+        [ad_fv,ad_ks,ad_lambda,ad_n,ad_m,ad_xi,ad_alpha,ad_Cc,ad_Cf]=paramsHandler(1,bkgdn2.sedmodel,ad_params);
+        ad_pp=[ad_fv; ad_ks; ad_lambda; ad_n; ad_m; ad_xi; ad_alpha; ad_Cc; ad_Cf];
+      else
+        [ad_fv,ad_ks,ad_lambda,ad_n,ad_m,ad_xi,ad_alpha]=paramsHandler(1,bkgdn2.sedmodel,ad_params);
+        ad_pp=[ad_fv; ad_ks; ad_lambda; ad_n; ad_m; ad_xi; ad_alpha];
+      end
     elseif(strcmp(bkgdn2.sedmodel,'dubarbier'))
       [ad_fv,ad_ks,ad_lambda,ad_Cw,ad_Cc,ad_Cf,ad_Ka]=paramsHandler(1,bkgdn2.sedmodel,ad_params);
       ad_pp=[ad_fv; ad_ks; ad_lambda; ad_Cw; ad_Cc; ad_Cf; ad_Ka];
@@ -255,8 +262,10 @@ if(~strcmp(priorCacheDir,bkgdCacheDir))
     tl_params.m    =bkgd1_prior.params.m    -bkgd1.params.m    ;
     tl_params.xi   =bkgd1_prior.params.xi   -bkgd1.params.xi   ;
     tl_params.alpha=bkgd1_prior.params.alpha-bkgd1.params.alpha;
-    tl_params.Cc   =bkgd1_prior.params.Cc   -bkgd1.params.Cc   ;
-    tl_params.Cf   =bkgd1_prior.params.Cf   -bkgd1.params.Cf   ;
+    if(isfield(bkgd1.params,'Cc'))
+      tl_params.Cc   =bkgd1_prior.params.Cc   -bkgd1.params.Cc   ;
+      tl_params.Cf   =bkgd1_prior.params.Cf   -bkgd1.params.Cf   ;
+    end
   elseif(strcmp(bkgd1.sedmodel,'dubarbier'))
     tl_params.Cw=bkgd1_prior.params.Cw-bkgd1.params.Cw;
     tl_params.Cc=bkgd1_prior.params.Cc-bkgd1.params.Cc;
@@ -325,8 +334,10 @@ if(strcmp(bkgd1.sedmodel,'vanderA'))
   params.m    =params0.m    +update(5);
   params.xi   =params0.xi   +update(6);
   params.alpha=params0.alpha+update(7);
-  params.Cc   =params0.Cc   +update(8);
-  params.Cf   =params0.Cf   +update(9);
+  if(isfield(params0,'Cc'))
+    params.Cc   =params0.Cc   +update(8);
+    params.Cf   =params0.Cf   +update(9);
+  end
 elseif(strcmp(bkgd1.sedmodel,'dubarbier'))
   params.Cw = params0.Cw + update(5);
   params.Cc = params0.Cc + update(6);
