@@ -48,8 +48,8 @@ elseif(strcmp(sedmodel,'vanderA'))
   params.m=11;
   params.xi=1;  % ??? tuning parameter, O(1) according to Kranenburg (2013)
   params.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
-  params.Cc=0.01;
-  params.Cf=0.03;
+  % params.Cc=0.01;  % comment out to test automatic above-WBL sediment handling
+  % params.Cf=0.03;
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   params.alphab=1.6;
   params.facua =1.0;
@@ -115,8 +115,10 @@ elseif(strcmp(sedmodel,'vanderA'))
   tl_params.m    =params.m    *frac_tl*myrand();
   tl_params.xi   =params.xi   *frac_tl*myrand();
   tl_params.alpha=params.alpha*frac_tl*myrand();
-  tl_params.Cc   =params.Cc   *frac_tl*myrand();
-  tl_params.Cf   =params.Cf   *frac_tl*myrand();
+  if(isfield(params,'Cc'))
+    tl_params.Cc   =params.Cc   *frac_tl*myrand();
+    tl_params.Cf   =params.Cf   *frac_tl*myrand();
+  end
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   tl_params.alphab=params.alphab*frac_tl*myrand();
   tl_params.facua=params.facua*frac_tl*myrand();
@@ -136,8 +138,10 @@ elseif(strcmp(sedmodel,'vanderA'))
   params1.m    =params.m    +tl_params.m    ;
   params1.xi   =params.xi   +tl_params.xi   ;
   params1.alpha=params.alpha+tl_params.alpha;
-  params1.Cc   =params.Cc   +tl_params.Cc   ;
-  params1.Cf   =params.Cf   +tl_params.Cf   ;
+  if(isfield(params,'Cc'))
+    params1.Cc   =params.Cc   +tl_params.Cc   ;
+    params1.Cf   =params.Cf   +tl_params.Cf   ;
+  end
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
   params1.alphab=params.alphab+tl_params.alphab;
   params1.facua =params.facua +tl_params.facua ;

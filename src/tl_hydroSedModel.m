@@ -126,11 +126,10 @@ else
 end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
+tl_delta_bl=ones(nx,1)*.2;  % init
+tl_udelta=zeros(nx,2);   % init
 for i=1:nx
-  if(Dr(i)==0)
-    tl_udelta(i,:)=[0 0];
-    tl_delta_bl(i)=0;
-  else
+  if(Dr(i)>0)
     [tl_udelta(i,:),tl_delta_bl(i)] = ...
         tl_udelta_reniers2004(tl_ubar(i,:),tl_k(i,:),tl_omega,...
                               tl_h(i),tl_Hrms(i),tl_detady(i),...
@@ -165,7 +164,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
                                   tl_Dr,tl_param,bkgd_qtrans);
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   tl_Q0 = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
-                           tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_params,bkgd_qtrans);
+                           tl_udelta,tl_delta_bl,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_params,bkgd_qtrans);
 end
 
 % mitigate transport discontinuity at the shoreline
@@ -205,16 +204,16 @@ end  % catch for special case dt==0
 
 % % TEST-CODE: override output variable
 % if((length(outvar)>=6 & strcmp(outvar(1:6),'udelta')) | strcmp(outvar,'ubar'))
-%   eval(['tl_Hrms = tl_' outvar '(:,2);']);
+%   eval(['tl_hp = tl_' outvar '(:,2);']);
 %   eval(['tl_' outvar '(:,1)=0;']);
 % else
-%   eval(['tl_Hrms = tl_' outvar ';']);
+%   eval(['tl_hp = tl_' outvar ';']);
 % end
 % tl_vbar =zeros(nx,1);
 % tl_theta=zeros(nx,1);
 % tl_kabs =zeros(nx,1);
+% tl_Hrms =zeros(nx,1);
 % tl_Qx   =zeros(nx,1);
-% tl_hp   =zeros(nx,1);
 
 % TEST: tweak output for TL testing
 % eval(['tl_Qx=tl_' outvar ';']);

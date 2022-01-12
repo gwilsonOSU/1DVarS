@@ -1,4 +1,4 @@
-function [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
+function [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
     ad_qtrans_vanderA(ad_qs,bkgd)%,invar)
 %
 % AD code for qtrans_vanderA.m
@@ -23,6 +23,7 @@ ad_tanbeta    =zeros(nx,1);
 ad_Hrms       =zeros(nx,1);
 ad_kabs       =zeros(nx,1);
 ad_udelta     =zeros(nx,2);
+ad_delta      =zeros(nx,1);
 ad_Aw         =zeros(nx,1);
 ad_Sw         =zeros(nx,1);
 ad_Uw         =zeros(nx,1);
@@ -33,8 +34,10 @@ ad_param.n    =0;
 ad_param.m    =0;
 ad_param.xi   =0;
 ad_param.alpha=0;
-ad_param.Cc   =0;
-ad_param.Cf   =0;
+if(isfield(bkgd(1).param,'Cc'))
+  ad_param.Cc   =0;
+  ad_param.Cf   =0;
+end
 ad_param=repmat(ad_param,[nx 1]);
 
 % this wrapper loop serves to handle vector inputs
@@ -43,7 +46,7 @@ for i=nx:-1:1
   %     tl_qtrans_vanderA(tl_d50,tl_d90,tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
   %                       tl_udelta(i,:),tl_ws,tl_dAw(i),tl_dSw(i),tl_param,bkgd_qtrans(i));
   [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,...
-   ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
+   ad1_omega,ad1_udelta,ad1_delta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
       ad_qtrans_vanderA_main(ad_qs(i),bkgd(i));%,invar);
   ad_d50(i)=ad_d50(i)+ad1_d50   ;
   ad_d90(i)=ad_d90(i)+ad1_d90   ;
@@ -54,6 +57,7 @@ for i=nx:-1:1
   ad_kabs(i)  =ad_kabs(i)  +ad1_kabs  ;
   ad_omega=ad_omega+ad1_omega;
   ad_udelta(i,:)=ad_udelta(i,:)+ad1_udelta;
+  ad_delta(i)=ad_delta(i)+ad1_delta;
   ad_Aw(i)=ad_Aw(i)+ad1_Aw;
   ad_Sw(i)=ad_Sw(i)+ad1_Sw;
   ad_Uw(i)=ad_Uw(i)+ad1_Uw;
@@ -61,8 +65,10 @@ for i=nx:-1:1
   ad_param(i).m    =ad_param(i).m    +ad1_param.m    ;
   ad_param(i).xi   =ad_param(i).xi   +ad1_param.xi   ;
   ad_param(i).alpha=ad_param(i).alpha+ad1_param.alpha;
-  ad_param(i).Cc   =ad_param(i).alpha+ad1_param.Cc   ;
-  ad_param(i).Cf   =ad_param(i).alpha+ad1_param.Cf   ;
+  if(isfield(bkgd(1).param,'Cc'))
+    ad_param(i).Cc   =ad_param(i).alpha+ad1_param.Cc   ;
+    ad_param(i).Cf   =ad_param(i).alpha+ad1_param.Cf   ;
+  end
 end
 
 if(~eparam)
@@ -71,14 +77,16 @@ if(~eparam)
   adp2.m    =sum([ad_param.m    ]);
   adp2.xi   =sum([ad_param.xi   ]);
   adp2.alpha=sum([ad_param.alpha]);
-  adp2.Cc   =sum([ad_param.Cc   ]);
-  adp2.Cf   =sum([ad_param.Cf   ]);
+  if(isfield(bkgd(1).param,'Cc'))
+    adp2.Cc   =sum([ad_param.Cc   ]);
+    adp2.Cf   =sum([ad_param.Cf   ]);
+  end
   ad_param=adp2;
 end
 
 end  % end of wrapper function, start of main function
 
-function [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd)%,invar)
+function [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd)%,invar)
 
 physicalConstants;
 
@@ -204,6 +212,10 @@ t2c         =bkgd.t2c         ;
 t2t         =bkgd.t2t         ;
 worbc       =bkgd.worbc       ;
 worbt       =bkgd.worbt       ;
+phiuc       =bkgd.phiuc       ;
+phidc       =bkgd.phidc       ;
+icu_guess   =bkgd.icu_guess   ;
+itu_guess   =bkgd.itu_guess   ;
 if(~isfield(param,'streamingType') || param.streamingType=='v')
   fwd=bkgd.fwd;
 elseif(param.streamingType=='n')
@@ -212,17 +224,27 @@ elseif(param.streamingType=='n')
   r      =bkgd.r      ;
   fws    =bkgd.fws    ;
 end
-uwmo=bkgd.uwmo;
-qs2 =bkgd.qs2 ;
-qs3 =bkgd.qs3 ;
-qsCc=bkgd.qsCc;
-qsCf=bkgd.qsCf;
-tanbeta=bkgd.tanbeta;
-eps_s=bkgd.eps_s;
-phiuc=bkgd.phiuc;
-phidc=bkgd.phidc;
-icu_guess    =bkgd.icu_guess      ;
-itu_guess    =bkgd.itu_guess      ;
+eps_s        =bkgd.eps_s          ;
+uwmo         =bkgd.uwmo           ;
+tanbeta      =bkgd.tanbeta        ;
+if(isfield(param,'Cc'))  % option-1 for above-WBL transport
+  qs2          =bkgd.qs2            ;
+  qs3          =bkgd.qs3            ;
+else  % option-2 for above-WBL transport
+  Lt     =bkgd.Lt      ;
+  Lc     =bkgd.Lc      ;
+  wfracc =bkgd.wfracc  ;
+  wfract =bkgd.wfract  ;
+  utot   =bkgd.utot    ;
+  Omegas =bkgd.Omegas  ;
+  Kdenom1=bkgd.Kdenom1 ;
+  Kdenom2=bkgd.Kdenom2 ;
+  Kdenom =bkgd.Kdenom  ;
+  K      =bkgd.K       ;
+end
+qsVdA        =bkgd.qsVdA          ;
+qsCc         =bkgd.qsCc           ;
+qsCf         =bkgd.qsCf           ;
 
 %------------------------------------
 % begin AD code
@@ -244,8 +266,10 @@ ad_param.m    =0;
 ad_param.n    =0;
 ad_param.alpha=0;
 ad_param.xi   =0;
-ad_param.Cc   =0;
-ad_param.Cf   =0;
+if(isfield(bkgd.param,'Cc'))
+  ad_param.Cc   =0;
+  ad_param.Cf   =0;
+end
 ad_term1=0;
 ad_term2=0;
 ad_term3=0;
@@ -361,6 +385,7 @@ ad_arg_qs3=zeros(1,nt);
 ad_qs3    =0;
 ad_qsCc   =0;
 ad_qsCf   =0;
+ad_qsVdA   =0;
 ad_tanbeta=0;
 ad_tcr=0;
 ad_ttr=0;
@@ -368,6 +393,21 @@ ad_tuc=0;
 ad_tdc=0;
 ad_phidc=0;
 ad_phiuc=0;
+ad_delta=0;
+ad_K=0;
+ad_Kdenom=0;
+ad_Kdenom1=0;
+ad_Kdenom2=0;
+ad_arg_Kdenom1=0;
+ad_arg_Kdenom2=0;
+ad_arg_qsCf=0;
+ad_arg_qsCc=0;
+ad_utot=zeros(1,nt);
+ad_Omegas=0;
+ad_wfracc=0;
+ad_wfract=0;
+ad_Lc=0;
+ad_Lt=0;
 
 % % TEST-CODE: override input variable
 % if(~strcmp(invar,'qs'))
@@ -375,61 +415,201 @@ ad_phiuc=0;
 %   ad_qs=0;
 % end
 
-% Add suspended load contribution from currents, based on energetics model
-%a8 tl_qs = tl_qs + tl_qsCc + tl_qsCf;
-ad_qsCc=ad_qsCc+ ad_qs;
-ad_qsCf=ad_qsCf+ ad_qs;
-% note, do not clear ad_qs because this was an increment not an assignment
-%a7 tl_qsCf = - tl_qs3*eps_s^2/ws^2*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
-%           + 2*qs3*eps_s^2/ws^3*tl_ws*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
-%           - qs3*eps_s^2/ws^2*tl_param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
-%           - qs3*eps_s^2/ws^2*param.Cf*tl_tanbeta/(g*(s-1)*(1-psed));
-% 
-ad_qs3         =ad_qs3     - eps_s^2/ws^2*param.Cf*tanbeta/(g*(s-1)*(1-psed))      *ad_qsCf;
-ad_ws          =ad_ws      + 2*qs3*eps_s^2/ws^3*param.Cf*tanbeta/(g*(s-1)*(1-psed))*ad_qsCf;
-ad_param.Cf   =ad_param.Cf - qs3*eps_s^2/ws^2*tanbeta/(g*(s-1)*(1-psed))           *ad_qsCf;
-ad_tanbeta     =ad_tanbeta - qs3*eps_s^2/ws^2*param.Cf/(g*(s-1)*(1-psed))          *ad_qsCf;
-ad_qsCf=0;
-%a6 tl_qsCc = + tl_qs2*eps_s/ws*param.Cc     /(g*(s-1)*(1-psed)) ...
-%           - qs2*eps_s/ws^2*param.Cc*tl_ws/(g*(s-1)*(1-psed)) ...
-%           + qs2*eps_s/ws*tl_param.Cc     /(g*(s-1)*(1-psed));
-ad_qs2     =ad_qs2      + eps_s/ws*param.Cc      /(g*(s-1)*(1-psed))*ad_qsCc;
-ad_ws      =ad_ws       - qs2*eps_s/ws^2*param.Cc/(g*(s-1)*(1-psed))*ad_qsCc;
-ad_param.Cc=ad_param.Cc + qs2*eps_s/ws           /(g*(s-1)*(1-psed))*ad_qsCc;
-ad_qsCc=0;
-%a5 tl_qs3 = mean(tl_arg_qs3);
-ad_arg_qs3 = ad_arg_qs3 + 1/nt*ad_qs3*ones(1,nt);  % distribute mean across 1xnt array
-%a4 tl_arg_qs3 = 5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2).*( uwmo.*tl_uwmo + udelta(1)*tl_udelta(1) + udelta(2)*tl_udelta(2) );
-ad_uwmo     =ad_uwmo     + 5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2).*uwmo    .*ad_arg_qs3;
-ad_udelta(1)=ad_udelta(1)+ sum(5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*udelta(1).*ad_arg_qs3);
-ad_udelta(2)=ad_udelta(2)+ sum(5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*udelta(2).*ad_arg_qs3);
-ad_arg_qs3=0;
-%a3 tl_qs2 = mean(tl_arg_qs2);
-ad_arg_qs2 = ad_arg_qs2 + 1/nt*ad_qs2*ones(1,nt);  % distribute mean across 1xnt array
-%a2 tl_arg_qs2 = 3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1).*( ...
-%     uwmo.*tl_uwmo + udelta(1)*tl_udelta(1) + udelta(2)*tl_udelta(2) ) ...
-%     + (uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*tl_udelta(1);
-ad_uwmo     =ad_uwmo     + 3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1).*uwmo    .*ad_arg_qs2;
-ad_udelta(1)=ad_udelta(1)+ sum(3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1)*udelta(1).*ad_arg_qs2);
-ad_udelta(2)=ad_udelta(2)+ sum(3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1)*udelta(2).*ad_arg_qs2);
-ad_udelta(1)=ad_udelta(1)+ sum((uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)                      .*ad_arg_qs2);
-ad_arg_qs2=0;
-%a1 tl_uwmo=tl_uw/1.4;
-ad_uw=ad_uw+1/1.4*ad_uwmo;
-ad_uwmo=0;
+% tl_qs = tl_qsVdA + tl_qsCc + tl_qsCf;
+ad_qsVdA=ad_qsVdA+ ad_qs;
+ad_qsCc =ad_qsCc + ad_qs;
+ad_qsCf =ad_qsCf + ad_qs;
+ad_qs=0;
+
+% Add suspended load contribution, based on energetics model
+term3 = sqrt((s-1)*g*d50^3)/(1-psed);  % NL helper variable
+if(isfield(param,'Cc'))  % OPTION-1
+
+  %a8 tl_qsVdA = (tl_qsc + tl_qst)/T*term3 ...
+  %       - (qsc + qst)/T^2*term3*tl_T ...
+  %       + (qsc + qst)/T*tl_term3;
+  ad_qsc  =ad_qsc  + 1/T*term3            *ad_qsVdA;
+  ad_qst  =ad_qst  + 1/T*term3            *ad_qsVdA;
+  ad_T    =ad_T    - (qsc + qst)/T^2*term3*ad_qsVdA;
+  ad_term3=ad_term3+ (qsc + qst)/T        *ad_qsVdA;
+  ad_qsVdA=0;
+  %a7 tl_qsCf = - tl_qs3*eps_s^2/ws^2*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
+  %           + 2*qs3*eps_s^2/ws^3*tl_ws*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
+  %           - qs3*eps_s^2/ws^2*tl_param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
+  %           - qs3*eps_s^2/ws^2*param.Cf*tl_tanbeta/(g*(s-1)*(1-psed));
+  % 
+  ad_qs3         =ad_qs3     - eps_s^2/ws^2*param.Cf*tanbeta/(g*(s-1)*(1-psed))      *ad_qsCf;
+  ad_ws          =ad_ws      + 2*qs3*eps_s^2/ws^3*param.Cf*tanbeta/(g*(s-1)*(1-psed))*ad_qsCf;
+  ad_param.Cf   =ad_param.Cf - qs3*eps_s^2/ws^2*tanbeta/(g*(s-1)*(1-psed))           *ad_qsCf;
+  ad_tanbeta     =ad_tanbeta - qs3*eps_s^2/ws^2*param.Cf/(g*(s-1)*(1-psed))          *ad_qsCf;
+  ad_qsCf=0;
+  %a6 tl_qsCc = + tl_qs2*eps_s/ws*param.Cc     /(g*(s-1)*(1-psed)) ...
+  %           - qs2*eps_s/ws^2*param.Cc*tl_ws/(g*(s-1)*(1-psed)) ...
+  %           + qs2*eps_s/ws*tl_param.Cc     /(g*(s-1)*(1-psed));
+  ad_qs2     =ad_qs2      + eps_s/ws*param.Cc      /(g*(s-1)*(1-psed))*ad_qsCc;
+  ad_ws      =ad_ws       - qs2*eps_s/ws^2*param.Cc/(g*(s-1)*(1-psed))*ad_qsCc;
+  ad_param.Cc=ad_param.Cc + qs2*eps_s/ws           /(g*(s-1)*(1-psed))*ad_qsCc;
+  ad_qsCc=0;
+  %a5 tl_qs3 = mean(tl_arg_qs3);
+  ad_arg_qs3 = ad_arg_qs3 + 1/nt*ad_qs3*ones(1,nt);  % distribute mean across 1xnt array
+  %a4 tl_arg_qs3 = 5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2).*( uwmo.*tl_uwmo + udelta(1)*tl_udelta(1) + udelta(2)*tl_udelta(2) );
+  ad_uwmo     =ad_uwmo     + 5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2).*uwmo    .*ad_arg_qs3;
+  ad_udelta(1)=ad_udelta(1)+ sum(5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*udelta(1).*ad_arg_qs3);
+  ad_udelta(2)=ad_udelta(2)+ sum(5*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*udelta(2).*ad_arg_qs3);
+  ad_arg_qs3=0;
+  %a3 tl_qs2 = mean(tl_arg_qs2);
+  ad_arg_qs2 = ad_arg_qs2 + 1/nt*ad_qs2*ones(1,nt);  % distribute mean across 1xnt array
+  %a2 tl_arg_qs2 = 3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1).*( ...
+  %     uwmo.*tl_uwmo + udelta(1)*tl_udelta(1) + udelta(2)*tl_udelta(2) ) ...
+  %     + (uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)*tl_udelta(1);
+  ad_uwmo     =ad_uwmo     + 3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1).*uwmo    .*ad_arg_qs2;
+  ad_udelta(1)=ad_udelta(1)+ sum(3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1)*udelta(1).*ad_arg_qs2);
+  ad_udelta(2)=ad_udelta(2)+ sum(3*(uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(1/2)*udelta(1)*udelta(2).*ad_arg_qs2);
+  ad_udelta(1)=ad_udelta(1)+ sum((uwmo.^2 + udelta(1)^2 + udelta(2)^2).^(3/2)                      .*ad_arg_qs2);
+  ad_arg_qs2=0;
+  %a1 tl_uwmo=tl_uw/1.4;
+  ad_uw=ad_uw+1/1.4*ad_uwmo;
+  ad_uwmo=0;
+
+else  % OPTION-2
+
+  % NL helper variables
+  numst=exp(-deltast/Lt)/0.08;
+  numsc=exp(-deltasc/Lc)/0.08;
+  denomst=1-Omegat*d50/0.08*deltast/Lt^2*exp(-deltast/Lt);
+  denomsc=1-Omegac*d50/0.08*deltasc/Lc^2*exp(-deltasc/Lc);
+  dLtdOmegat = numst*d50/denomst;
+  dLcdOmegac = numsc*d50/denomsc;
+  dLtdd50 = numst*Omegat/denomst;
+  dLcdd50 = numsc*Omegac/denomsc;
+  arg_Kdenom1=utot.^3;
+  arg_Kdenom2 = utot.^4;
+  arg_qsCc = utot.^3*udelta(1);
+  arg_qsCf = utot.^5;
+
+  %b18 tl_qsCf = ...
+  %     - 1/(g*(s-1)*(1-psed))*eps_s^2*tl_K/ws^2*mean(arg_qsCf)*tanbeta ...
+  %     + 2/(g*(s-1)*(1-psed))*eps_s^2*K/ws^3*mean(arg_qsCf)*tanbeta*tl_ws ...
+  %     - 1/(g*(s-1)*(1-psed))*eps_s^2*K/ws^2*mean(tl_arg_qsCf)*tanbeta ...
+  %     - 1/(g*(s-1)*(1-psed))*eps_s^2*K/ws^2*mean(arg_qsCf)*tl_tanbeta;
+  ad_K       =ad_K       - 1/(g*(s-1)*(1-psed))*eps_s^2/ws^2*mean(arg_qsCf)*tanbeta   *ad_qsCf;
+  ad_ws      =ad_ws      + 2/(g*(s-1)*(1-psed))*eps_s^2*K/ws^3*mean(arg_qsCf)*tanbeta *ad_qsCf;
+  ad_arg_qsCf=ad_arg_qsCf- 1/(g*(s-1)*(1-psed))*eps_s^2*K/ws^2*tanbeta*1/nt*ones(1,nt)*ad_qsCf;  % distribute mean across 1xnt array
+  ad_tanbeta =ad_tanbeta - 1/(g*(s-1)*(1-psed))*eps_s^2*K/ws^2*mean(arg_qsCf)         *ad_qsCf;
+  ad_qsCf=0;
+  %b17 tl_arg_qsCf = 5*utot.^4.*tl_utot;
+  ad_utot=ad_utot+ 5*utot.^4.*ad_arg_qsCf;
+  %b16 tl_qsCc = ...
+  %     + 1/(g*(s-1)*(1-psed))*eps_s*tl_K/ws*mean(arg_qsCc) ...
+  %     - 1/(g*(s-1)*(1-psed))*eps_s*K/ws^2*mean(arg_qsCc)*tl_ws ...
+  %     + 1/(g*(s-1)*(1-psed))*eps_s*K/ws*mean(tl_arg_qsCc);
+  ad_K       =ad_K       + 1/(g*(s-1)*(1-psed))*eps_s/ws*mean(arg_qsCc)                    *ad_qsCc;
+  ad_ws      =ad_ws      - 1/(g*(s-1)*(1-psed))*eps_s*K/ws^2*mean(arg_qsCc)                *ad_qsCc;
+  ad_arg_qsCc=ad_arg_qsCc+ 1/(g*(s-1)*(1-psed))*eps_s*K/ws                 *1/nt*ones(1,nt)*ad_qsCc;  % distribute mean across 1xnt array
+  ad_qsCc=0;
+  %b15 tl_arg_qsCc = + 3*utot.^2*udelta(1).*tl_utot ...
+  %     + utot.^3*tl_udelta(1);
+  ad_utot     =ad_utot     + 3*utot.^2*udelta(1).*ad_arg_qsCc;
+  ad_udelta(1)=ad_udelta(1)+ sum(utot.^3        .*ad_arg_qsCc);
+  ad_arg_qsCc=0;
+  %b14 tl_K = ...
+  %     + (s-1)*g*tl_d50*Omegas/(Kdenom1+Kdenom2) ...
+  %     + (s-1)*g*d50*tl_Omegas/(Kdenom1+Kdenom2) ...
+  %     - (s-1)*g*d50*Omegas/(Kdenom1+Kdenom2)^2*( tl_Kdenom1 + tl_Kdenom2 );
+  ad_d50    =ad_d50    + (s-1)*g*Omegas/(Kdenom1+Kdenom2)      *ad_K;
+  ad_Omegas =ad_Omegas + (s-1)*g*d50/(Kdenom1+Kdenom2)         *ad_K;
+  ad_Kdenom1=ad_Kdenom1- (s-1)*g*d50*Omegas/(Kdenom1+Kdenom2)^2*ad_K;
+  ad_Kdenom2=ad_Kdenom2- (s-1)*g*d50*Omegas/(Kdenom1+Kdenom2)^2*ad_K;
+  ad_K=0;
+  %b13 tl_Kdenom = tl_Kdenom1 + tl_Kdenom2;
+  ad_Kdenom1=ad_Kdenom1+ ad_Kdenom;
+  ad_Kdenom2=ad_Kdenom2+ ad_Kdenom;
+  ad_Kdenom=0;
+  %b12 tl_Kdenom2 = ...
+  %     + 2*eps_s^2/ws^3*mean(arg_Kdenom2)*tanbeta*tl_ws ...
+  %     - eps_s^2/ws^2*mean(tl_arg_Kdenom2)*tanbeta ...
+  %     - eps_s^2/ws^2*mean(arg_Kdenom2)*tl_tanbeta;
+  ad_ws         =ad_ws         + 2*eps_s^2/ws^3*mean(arg_Kdenom2)*tanbeta*ad_Kdenom2;
+  ad_arg_Kdenom2=ad_arg_Kdenom2- eps_s^2/ws^2*tanbeta*1/nt*ones(1,nt)    *ad_Kdenom2;  % distribute mean across 1xnt array
+  ad_tanbeta    =ad_tanbeta    - eps_s^2/ws^2*mean(arg_Kdenom2)          *ad_Kdenom2;
+  ad_Kdenom2=0;
+  %b11 tl_arg_Kdenom2 = 4*utot.^3.*tl_utot;
+  ad_utot=ad_utot+ 4*utot.^3.*ad_arg_Kdenom2;
+  ad_arg_Kdenom2=0;
+  %b10 tl_Kdenom1 = ...
+  %     - eps_s/ws^2*mean(arg_Kdenom1)*tl_ws ...
+  %     + eps_s/ws*mean(tl_arg_Kdenom1);
+  ad_ws         =ad_ws         - eps_s/ws^2*mean(arg_Kdenom1)                *ad_Kdenom1;
+  ad_arg_Kdenom1=ad_arg_Kdenom1+ eps_s/ws                    *1/nt*ones(1,nt)*ad_Kdenom1;  % distribute mean across 1xnt array
+  ad_Kdenom1=0;
+  %b9 tl_arg_Kdenom1 = 3*utot.^2.*tl_utot;
+  ad_utot=ad_utot+ 3*utot.^2.*ad_arg_Kdenom1;
+  ad_arg_Kdenom1=0;
+  %b8 tl_utot = 1./sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).*( ...
+  %     + uwmo     .*tl_uwmo      ...
+  %     + udelta(1)*tl_udelta(1) ...
+  %     + udelta(2)*tl_udelta(2) );
+  ad_uwmo     =ad_uwmo     + 1./sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).*uwmo     .*ad_utot;
+  ad_udelta(1)=ad_udelta(1)+ sum(1./sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).*udelta(1).*ad_utot);
+  ad_udelta(2)=ad_udelta(2)+ sum(1./sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).*udelta(2).*ad_utot);
+  %b7 tl_Omegas = ...
+  %     - tl_wfracc*Omegac*Tc/T ...
+  %     + (1-wfracc)*tl_Omegac*Tc/T ...
+  %     + (1-wfracc)*Omegac*tl_Tc/T ...
+  %     - (1-wfracc)*Omegac*Tc/T^2*tl_T ...
+  %     - tl_wfract*Omegat*Tt/T ...
+  %     + (1-wfract)*tl_Omegat*Tt/T ...
+  %     + (1-wfract)*Omegat*tl_Tt/T ...
+  %     - (1-wfract)*Omegat*Tt/T^2*tl_T;
+  ad_wfracc=ad_wfracc- Omegac*Tc/T             *ad_Omegas;
+  ad_Omegac=ad_Omegac+ (1-wfracc)*Tc/T         *ad_Omegas;
+  ad_Tc    =ad_Tc    + (1-wfracc)*Omegac/T     *ad_Omegas;
+  ad_T     =ad_T     - (1-wfracc)*Omegac*Tc/T^2*ad_Omegas;
+  ad_wfract=ad_wfract- Omegat*Tt/T             *ad_Omegas;
+  ad_Omegat=ad_Omegat+ (1-wfract)*Tt/T         *ad_Omegas;
+  ad_Tt    =ad_Tt    + (1-wfract)*Omegat/T     *ad_Omegas;
+  ad_T     =ad_T     - (1-wfract)*Omegat*Tt/T^2*ad_Omegas;
+  ad_Omegas=0;
+  %b6 tl_uwmo = + 1/1.4*tl_uw;
+  ad_uw=ad_uw+ 1/1.4*ad_uwmo;
+  ad_uwmo=0;
+  %b5 tl_qsVdA = (tl_qsc*wfracc + qsc*tl_wfracc + tl_qst*wfract + qst*tl_wfract)/T*term3 ...
+  %       - (qsc*wfracc + qst*wfract)/T^2*term3*tl_T ...
+  %       + (qsc*wfracc + qst*wfract)/T*tl_term3;
+  ad_qsc   =ad_qsc    + 1/T*term3*wfracc                   *ad_qsVdA;
+  ad_wfracc=ad_wfracc + 1/T*term3*qsc                      *ad_qsVdA;
+  ad_qst   =ad_qst    + 1/T*term3*wfract                   *ad_qsVdA;
+  ad_wfract=ad_wfract + 1/T*term3*qst                      *ad_qsVdA;
+  ad_T     =ad_T      - (qsc*wfracc + qst*wfract)/T^2*term3*ad_qsVdA;
+  ad_term3 =ad_term3  + (qsc*wfracc + qst*wfract)/T        *ad_qsVdA;
+  ad_qsVdA=0;
+  %b4 tl_wfract = - delta/Lt^2*exp(-delta/Lt)*tl_Lt ...
+  %     + 1/Lt*exp(-delta/Lt)*tl_delta;
+  ad_Lt   =ad_Lt   - delta/Lt^2*exp(-delta/Lt)*ad_wfract;
+  ad_delta=ad_delta+ 1/Lt*exp(-delta/Lt)      *ad_wfract;
+  ad_wfract=0;
+  %b3 tl_wfracc = - delta/Lc^2*exp(-delta/Lc)*tl_Lc ...
+  %     + 1/Lc*exp(-delta/Lc)*tl_delta;
+  ad_Lc   =ad_Lc   - delta/Lc^2*exp(-delta/Lc)*ad_wfracc;
+  ad_delta=ad_delta+ 1/Lc*exp(-delta/Lc)      *ad_wfracc;
+  ad_wfracc=0;
+  %b2 tl_Lc = + dLcdOmegac*tl_Omegac ...
+  %         + dLcdd50*tl_d50;
+  ad_Omegac=ad_Omegac+ dLcdOmegac*ad_Lc;
+  ad_d50   =ad_d50   + dLcdd50   *ad_Lc;
+  ad_Lc=0;
+  %b1 tl_Lt = + dLtdOmegat*tl_Omegat ...
+  %         + dLtdd50*tl_d50;
+  ad_Omegat=ad_Omegat+ dLtdOmegat*ad_Lt;
+  ad_d50   =ad_d50   + dLtdd50   *ad_Lt;
+  ad_Lt=0;
+
+end
 
 %b14 transport, eqn 1
 absthetac=abs(thetac);
 absthetat=abs(thetat);
 term3 = sqrt((s-1)*g*d50^3)/(1-psed);
-%4 tl_qs = (tl_qsc + tl_qst)/T*term3 ...
-%         - (qsc + qst)/T^2*term3*tl_T ...
-%         + (qsc + qst)/T*tl_term3;
-ad_qsc  =ad_qsc  + 1/T*term3            *ad_qs;
-ad_qst  =ad_qst  + 1/T*term3            *ad_qs;
-ad_T    =ad_T    - (qsc + qst)/T^2*term3*ad_qs;
-ad_term3=ad_term3+ (qsc + qst)/T        *ad_qs;
-ad_qs=0;
 %3 tl_term3 = .5/sqrt((s-1)*g*d50^3)*3*(s-1)*g*d50^2*tl_d50/(1-psed);
 ad_d50 = ad_d50 + .5/sqrt((s-1)*g*d50^3)*3*(s-1)*g*d50^2/(1-psed)*ad_term3;
 ad_term3=0;

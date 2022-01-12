@@ -1,4 +1,4 @@
-function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)%,outvar)
+function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param)%,outvar)
 %
 % [qs,workspc]=qtrans_vanderA(x,d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
 %
@@ -24,6 +24,12 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws
 %        xi   : phase lag effect, eqns (24)-(28).  Default 1.7.  O(1) according to Kranenburg (2013)
 %        m    : MPM leading coefficient, eqn (36).  Default 11.0
 %        n    : MPM exponent, eqn (36).  Default 1.2
+%
+%        OPTIONAL: If Cc,Cf are included, above-WBL transport will be
+%        calculated explicitly using energetics model.  If not included
+%        (recommended), this contribution will be calculated based on
+%        boundary layer height plus energetics.
+%
 %        Cc   : suspended sediment stirring+undertow effect.  Default 0.01
 %        Cf   : suspended sediment stirring+slope effect. Default 0.01, but 0.03 may be good
 %
@@ -45,23 +51,29 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws
 %     than attempt to extract them from the 'workspc' struct.
 %
 
+if(isfield(param,'Cc'))
+  warning(['Explicit EEM-based suspended-load transport is being depreciated at time of writing.  ' ...
+           'Instead, if you remove Cc from params struct, the suspended-load contribution ' ...
+           'will be calculated automatically']);
+end
+
 % this wrapper loop serves to handle vector inputs
 nx=length(h);
 for i=1:nx
-  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
+  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
 end
 qs=qs(:);
 workspc=workspc(:);
 
 end  % end of wrapper function, start of main function
 
-function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)%,outvar)
+function [qs,workspc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param)%,outvar)
 
 physicalConstants;
 
 % fixed constants
 nt=1000;  % for calculation of intra-wave velocity
-delta=0.2;  % fixed delta=0.2m, per VDA paper
+% delta=0.2;  % OLD: fixed delta=0.2m, per VDA paper
 
 % derived params
 Hmo=Hrms*1.4;
@@ -291,6 +303,7 @@ if(abs(thetat)>theta_cr)
 else
   Omegat=0;
 end
+
 if(Pc>1)
   Omegacc=Omegac./Pc; % eqn 23
 else
@@ -315,22 +328,74 @@ end
 % transport, eqn 1
 qsc=sqrt(abs(thetac)).*Tc.*(Omegacc+Tc./(2*Tcu).*Omegatc).*thetacx./abs(thetac);
 qst=sqrt(abs(thetat)).*Tt.*(Omegatt+Tt./(2*Ttu).*Omegact).*thetatx./abs(thetat);
-qs = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3);
-qs = qs/(1-psed);  % account for bed porosity
 
-% Add suspended load contribution from currents, based on energetics model.
-% Code borrowed from qtrans_dubarbier.m.  Note the dubarbier code is tuned
-% for rms wave velocity, while VDA uses significant wave velocity, so I have
-% to divide uw by 1.4.  The "wave-driven" part of the suspended transport is
-% omitted since arguably VDA already includes its contribution, and its
-% value is very similar to the VDA prediction.
-eps_s=0.015;
-uwmo=uw/1.4;
-qs2=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^3*udelta(1));
-qs3=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^5);
-qsCc = + qs2*eps_s/ws*param.Cc                 /(g*(s-1)*(1-psed));
-qsCf = - qs3*eps_s/ws*param.Cf*eps_s*tanbeta/ws/(g*(s-1)*(1-psed));
-qs = qs + qsCc + qsCf;
+% Add suspended-load contribution from currents and slope-effect, based on
+% energetics model.  This represents transport by sediments suspended above
+% the wave boundary layer (WBL) which are not included in the original
+% model.
+%
+% OPTION-1: If 'Cc' is included in params struct, then use explicit
+% calculation with EM model.  Code borrowed from qtrans_dubarbier.m.  Note
+% the dubarbier code is tuned for rms wave velocity, while VDA uses
+% significant wave velocity, so I have to divide uw by 1.4.  The
+% "wave-driven" part of the suspended transport is omitted since arguably
+% VDA already includes its contribution, and its value is very similar to
+% the VDA prediction.
+%
+% OPTION-2: If 'Cc' is not in the params struct, then the suspended-load
+% contribution is based on boundary layer height calculated by VDA model.
+% See further info in comments below.
+%
+if(isfield(param,'Cc'))  % OPTION-1
+
+  eps_s=0.015;
+  uwmo=uw/1.4;
+  qs2=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^3*udelta(1));
+  qs3=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^5);
+  qsCc = + qs2*eps_s/ws*param.Cc                 /(g*(s-1)*(1-psed));
+  qsCf = - qs3*eps_s/ws*param.Cf*eps_s*tanbeta/ws/(g*(s-1)*(1-psed));
+  qsVdA = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
+
+else  % OPTION-2
+
+  % calculate boundary layer e-folding length based on definition of delta_s
+  % by Dohmen- Janssen (1999), c(delta_s) = 0.08.  Then use the calculated
+  % e-folding length to determine the fraction of total sediment load
+  % (Omegac + Omegat) occurring above the WBL, z>delta.  The above-WBL
+  % fraction will be removed from the wave-driven transport calculated
+  % previously, and instead used for suspended transport above WBL.
+  Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
+  Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
+  wfracc = (1-exp(-delta/Lc));
+  wfract = (1-exp(-delta/Lt));
+  qsVdA = ( qsc*wfracc + qst*wfract )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
+
+  % % OLD: current-driven transport, simply multiply above-WBL sediment load
+  % % times udelta.  This kinda works but bars tend to become too peaky.
+  % % The slope-driven suspended load transport is missing which would tend to
+  % % smooth out the morphology.
+  % qsCc = ( (1-wfracc)*Tc./T*Omegac*d50*udelta(1) ...
+  %          + (1-wfract)*Tt/T*Omegat*d50*udelta(1) )/(1-psed);  % current-driven
+  % qsCf=0;  % slope-driven, left out of this code
+  % qs = qs + qsCc + qsCf;  % add suspended contribution to total
+
+  % current- and slope-driven transport are partitioned according to
+  % energetics model (i.e., "wave stirring" doing work against gravitational
+  % settling).  The two effects are assumed share a common drag coefficient,
+  % (K = Cc (==Cf) in Dubarbier's notation).
+  eps_s=0.015;
+  uwmo=uw/1.4;
+  Omegas = (1-wfracc)*Omegac*Tc/T + (1-wfract)*Omegat*Tt/T;  % total load above-WBL
+  utot=sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2);  % total current magnitude (time dependent)
+  Kdenom1 = + eps_s/ws*mean(utot.^3);
+  Kdenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
+  Kdenom=Kdenom1+Kdenom2;
+  K = Omegas*(s-1)*g*d50/(Kdenom1+Kdenom2);  % chosen s.t. EM-model predicts sediment load = Omegas
+  qsCc = + K*eps_s/ws*mean(utot.^3*udelta(1))/(g*(s-1)*(1-psed));    % current-driven
+  qsCf = - K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven
+
+end
+qs = qsVdA + qsCc + qsCf;
 
 % save all relevant variables for passing to TL model.  Note this runs
 % faster if the variables are hard-coded, don't use eval
@@ -361,7 +426,6 @@ if(nargout>1)
   workspc.c            =c              ;
   workspc.d50          =d50            ;
   workspc.d90          =d90            ;
-  workspc.delta        =delta          ;
   workspc.deltasc      =deltasc        ;
   workspc.deltast      =deltast        ;
   workspc.eta          =eta            ;
@@ -410,6 +474,7 @@ if(nargout>1)
   workspc.ucrvec       =ucrvec         ;
   workspc.udabs        =udabs          ;
   workspc.udelta       =udelta         ;
+  workspc.delta        =delta          ;
   workspc.uhat         =uhat           ;
   workspc.uhatc        =uhatc          ;
   workspc.uhatt        =uhatt          ;
@@ -452,17 +517,34 @@ if(nargout>1)
   workspc.theta25      =theta25        ;
   workspc.r            =r              ;
   workspc.fws          =fws            ;
-  workspc.uwmo         =uwmo           ;
-  workspc.qs2          =qs2            ;
-  workspc.qs3          =qs3            ;
-  workspc.qsCc         =qsCc           ;
-  workspc.qsCf         =qsCf           ;
-  workspc.tanbeta      =tanbeta        ;
-  workspc.eps_s        =eps_s          ;
   workspc.phiuc        =phiuc          ;
   workspc.phidc        =phidc          ;
   workspc.icu_guess    =icu_guess      ;
   workspc.itu_guess    =itu_guess      ;
+
+  % accounting of suspended seds above WBL
+  workspc.eps_s        =eps_s          ;
+  workspc.uwmo         =uwmo           ;
+  workspc.tanbeta      =tanbeta        ;
+  if(isfield(param,'Cc'))
+    workspc.qs2          =qs2            ;
+    workspc.qs3          =qs3            ;
+  else
+    workspc.Lt     =Lt      ;
+    workspc.Lc     =Lc      ;
+    workspc.wfracc =wfracc  ;
+    workspc.wfract =wfract  ;
+    workspc.utot   =utot    ;
+    workspc.Omegas =Omegas  ;
+    workspc.Kdenom1=Kdenom1 ;
+    workspc.Kdenom2=Kdenom2 ;
+    workspc.Kdenom =Kdenom  ;
+    workspc.K      =K       ;
+  end
+  workspc.qsVdA        =qsVdA          ;
+  workspc.qsCc         =qsCc           ;
+  workspc.qsCf         =qsCf           ;
+
 end
 
 % TEST-CODE: override output variable

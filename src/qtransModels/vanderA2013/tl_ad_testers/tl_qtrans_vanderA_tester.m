@@ -4,7 +4,7 @@
 clear
 addpath(genpath('../../..'));
 
-% % TEST: choose output variable to test
+% TEST: choose output variable to test
 % outvar='Hmo';
 % outvar='c';
 % outvar='Uw';
@@ -112,11 +112,11 @@ kabs=sqrt(sum(kvec.^2,2));
 nx=length(x);
 param.fv=.1;
 param.ks=.0083;
+delta=ones(nx,1)*.2;  % init
+udelta=zeros(nx,2);   % init
 for i=1:nx
-  if(Dr(i)==0)
-    udelta(i,:)=[0 0];
-  else
-    [udelta(i,:),udel_bkgd(i)]= ...
+  if(Dr(i)>0)
+    [udelta(i,:),delta(i),udel_bkgd(i)]= ...
         udelta_reniers2004(ubar(i,:),kvec(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
                            windW(i,:),Dr(i),param.fv,param.ks,d50);
@@ -131,9 +131,9 @@ param.xi=1;  % ??? tuning parameter, O(1) according to Kranenburg (2013)
 param.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
 param.fv=0.1;  % breaking-induced eddy viscosity calibration parameter, see
                 % Reniers et al. (2004) Table 4.  Scalar, of order 0.1 (default)
-param.Cc=0.01;  % stirring+undertow effect
-param.Cf=0.01;  % stirring+slope effect
-[q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param);%,outvar);
+% param.Cc=0.01;  % stirring+undertow effect.  Comment out to use auto-above-WBL transport
+% param.Cf=0.01;  % stirring+slope effect
+[q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param);%,outvar);
 
 % choose reasonable perturbations
 frac_tl = 0.001;
@@ -147,6 +147,7 @@ tl_Hrms       =[bkgd.Hrms   ]'    *frac_tl*myrand();
 tl_kabs       =[bkgd.kabs   ]'    *frac_tl*myrand();
 tl_omega      =bkgd(1).omega      *frac_tl*myrand();
 tl_udelta     =reshape([bkgd.udelta ]'    *frac_tl*myrand(),[2 nx])';
+tl_delta      =[bkgd.delta  ]'    *frac_tl*myrand();
 tl_ws         =[bkgd.ws     ]'    *frac_tl*myrand();
 tl_Aw         =[bkgd.Aw     ]'    *frac_tl*myrand();
 tl_Sw         =[bkgd.Sw     ]'    *frac_tl*myrand();
@@ -157,8 +158,10 @@ tl_param.n    =[pp.n    ]*frac_tl*myrand();
 tl_param.m    =[pp.m    ]*frac_tl*myrand();
 tl_param.xi   =[pp.xi   ]*frac_tl*myrand();
 tl_param.alpha=[pp.alpha]*frac_tl*myrand();
-tl_param.Cc   =[pp.Cc   ]*frac_tl*myrand();
-tl_param.Cf   =[pp.Cf   ]*frac_tl*myrand();
+if(isfield(param,'Cc'))
+  tl_param.Cc   =[pp.Cc   ]*frac_tl*myrand();
+  tl_param.Cf   =[pp.Cf   ]*frac_tl*myrand();
+end
 
 % pack perturbed params into struct for NL model
 param_prime.fv   =param.fv   +tl_param.fv   ;
@@ -166,19 +169,22 @@ param_prime.n    =param.n    +tl_param.n    ;
 param_prime.m    =param.m    +tl_param.m    ;
 param_prime.xi   =param.xi   +tl_param.xi   ;
 param_prime.alpha=param.alpha+tl_param.alpha;
-param_prime.Cc   =param.Cc   +tl_param.Cc   ;
-param_prime.Cf   =param.Cf   +tl_param.Cf   ;
+if(isfield(param,'Cc'))
+  param_prime.Cc   =param.Cc   +tl_param.Cc   ;
+  param_prime.Cf   =param.Cf   +tl_param.Cf   ;
+end
 
 % run NL model with perturbation
 [q_prime,bkgd_prime] = ...
     qtrans_vanderA(d50+tl_d50,d90+tl_d90,h+tl_h,tanbeta+tl_tanbeta,Hrms+tl_Hrms,...
-                   kabs+tl_kabs,omega+tl_omega,udelta+tl_udelta,...
+                   kabs+tl_kabs,omega+tl_omega,udelta+tl_udelta,delta+tl_delta,...
                    ws+tl_ws,Aw+tl_Aw,Sw+tl_Sw,Uw+tl_Uw,param_prime);%,outvar);
 tl_q_true = q_prime - q;
 
 % run TL model
 tl_q = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,...
-                         tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,outvar);
+                         tl_omega,tl_udelta,tl_delta,...
+                         tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,outvar);
 
 % compare scatter
 clf

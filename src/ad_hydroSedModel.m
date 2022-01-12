@@ -32,8 +32,10 @@ elseif(strcmp(bkgd(1).sedmodel,'vanderA'))
   ad_params.m    =0;
   ad_params.xi   =0;
   ad_params.alpha=0;
-  ad_params.Cc   =0;
-  ad_params.Cf   =0;
+  if(isfield(bkgd(1).params,'Cc'))
+    ad_params.Cc   =0;
+    ad_params.Cf   =0;
+  end
 elseif(strcmp(bkgd(1).sedmodel,'soulsbyVanRijn'))
   ad_params.alphab=0;
   ad_params.facua =0;
@@ -98,8 +100,10 @@ for n=bkgd(1).nsubsteps:-1:1
     ad_params.m    =ad_params.m     + ad1_params.m    ;
     ad_params.xi   =ad_params.xi    + ad1_params.xi   ;
     ad_params.alpha=ad_params.alpha + ad1_params.alpha;
-    ad_params.Cc   =ad_params.Cc    + ad1_params.Cc   ;
-    ad_params.Cf   =ad_params.Cf    + ad1_params.Cf   ;
+    if(isfield(bkgd(1).params,'Cc'))
+      ad_params.Cc   =ad_params.Cc    + ad1_params.Cc   ;
+      ad_params.Cf   =ad_params.Cf    + ad1_params.Cf   ;
+    end
   elseif(strcmp(bkgd(1).sedmodel,'soulsbyVanRijn'))
     ad_params.alphab=ad_params.alphab+ad1_params.alphab;
     ad_params.facua =ad_params.facua +ad1_params.facua ;
@@ -161,8 +165,10 @@ elseif(strcmp(bkgd.sedmodel,'vanderA'))
   ad_params.m    =0;
   ad_params.xi   =0;
   ad_params.alpha=0;
-  ad_params.Cc   =0;
-  ad_params.Cf   =0;
+  if(isfield(bkgd.params,'Cc'))
+    ad_params.Cc   =0;
+    ad_params.Cf   =0;
+  end
 elseif(strcmp(bkgd.sedmodel,'soulsbyVanRijn'))
   ad_params.alphab=0;
   ad_params.facua =0;
@@ -201,19 +207,19 @@ end
 % ad_vbar =zeros(nx,1);
 % ad_theta=zeros(nx,1);
 % ad_kabs =zeros(nx,1);
+% ad_Hrms =zeros(nx,1);
 % ad_Qx   =zeros(nx,1);
-% ad_hp   =zeros(nx,1);
 % if((length(invar)>=6 & strcmp(invar(1:6),'udelta')) | strcmp(invar,'ubar'))
-%   % eval(['tl_Hrms = tl_' outvar '(:,2);']);
-%   eval(['ad_' invar '(:,2)=ad_Hrms;']);
+%   % eval(['tl_hp = tl_' outvar '(:,2);']);
+%   eval(['ad_' invar '(:,2)=ad_hp;']);
 %   % eval(['tl_' outvar '(:,1)=0;']);
 %   eval(['ad_' invar '(:,1)=0;']);
 % else
-%   % eval(['tl_Hrms = tl_' outvar ';']);
-%   eval(['ad_' invar '=ad_Hrms;']);
+%   % eval(['tl_hp = tl_' outvar ';']);
+%   eval(['ad_' invar '=ad_hp;']);
 % end
-% if(~strcmp(invar,'Hrms'))
-%   ad_Hrms=zeros(nx,1);
+% if(~strcmp(invar,'hp'))
+%   ad_hp=zeros(nx,1);
 % end
 
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
@@ -323,7 +329,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   %15c1 tl_Q0 = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
   %                          tl_udelta,tl_ws,tl_params,bkgd_qtrans);
-  [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_params] = ...
+  [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,ad1_omega,ad1_udelta,ad1_delta_bl,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_params] = ...
       ad_qtrans_vanderA(ad_Q0,bkgd_qtrans);
   ad_d50        =ad_d50        +ad1_d50        ;
   ad_d90        =ad_d90        +ad1_d90        ;
@@ -333,13 +339,16 @@ elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   ad_kabs       =ad_kabs       +ad1_kabs       ;
   ad_omega      =ad_omega      +ad1_omega      ;
   ad_udelta     =ad_udelta     +ad1_udelta     ;
+  ad_delta_bl   =ad_delta_bl   +ad1_delta_bl   ;
   ad_ws         =ad_ws         +ad1_ws         ;
   ad_params.n    =ad_params.n    +ad1_params.n    ;
   ad_params.m    =ad_params.m    +ad1_params.m    ;
   ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
   ad_params.alpha=ad_params.alpha+ad1_params.alpha;
-  ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
-  ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
+  if(isfield(bkgd(1).params,'Cc'))
+    ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
+    ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
+  end
   ad_Aw    =ad_Aw    +ad1_Aw    ;
   ad_Sw    =ad_Sw    +ad1_Sw    ;
   ad_Uw    =ad_Uw    +ad1_Uw    ;

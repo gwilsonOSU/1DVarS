@@ -189,11 +189,10 @@ end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
 Dr(Dr==0)=min([0; Dr(Dr>0)]);
+delta_bl=ones(nx,1)*.2;  % init
+udelta=zeros(nx,2);   % init
 for i=1:nx
-  if(Dr(i)==0)
-    udelta(i,:)=[0 0];
-    delta_bl(i)=.2;
-  else
+  if(Dr(i)>0)
     [udelta(i,:),delta_bl(i),udel_bkgd(i)]= ...
         udelta_reniers2004(ubar(i,:),k(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
@@ -224,7 +223,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
                             omega,theta,ubar,Dr,params);
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   [Q0,bkgd_qtrans] = ...
-      qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta_w,ws,Aw,Sw,Uw,params);
+      qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta_w,delta_bl,ws,Aw,Sw,Uw,params);
 end
 Q0=real(Q0);
 

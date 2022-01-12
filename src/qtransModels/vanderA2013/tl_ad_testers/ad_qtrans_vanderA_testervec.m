@@ -163,11 +163,11 @@ kabs=sqrt(sum(kvec.^2,2));
 nx=length(x);
 param.fv=.1;
 param.ks=.0083;
+udelta=zeros(nx,2);  % init
+delta=.2*ones(nx,1);  % init
 for i=1:nx
-  if(Dr(i)==0)
-    udelta(i,:)=[0 0];
-  else
-    [udelta(i,:),udel_bkgd(i)]= ...
+  if(Dr(i)>0)
+    [udelta(i,:),delta(i),udel_bkgd(i)]= ...
         udelta_reniers2004(ubar(i,:),kvec(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
                            windW(i,:),Dr(i),param.fv,param.ks,d50);
@@ -182,14 +182,14 @@ param.xi=1;  % ??? tuning parameter, O(1) according to Kranenburg (2013)
 param.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
 param.fv=0.1;  % breaking-induced eddy viscosity calibration parameter, see
                 % Reniers et al. (2004) Table 4.  Scalar, of order 0.1 (default)
-param.Cc=0.01;  % stirring+undertow effect
-param.Cf=0.01;  % stirring+slope effect
-[Q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param);
+% param.Cc=0.01;  % comment out to use automatic above-WBL suspended sediment option (recommended)
+% param.Cf=0.01;  % stirring+slope effect
+[Q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
 eps = 0.01;
 n=5;
-F = eps*rand(12*nx+7,n);  % 1st dim is number of tl input parameters
+F = eps*rand(13*nx+7,n);  % 1st dim is number of tl input parameters
 clear g
 for i=1:n
   disp(['iter ' num2str(i) ' of ' num2str(n)])
@@ -203,22 +203,25 @@ for i=1:n
   tl_omega      =F(6*nx+1       ,i);
   tl_udelta(:,1)=F(6*nx+1+[1:nx],i);
   tl_udelta(:,2)=F(7*nx+1+[1:nx],i);
-  tl_ws         =F(8*nx+1+[1:nx],i);
-  tl_Aw         =F(9*nx+1+[1:nx],i);
-  tl_Sw         =F(10*nx+1+[1:nx],i);
-  tl_Uw         =F(11*nx+1+[1:nx],i);
-  tl_param.n    =F(12*nx+2       ,i);
-  tl_param.m    =F(12*nx+3       ,i);
-  tl_param.xi   =F(12*nx+4       ,i);
-  tl_param.alpha=F(12*nx+5       ,i);
-  tl_param.Cc   =F(12*nx+6       ,i);
-  tl_param.Cf   =F(12*nx+7       ,i);
+  tl_delta      =F(8*nx+1+[1:nx],i);
+  tl_ws         =F(9*nx+1+[1:nx],i);
+  tl_Aw         =F(10*nx+1+[1:nx],i);
+  tl_Sw         =F(11*nx+1+[1:nx],i);
+  tl_Uw         =F(12*nx+1+[1:nx],i);
+  tl_param.n    =F(13*nx+2       ,i);
+  tl_param.m    =F(13*nx+3       ,i);
+  tl_param.xi   =F(13*nx+4       ,i);
+  tl_param.alpha=F(13*nx+5       ,i);
+  if(isfield(param,'Cc'))
+    tl_param.Cc   =F(13*nx+6       ,i);
+    tl_param.Cf   =F(13*nx+7       ,i);
+  end
 
   % TL model: TL*F
-  tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,inoutvar);
+  tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_delta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,inoutvar);
 
   % AD model: g=AD*(TL*F)
-  [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
+  [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
       ad_qtrans_vanderA(tl_qs,bkgd);%,inoutvar);
 
   % create output vector
@@ -231,16 +234,19 @@ for i=1:n
   g(6*nx+1       ,i) =ad_omega      ;
   g(6*nx+1+[1:nx],i) =ad_udelta(:,1);
   g(7*nx+1+[1:nx],i) =ad_udelta(:,2);
-  g(8*nx+1+[1:nx],i) =ad_ws         ;
-  g(9*nx+1+[1:nx],i) =ad_Aw         ;
-  g(10*nx+1+[1:nx],i) =ad_Sw         ;
-  g(11*nx+1+[1:nx],i)=ad_Uw         ;
-  g(12*nx+2       ,i)=ad_param.n    ;
-  g(12*nx+3       ,i)=ad_param.m    ;
-  g(12*nx+4       ,i)=ad_param.xi   ;
-  g(12*nx+5       ,i)=ad_param.alpha;
-  g(12*nx+6       ,i)=ad_param.Cc   ;
-  g(12*nx+7       ,i)=ad_param.Cf   ;
+  g(8*nx+1+[1:nx],i) =ad_delta      ;
+  g(9*nx+1+[1:nx],i) =ad_ws         ;
+  g(10*nx+1+[1:nx],i) =ad_Aw         ;
+  g(11*nx+1+[1:nx],i) =ad_Sw         ;
+  g(12*nx+1+[1:nx],i)=ad_Uw         ;
+  g(13*nx+2       ,i)=ad_param.n    ;
+  g(13*nx+3       ,i)=ad_param.m    ;
+  g(13*nx+4       ,i)=ad_param.xi   ;
+  g(13*nx+5       ,i)=ad_param.alpha;
+  if(isfield(param,'Cc'))
+    g(13*nx+6       ,i)=ad_param.Cc   ;
+    g(13*nx+7       ,i)=ad_param.Cf   ;
+  end
 
 end
 
