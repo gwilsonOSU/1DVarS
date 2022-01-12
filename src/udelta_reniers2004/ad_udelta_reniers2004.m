@@ -84,7 +84,6 @@ ad_Am=zeros(1,2);
 ad_sig_b=0;
 ad_l1d=0;
 ad_l2d=0;
-ad_delta=0;
 ad_sig_0=0;
 ad_F=zeros(1,2);
 ad_Df=0;
