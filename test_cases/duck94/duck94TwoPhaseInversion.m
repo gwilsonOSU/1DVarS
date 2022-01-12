@@ -51,8 +51,9 @@ dosave=1;
 
 % location of cache directories.  Each should have a ~5-10 GB available
 % storage depending on run length
-priorCacheDir='/tmp/bathyAssimCachePrior';
 bkgdCacheDir='/tmp/bathyAssimCache';
+priorCacheDir='/tmp/bathyAssimCachePrior';  % use this for "classical" outer-loop iterations (recommended)
+% priorCacheDir=bkgdCacheDir;   % use this for nonlinear gradient-descent iterations
 
 % Parallel pool (used by bathyAssim.m). Note, if you want to go beyond ~12
 % cores then the overhead of the parallel pool may bump up against available
@@ -164,9 +165,9 @@ else
 end
 
 % redo bathyobs.h.e
-warning('using obs-error 0.1m for bathy observations')
+warning('using obs-error 0.05m for bathy observations')
 for n=1:length(bathyobs)
-  bathyobs(n).h.e=ones(size(bathyobs(n).h.d))*.1;
+  bathyobs(n).h.e=ones(size(bathyobs(n).h.d))*.05;
 end
 
 % initial phase-1 hydro-assimilating time loop, using default parameter
