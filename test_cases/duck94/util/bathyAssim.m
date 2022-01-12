@@ -44,8 +44,10 @@ if(strcmp(bkgd1.sedmodel,'vanderA'))
   params_std(5)=percError*params.m    ;  % default params.m     = 11
   params_std(6)=percError*params.xi   ;  % default params.xi    = 1.7
   params_std(7)=percError*params.alpha;  % default params.alpha = 8.2
-  params_std(8)=percError*params.Cc   ;  % default params.Cc    = 0.01
-  params_std(9)=percError*params.Cf   ;  % default params.Cf    = 0.03
+  if(isfield(params,'Cc'))
+    params_std(8)=percError*params.Cc   ;  % default params.Cc    = 0.01
+    params_std(9)=percError*params.Cf   ;  % default params.Cf    = 0.03
+  end
 elseif(strcmp(bkgd1.sedmodel,'dubarbier'))
   fld={'fv','ks','lambda','Cw','Cc','Cf','Ka'};
   for i=1:length(fld)
@@ -56,7 +58,7 @@ else
 end
 Cd50=diag((.1*bkgd1.d50).^2);  % optional, allow for correction to d50
 Cd50=0;  % disable d50 corrections
-Cbeta0=0; %0.01;  % allow for correction of beta0
+Cbeta0=0; %0.01;  % correction of beta0 (set to zero to disable)
 
 % Init matrices needed for assimilation. Note dimensions of the full
 % observation vector is no*nt x 1, where no is number of stations and nt
@@ -82,11 +84,14 @@ for n=1:obsnt
   disp(['  Start Time: ' datestr(now)])
   tic
 
+  [~,parforCounterFile]=unix('mktemp');
+  parforCounterFile=strtrim(parforCounterFile);
+  starttime=now;
   clear MCMt_thisn  % parfor requires careful handling of MCMt
   parfor i=1:obsno
-    if(floor(i/obsno*10)>floor((i-1)/obsno*10))
-      disp(['  checkpoint ' num2str(floor(i/obsno*10)) ' of 10'])
-    end
+    % if(floor(i/obsno*10)>floor((i-1)/obsno*10))
+    %   disp(['  checkpoint ' num2str(floor(i/obsno*10)) ' of 10'])
+    % end
 
     % initialize comb for observation of h at obs-gridpoint i and obs-time n
     ad_Hrms =zeros(modelnx,1);
@@ -202,7 +207,18 @@ for n=1:obsnt
     % measure the TL output to get representers for observation (n,i)
     MCMt_thisn{i} = tl_h(bathyobs(n).measind,[bathyobs.obsn]+1);
 
+    % use parforCounterFile to keep track of parfor progress
+    unix(['echo ' num2str(i) ' >> ' parforCounterFile]);
+    ndone = numel(textread(parforCounterFile,'%1c%*[^\n]'))-1;  % number of lines in file
+    percdone=ndone/obsno*100;  % percent done
+    elapsed=(now-starttime)*24*60;  % minutes
+    eta=elapsed/percdone*(100-percdone);  % minutes remaining
+    disp(['  ' num2str(percdone,'%.1f') '% Done.' ...
+          '  Elapsed: ' num2str(elapsed,'%.1f') ' minutes,' ...
+          '  ETA: ' num2str(eta,'%.1f') ' minutes.'])
+
   end  % loop (index i) over observations at time n
+  unix(['rm -f ' parforCounterFile]);  % clean up
 
   % weird variable MCMt_thisn{i}(n,i) was needed to get parfor to run.  Unpack
   % it now.
