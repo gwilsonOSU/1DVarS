@@ -107,7 +107,6 @@ prior.h=horig;  % don't cut off dry points
 % outer loop
 eps=nan;
 for n=1:nitermax
-  disp(['iteration ' num2str(n) ', itermax = ' num2str(nitermax) ', eps = ' num2str(eps)])
 
   % run t=0 TL-based prediction for this outer loop iteration, linearized
   % about most-recent background state.  The latter (bkgd) is updated witht
@@ -539,6 +538,7 @@ for n=1:nitermax
     break;
   end
 
+  disp(['iteration ' num2str(n) ', itermax = ' num2str(nitermax) ', eps = ' num2str(eps)])
 end  % outer loop iterations
 
 % finalize posterior covariances
