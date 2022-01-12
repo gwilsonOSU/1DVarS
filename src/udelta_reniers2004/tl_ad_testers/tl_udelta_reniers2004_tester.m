@@ -103,7 +103,7 @@ for iter=1:100
   tl_ks    =(bkgd.ks    -bkgd.ks    *(frac_tl*myrand()+1));
 
   % compute perturbation
-  udelta_prime=udelta_reniers2004(bkgd.ubar  +tl_ubar  ,...
+  [udelta_prime,delta_prime]=udelta_reniers2004(bkgd.ubar  +tl_ubar  ,...
                                   bkgd.k     +tl_k     ,...
                                   bkgd.omega +tl_omega ,...
                                   bkgd.h     +tl_h     ,...
@@ -115,18 +115,30 @@ for iter=1:100
                                   bkgd.ks    +tl_ks    ,...
                                   bkgd.d50   +tl_d50   );%,outvar);
   tl_udelta_true(:,iter)=udelta_prime-udelta;
-  tl_udelta(:,iter)=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_windW,tl_Dr,tl_fv,tl_ks,tl_d50,udel_bkgd);%,outvar);
+  tl_delta_true(iter)=delta_prime-delta;
+  [tl_udelta(:,iter),tl_delta(iter)]=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_windW,tl_Dr,tl_fv,tl_ks,tl_d50,udel_bkgd);%,outvar);
 
 end
 
 % comparison plot, scatter
 clf
+subplot(121)
 plot(tl_udelta_true',tl_udelta','.')
-hold on
 axis equal tight
+hold on
 ax=axis;
 plot(ax([1 2]),ax([1 2]),'k--')
 hold off
 title(['udelta comparison (should be 1-1)'])
 xlabel('true [m/s]')
 ylabel('predicted [m/s]')
+subplot(122)
+plot(tl_delta_true',tl_delta','.')
+axis equal tight
+hold on
+ax=axis;
+plot(ax([1 2]),ax([1 2]),'k--')
+hold off
+title(['delta comparison (should be 1-1)'])
+xlabel('true [m]')
+ylabel('predicted [m]')
