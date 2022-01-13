@@ -7,7 +7,6 @@ clear
 % inoutvar='kabs';
 % inoutvar='A';
 % inoutvar='uorb';
-% inoutvar='ks';
 % inoutvar='z0';
 % inoutvar='fw';
 % inoutvar='Df';
@@ -17,22 +16,30 @@ clear
 % inoutvar='p1';
 % inoutvar='delta';
 % inoutvar='phi_b';
-% inoutvar='w1';
 % inoutvar='tau_wave';
 % inoutvar='tau_t';
+% inoutvar='nubar_tflow';
+% inoutvar='abs_tau_wind';
+% inoutvar='nubar_twind';
 % inoutvar='nubar_twave';
+% inoutvar='nubar_t';
+% inoutvar='nu_tsurf';
 % inoutvar='sig_s';
 % inoutvar='phi_s';
 % inoutvar='nums';
 % inoutvar='dens';
 % inoutvar='sig_b';
 % inoutvar='sig_0';
-% inoutvar='l1d';
-% inoutvar='l2d';
+% inoutvar='dsb';
+% inoutvar='sgridb';
+% inoutvar='dsm';
+% inoutvar='sgridm';
 % inoutvar='l1';
 % inoutvar='l2';
 % inoutvar='l3';
 % inoutvar='l4';
+% inoutvar='l1d';
+% inoutvar='l2d';
 % inoutvar='Ab';
 % inoutvar='Bbp';
 % inoutvar='Cbp';
@@ -50,7 +57,7 @@ clear
 % inoutvar='F';
 % inoutvar='Bb';
 % inoutvar='Cb';
-inoutvar='udelta';
+% inoutvar='udelta';
 
 load ~wilsongr/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
 waves=posterior;

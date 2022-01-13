@@ -180,13 +180,18 @@ tl_sig_0 = tl_z0./ht - z0./ht.^2.*tl_ht;
 %--------------------------------------
 
 % define grid for integration over sigma coordinate
-sgridb=linspace(sig_0,delta,nintegral);
-sgridbp = linspace(sig_0+tl_sig_0,delta+tl_delta,nintegral);
-tl_sgridb = sgridbp - sgridb;
-sgridm=linspace(delta,1,nintegral);
-sgridmp=linspace(delta+tl_delta,1,nintegral);
-tl_sgridm = sgridmp-sgridm;
-
+dsb = (delta-sig_0)/(nintegral-1);
+tl_dsb = (tl_delta-tl_sig_0)/(nintegral-1);
+for n=1:nintegral
+  sgridb(n) = sig_0 + (n-1)*dsb;
+  tl_sgridb(n) = tl_sig_0 + (n-1)*tl_dsb;
+end
+dsm = (1-delta)/(nintegral-1);
+tl_dsm = -tl_delta/(nintegral-1);
+for n=1:nintegral
+  sgridm(n) = delta + (n-1)*dsm;
+  tl_sgridm(n) = tl_delta + (n-1)*tl_dsm;
+end
 l1=log(sgridb./sig_0);
 tl_l1 = sig_0./sgridb.*( tl_sgridb./sig_0 - sgridb./sig_0.^2.*tl_sig_0 );
 l2=log((sig_b-sgridb)./(sig_b-sig_0));
@@ -248,7 +253,7 @@ tl_alpham = ...
     + tl_Am(i).*( tau_t(i)./sig_s.*l3 - tau_t(i)./sig_s.*l4 ) ...
     + Am(i).*( ...
         + tl_tau_t(i)./sig_s.*l3 ...
-        - tl_tau_t(i)./sig_s^2.*l3*tl_sig_s ...
+        - tau_t(i)./sig_s^2.*l3*tl_sig_s ...
         + tau_t(i)./sig_s.*tl_l3 ...
         - tl_tau_t(i)./sig_s.*l4 ...
         + tau_t(i)./sig_s^2.*l4*tl_sig_s ...
@@ -264,19 +269,31 @@ tl_betam = tl_betab(end)...
         + (1./sig_s-1).*tl_l4 ...
         );
 
-% define alpha_bar, beta_bar, coefficients for solution ubar.
-dsb=diff(sgridb(1:2));
-dsm=diff(sgridm(1:2));
-tl_dsb = diff(tl_sgridb(1:2));
-tl_dsm = diff(tl_sgridm(1:2));
+% define alpha_bar, beta_bar, coefficients for solution ubar.  Note, code
+% from trapz.m has been used to simply the notation for TL-AD coding,
+% splitting it into 4 lines.  Results will be identical, just using sums
+% instead of trapz().
 % alphab_bar(i) = trapz(sgridb,alphab);
-tl_alphab_bar(i) = trapz(tl_alphab)*dsb + trapz(alphab)*tl_dsb;
+% tl_alphab_bar(i) = trapz(tl_alphab)*dsb + trapz(alphab)*tl_dsb;  % trapz version, for example
+tl_alphab_bar(i) = dsb/2*sum(tl_alphab(1:end-1));
+tl_alphab_bar(i) = tl_alphab_bar(i) + dsb/2*sum(tl_alphab(2:end));
+tl_alphab_bar(i) = tl_alphab_bar(i) + tl_dsb/2*sum(alphab(1:end-1));
+tl_alphab_bar(i) = tl_alphab_bar(i) + tl_dsb/2*sum(alphab(2:end));
 % betab_bar(i)  = trapz(sgridb,betab);
-tl_betab_bar(i)  = trapz(tl_betab)*dsb + trapz(betab)*tl_dsb;
+tl_betab_bar(i) = dsb/2*sum(tl_betab(1:end-1));
+tl_betab_bar(i) = tl_betab_bar(i) + dsb/2*sum(tl_betab(2:end));
+tl_betab_bar(i) = tl_betab_bar(i) + tl_dsb/2*sum(betab(1:end-1));
+tl_betab_bar(i) = tl_betab_bar(i) + tl_dsb/2*sum(betab(2:end));
 % alpham_bar(i) = trapz(sgridm,alpham);
-tl_alpham_bar(i) = trapz(tl_alpham)*dsm + trapz(alpham)*tl_dsm;
+tl_alpham_bar(i) = dsm/2*sum(tl_alpham(1:end-1));
+tl_alpham_bar(i) = tl_alpham_bar(i) + dsm/2*sum(tl_alpham(2:end));
+tl_alpham_bar(i) = tl_alpham_bar(i) + tl_dsm/2*sum(alpham(1:end-1));
+tl_alpham_bar(i) = tl_alpham_bar(i) + tl_dsm/2*sum(alpham(2:end));
 % betam_bar(i)  = trapz(sgridm,betam);
-tl_betam_bar(i)  = trapz(tl_betam)*dsm + trapz(betam)*tl_dsm;
+tl_betam_bar(i) = dsm/2*sum(tl_betam(1:end-1));
+tl_betam_bar(i) = tl_betam_bar(i) + dsm/2*sum(tl_betam(2:end));
+tl_betam_bar(i) = tl_betam_bar(i) + tl_dsm/2*sum(betam(1:end-1));
+tl_betam_bar(i) = tl_betam_bar(i) + tl_dsm/2*sum(betam(2:end));
 % alpha_bar(i)  = alphab_bar(i) + alpham_bar(i);
 tl_alpha_bar(i)  = tl_alphab_bar(i) + tl_alpham_bar(i);
 % beta_bar(i)   = betab_bar(i) + betam_bar(i);
@@ -312,5 +329,5 @@ tl_udelta(i) = tl_Ab(i).*( Bb(i)./sig_b.*l1d - (Bb(i)./sig_b+Cb(i)).*l2d ) ...
 
 end  % loop on direction i
 
-% % TEST
+% TEST
 % eval(['tl_udelta=tl_' outvar ';']);

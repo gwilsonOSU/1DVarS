@@ -4,21 +4,22 @@
 clear
 
 % TEST: choose an i/o variable to test
-outvar='kabs';  %ok
-outvar='A';  %ok
-outvar='uorb';  %ok
-outvar='ks';  %ok
-outvar='z0';  %ok
-outvar='fw';  %ok
+% outvar='kabs';  %ok
+% outvar='A';  %ok
+% outvar='uorb';  %ok
+% outvar='ks';  %ok
+% outvar='z0';  %ok
+% outvar='fw';  %ok
 % outvar='nubar_tb';  %ok
 % outvar='Hm0';  %ok
 % outvar='ht';  %ok
 % outvar='p1';  %ok
 % outvar='delta';  %ok
 % outvar='phi_b';  %ok
-% outvar='w1';
 % outvar='tau_wave';
-% outvar='nubar_twave';
+% outvar='nubar_twave'; %ok
+% outvar='nubar_t'; %ok
+% outvar='nu_tsurf'; %ok
 % outvar='sig_s';
 % outvar='phi_s';
 % outvar='nums';
@@ -50,7 +51,13 @@ outvar='fw';  %ok
 % outvar='Df';  %ok
 % outvar='k';  %ok
 % outvar='omega';  %ok
-% outvar='Bb';  %some scatter but obviously correct
+% outvar='Bb';  %was causing the problem.  Now fixed?
+% alpha_bar(i)  = alphab_bar(i) + alpham_bar(i);
+% beta_bar(i)   = betab_bar(i) + betam_bar(i);
+% outvar='betab_bar';  %ok
+% outvar='betam_bar';  %ok
+% outvar='alphab_bar';  %ok
+% outvar='alpham_bar';  %ok
 % outvar='Cb';  %ok
 % outvar='udelta';
 

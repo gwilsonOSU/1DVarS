@@ -1,4 +1,4 @@
-function [udelta,delta,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,d50)
+function [udelta,delta,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,d50)%,outvar)
 %
 % [udelta,delta]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,sd50)
 %
@@ -68,9 +68,7 @@ sig_0 = z0./ht;  % level at which u=0
 
 % define grid for integration over sigma coordinate
 sgridb=linspace(sig_0,delta,nintegral);
-dsb=diff(sgridb(1:2));
 sgridm=linspace(delta,1,nintegral);
-dsm=diff(sgridm(1:2));
 
 l1=log(sgridb./sig_0);
 l2=log((sig_b-sgridb)./(sig_b-sig_0));
@@ -100,6 +98,8 @@ betam=betab(end) ...
 
 % define alpha_bar, beta_bar, coefficients for solution ubar.  See 
 % ./FgivenUbar_deriv/part3_ubar/
+dsb=diff(sgridb(1:2));
+dsm=diff(sgridm(1:2));
 alphab_bar(i) = trapz(sgridb,alphab);
 betab_bar(i)  = trapz(sgridb,betab);
 alpham_bar(i) = trapz(sgridm,alpham);
@@ -111,7 +111,7 @@ beta_bar(i)   = betab_bar(i) + betam_bar(i);
 F(i) = (ubar(i) - alpha_bar(i))./beta_bar(i);
 
 % evaluate eqns (B9)-(B12) at sigma=delta to get u_delta
-Bb(i)=tau_t(i)-F(i)+Df.*k(i)/omega;  % eqn (B10)
+Bb(i) = tau_t(i) - F(i) + Df.*k(i)/omega;  % eqn (B10)
 Cb(i)=F(i)-Df.*k(i)./(delta.*omega);  % eqn (B11)
 
 udelta(i)=Ab(i).*( Bb(i)./sig_b.*l1d ...
@@ -190,3 +190,6 @@ if(nargout>1)
   workspc.Cb               =Cb               ;
   workspc.udelta           =udelta           ;
 end
+
+% TEST
+% eval(['udelta=' outvar ';']);
