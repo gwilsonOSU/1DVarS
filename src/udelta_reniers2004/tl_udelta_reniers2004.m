@@ -125,9 +125,13 @@ if(detady>0)
 else
   sgn=-1;
 end
-tl_nubar_tflow = ...
-    + 1/6*kappa*tl_ht.*sqrt(g*ht.*abs(detady)) ...
-    + .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*( g*tl_ht.*abs(detady) + sgn*g*ht.*tl_detady );
+if(detady==0)
+  tl_nubar_tflow = 0;
+else
+  tl_nubar_tflow = ...
+      + 1/6*kappa*tl_ht.*sqrt(g*ht.*abs(detady)) ...
+      + .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*( g*tl_ht.*abs(detady) + sgn*g*ht.*tl_detady );
+end
 % abs_tau_wind = sqrt( tau_wind(:,1).^2 + tau_wind(:,2).^2 );
 tl_abs_tau_wind = 1./sqrt( tau_wind(:,1).^2 + tau_wind(:,2).^2 ).*( tau_wind(:,1).*tl_tau_wind(:,1) + tau_wind(:,2).*tl_tau_wind(:,2) );
 % nubar_twind = 1/3*kappa*ht.*sqrt(abs_tau_wind/rho);  % eqn (10)

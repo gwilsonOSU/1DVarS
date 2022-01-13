@@ -497,13 +497,18 @@ ad_nubar_twind=0;
 ad_tau_wind(:,1)=ad_tau_wind(:,1)+ 1./sqrt( tau_wind(:,1).^2 + tau_wind(:,2).^2 ).*tau_wind(:,1).*ad_abs_tau_wind;
 ad_tau_wind(:,2)=ad_tau_wind(:,2)+ 1./sqrt( tau_wind(:,1).^2 + tau_wind(:,2).^2 ).*tau_wind(:,2).*ad_abs_tau_wind;
 ad_abs_tau_wind=0;
-%15 tl_nubar_tflow = ...
-%     + 1/6*kappa*tl_ht.*sqrt(g*ht.*abs(detady)) ...
-%     + .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*( g*tl_ht.*abs(detady) + sgn*g*ht.*tl_detady );
-ad_ht    =ad_ht    + 1/6*kappa.*sqrt(g*ht.*abs(detady))                    *ad_nubar_tflow;
-ad_ht    =ad_ht    + .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*g.*abs(detady)*ad_nubar_tflow;
-ad_detady=ad_detady+ .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*sgn*g*ht     .*ad_nubar_tflow;
-ad_nubar_tflow=0;
+if(detady==0)
+  % tl_nubar_tflow = 0;
+  ad_nubar_tflow = 0;
+else
+  %15 tl_nubar_tflow = ...
+  %     + 1/6*kappa*tl_ht.*sqrt(g*ht.*abs(detady)) ...
+  %     + .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*( g*tl_ht.*abs(detady) + sgn*g*ht.*tl_detady );
+  ad_ht    =ad_ht    + 1/6*kappa.*sqrt(g*ht.*abs(detady))                    *ad_nubar_tflow;
+  ad_ht    =ad_ht    + .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*g.*abs(detady)*ad_nubar_tflow;
+  ad_detady=ad_detady+ .5/6*kappa*ht./sqrt(g*ht.*abs(detady)).*sgn*g*ht     .*ad_nubar_tflow;
+  ad_nubar_tflow=0;
+end
 %14 tl_tau_t = tl_tau_wind + tl_tau_wave;
 ad_tau_wind=ad_tau_wind+ ad_tau_t;
 ad_tau_wave=ad_tau_wave+ ad_tau_t;
