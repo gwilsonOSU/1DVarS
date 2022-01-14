@@ -443,7 +443,7 @@ tmpfilt=medfilt1(tmp);
 for i=find(abs(tmpfilt-tmp)>std(tmp)*.5)
   clf, hold on
   plot(obs(i).H.ind,obs(i).H.d,'ko')
-  ibad=find(obs(i).H.d > 1.5*mean(obs(i).H.d));
+  ibad=find(obs(i).H.d > 1.5*mean(obs(i).H.d) || obs(i).H.d<.01);
   if(isempty(ibad))
     disp('could not find bad point?  Something is wrong, kicking you into debugger')
     keyboard;
