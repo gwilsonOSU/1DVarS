@@ -180,6 +180,12 @@ hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,priorCacheDir);
 for iter=1:nitermax
   disp(['starting iteration ' num2str(iter) ' of ' num2str(nitermax)])
 
+  % if saving outputs, define output directory
+  if(dosave)
+    outdir=['case_' duck94Case '_outputs/assimIter' num2str(iter)];
+    unix(['mkdir -p ' outdir]);
+  end
+
   % For 1st iteration, prior==bkgd.  For subsequent iterations, prior~=bkgd.
   % Note, if you want to update the prior with each iteration, you can pass
   % thisPriorCache=='' for every iteration.  In that case, corrections are
@@ -191,15 +197,41 @@ for iter=1:nitermax
     thisBkgdCache=bkgdCacheDir;
   end
 
+  % plot prior result for inspection before starting assimilation.  This
+  % initializes the plot for this iteration
+  clf, hold on
+  cc='rbk';
+  clear lstr
+  obsnt=length(bathyobs);
+  for n=1:obsnt
+    bkgd0=load([priorCacheDir '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
+    plot(grid.xFRF,bkgd0.hp,'--','color',cc(n))
+    lstr{n}=['obs-time ' num2str(n)];
+  end
+  title('PRIOR: dashed, BKGD: solid, FCST: dotted, OBS: symbols')
+  legend(lstr)
+  set(gca,'ydir','r')
+  xlim([100 400])
+  box on
+  for n=1:obsnt  % overlay observations
+    plot(grid.xFRF(bathyobs(n).h.ind),bathyobs(n).h.d,'o','color',cc(n))
+  end
+  if(dosave)
+    print('-dpng','-r300',[outdir '/bathyOutput.png'])  % partially-completed plot
+  end
+
   % phase 2
   [newparams,diagnostics]=bathyAssim(bathyobs,priorCacheDir,thisBkgdCache);
   modelinput.params=newparams;
   modelinput.beta0=newparams.beta0;
 
-  % if saving outputs, define the output directory
+  % overlay phase-2 TL-forecast result on plot
+  for n=1:obsnt
+    Mf=reshape(diagnostics.Mf,[length(bathyobs) length(bathyobs(1).measind)])';
+    plot(grid.xFRF(bathyobs(n).h.ind),Mf(:,n),':','color',cc(n))
+  end
   if(dosave)
-    outdir=['case_' duck94Case '_outputs/assimIter' num2str(iter)];
-    unix(['mkdir -p ' outdir]);
+    print('-dpng','-r300',[outdir '/bathyOutput.png'])  % partially-completed plot
   end
 
   % optional, save phase-2 results
@@ -212,44 +244,25 @@ for iter=1:nitermax
   end
 
   % phase 1.  Note, this time we save the bkgd to bkgdCacheDir, not
-  % priorCacheDir, so now bkgd~=prior
+  % priorCacheDir, so now bkgd != prior
   hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,bkgdCacheDir);
 
-  % overview of results for this iteration
-  clf, hold on
-  cc='rbk';
-  clear lstr
-  obsnt=length(bathyobs);
+  % overlay posterior result on plot (which completes the plot for this
+  % iteration)
   for n=1:obsnt
-    bkgd0=load([priorCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
-    plot(grid.xFRF,bkgd0.hp,'--','color',cc(n))
-    lstr{n}=['obs-time ' num2str(n)];
-  end
-  for n=1:obsnt
-    bkgd=load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+    bkgd=load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
     plot(grid.xFRF,bkgd.hp,'-','color',cc(n))
   end
-  for n=1:obsnt
-    Mf=reshape(diagnostics.Mf,[length(bathyobs) length(bathyobs(1).measind)])';
-    plot(grid.xFRF(bathyobs(n).h.ind),Mf(:,n),':','color',cc(n))
-  end
-  for n=1:obsnt
-    plot(grid.xFRF(bathyobs(n).h.ind),bathyobs(n).h.d,'o','color',cc(n))
-  end
-  title('PRIOR: dashed, BKGD: solid, FCST: dotted, OBS: symbols')
-  legend(lstr)
-  set(gca,'ydir','r')
-  xlim([100 400])
 
-  % optional, save outputs
+  % save final outputs
   if(dosave)
     print('-dpng','-r300',[outdir '/bathyOutput.png'])
     for n=1:length(bathyobs)
-      bkgd_post_obsn(n) = load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
-      bkgd_prior_obsn(n) = load([priorCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+      bkgd_post_obsn(n) = load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
+      bkgd_prior_obsn(n) = load([priorCacheDir '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
     end
-    bkgd_post_1 = load([bkgdCacheDir '/bkgd1.mat']);
-    bkgd_prior_1 = load([priorCacheDir '/bkgd1.mat']);
+    bkgd_post_1 = load([bkgdCacheDir '/bkgd0001.mat']);
+    bkgd_prior_1 = load([priorCacheDir '/bkgd0001.mat']);
     save([outdir '/phase1_output.mat'],'bkgd_post_obsn','bkgd_post_1','bkgd_prior_obsn','bkgd_prior_1')
   end
 
