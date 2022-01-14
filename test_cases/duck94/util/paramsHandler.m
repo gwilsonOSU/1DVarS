@@ -24,7 +24,7 @@ if(length(vi)>1)
   v5i=vi(5);
   v6i=vi(6);
   v7i=vi(7);
-  if(length(vi)>7)  % vanderA has 9 params
+  if(length(vi)>7)  % vanderA has up to 9 params
     v8i=vi(8);
     v9i=vi(9);
   end
@@ -39,8 +39,10 @@ if(unpack)
     v5o=params.m    ;
     v6o=params.xi   ;
     v7o=params.alpha;
-    v8o=params.Cc   ;
-    v9o=params.Cf   ;
+    if(isfield(params,'Cc'))
+      v8o=params.Cc   ;
+      v9o=params.Cf   ;
+    end
   elseif(strcmp(sedmodel,'dubarbier'))
     v4o=params.Cw;
     v5o=params.Cc;
@@ -56,8 +58,10 @@ else
     params.m    =v5i;
     params.xi   =v6i;
     params.alpha=v7i;
-    params.Cc   =v8i;
-    params.Cf   =v9i;
+    if(exist('v8i'))
+      params.Cc   =v8i;
+      params.Cf   =v9i;
+    end
   elseif(strcmp(sedmodel,'dubarbier'))
     params.Cw=v4i;
     params.Cc=v5i;
