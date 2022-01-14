@@ -113,7 +113,7 @@ for n=1:(length(obs)-1)
   bkgd.tide=tide;
   bkgd.h =bkgd.h -tide;
   bkgd.hp=bkgd.hp-tide;
-  save([cachedir '/bkgd' num2str(n) '.mat'],'-struct','bkgd');
+  save([cachedir '/bkgd' num2str(n,'%04d') '.mat'],'-struct','bkgd');
 
   % Use the forecasted bathymetry as inputs for the next time step t(n+1).
   % Note, this code does not attempt to propagate bathymetry covariance

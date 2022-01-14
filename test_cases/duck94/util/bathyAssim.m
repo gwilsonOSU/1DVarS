@@ -34,7 +34,7 @@ function [params,diagnostics]=bathyAssim(bathyobs,priorCacheDir,bkgdCacheDir)
 % NOTE, the order of indexes in params_std is important, it must match the
 % ordering convention used by paramsHandler.m
 percError=0.1  % as a fraction, not percentage
-bkgd1=load([priorCacheDir '/bkgd1.mat']);
+bkgd1=load([priorCacheDir '/bkgd0001.mat']);
 params=bkgd1.params;
 if(strcmp(bkgd1.sedmodel,'vanderA'))
   params_std(1)=percError*params.fv   ;  % default params.fv    = 0.101
@@ -103,7 +103,7 @@ for n=1:obsnt
     ad_h(bathyobs(n).measind(i),bathyobs(n).obsn+1)=1;  % comb
 
     % initialize adjoint outputs
-    bkgd1=load([bkgdCacheDir '/bkgd1.mat']);
+    bkgd1=load([bkgdCacheDir '/bkgd0001.mat']);
     if(strcmp(bkgd1.sedmodel,'vanderA'))
       ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(9,1));  % init ad_params struct to zero
     elseif(strcmp(bkgd1.sedmodel,'dubarbier'))
@@ -124,7 +124,7 @@ for n=1:obsnt
 
     % propagate adjoint backwards from time bathyobs(n) to 1
     for n2=bathyobs(n).obsn:-1:1
-      bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2) '.mat']);
+      bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2,'%04d') '.mat']);
       bkgdn2.h=bkgdn2.h+bkgdn2.tide;
       bkgdn2.hp=bkgdn2.hp+bkgdn2.tide;
       [ad_h(:,n2),ad_H0(n2),ad_theta0(n2),ad_omega(n2),ad_ka_drag(n2),ad1_beta0,ad_tau_wind(:,:,n2),...
@@ -193,7 +193,7 @@ for n=1:obsnt
 
     % Run TL model forwards in time for full simulation period
     for n2=1:bathyobs(n).obsn
-      bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2) '.mat']);
+      bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2,'%04d') '.mat']);
       bkgdn2.h=bkgdn2.h+bkgdn2.tide;
       bkgdn2.hp=bkgdn2.hp+bkgdn2.tide;
       [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_h(:,n2+1)] = ...
@@ -252,8 +252,8 @@ if(~strcmp(priorCacheDir,bkgdCacheDir))
   tl_dSw = zeros(modelnx,1);
   tl_d50 = zeros(modelnx,1);
   tl_d90 = zeros(modelnx,1);
-  bkgd1_prior=load([priorCacheDir '/bkgd1.mat']);  % prior at time n=1
-  bkgd1      =load([bkgdCacheDir  '/bkgd1.mat']);  % current-iteration bkgd at time n=1
+  bkgd1_prior=load([priorCacheDir '/bkgd0001.mat']);  % prior at time n=1
+  bkgd1      =load([bkgdCacheDir  '/bkgd0001.mat']);  % current-iteration bkgd at time n=1
   tl_params.fv    =bkgd1_prior.params.fv    -bkgd1.params.fv    ;
   tl_params.ks    =bkgd1_prior.params.ks    -bkgd1.params.ks    ;
   tl_params.lambda=bkgd1_prior.params.lambda-bkgd1.params.lambda;
@@ -277,7 +277,7 @@ if(~strcmp(priorCacheDir,bkgdCacheDir))
     if(floor(n2/modelnt*10)>floor((n2-1)/modelnt*10))
       disp([num2str(floor(n2/modelnt*100)) '%'])
     end
-    bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2) '.mat']);  % current-iteration bkgd struct
+    bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2,'%04d') '.mat']);  % current-iteration bkgd struct
     bkgdn2.h=bkgdn2.h+bkgdn2.tide;
     bkgdn2.hp=bkgdn2.hp+bkgdn2.tide;
     [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_h(:,n2+1)] = ...
@@ -297,13 +297,13 @@ if(~strcmp(priorCacheDir,bkgdCacheDir))
   for n=1:length(bathyobs)
     thisn=bathyobs(n).obsn;
     thisind=bathyobs(n).h.ind;
-    thisbkgd=load([bkgdCacheDir '/bkgd' num2str(thisn) '.mat']);
+    thisbkgd=load([bkgdCacheDir '/bkgd' num2str(thisn,'%04d') '.mat']);
     Mf(n,:) = thisbkgd.hp(thisind) + tl_h(thisind,thisn+1);
   end
 else
   disp(['Found prior==bkgd, hence using bkgd as forecast state (skipping TL-forecast step)'])
   for n=1:length(bathyobs)
-    thisbkgd=load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn) '.mat']);
+    thisbkgd=load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
     Mf(n,:)=thisbkgd.hp(bathyobs(n).h.ind);
   end
 end
@@ -324,7 +324,7 @@ Cd  =reshape(Cd  ,[obsnt*obsno 1]);  % (nt,no) x 1
 % assimilation step, update the parameters
 ind=find(~isnan(d));
 update=CMt(:,ind)*inv(MCMt(ind,ind)+diag(Cd(ind)))*(d(ind)-Mf(ind));
-bkgd1_prior=load([priorCacheDir '/bkgd1.mat']);
+bkgd1_prior=load([priorCacheDir '/bkgd0001.mat']);
 params0=bkgd1_prior.params;
 params.fv   =params0.fv   +update(1);
 params.ks   =params0.ks   +update(2);
