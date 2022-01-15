@@ -1,4 +1,4 @@
-function bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs,cachedir,nsubsteps,doplot)
+function bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs,cachedir,nsubsteps,doplot,verb)
 %
 % bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,cachedir,nsubsteps,doplot)
 %
@@ -106,8 +106,9 @@ for n=1:(length(obs)-1)
   % 'bkgd' struct containing a forecast valid for the current time step,
   % along with updated covariances for this time step.
   dt=diff([obs(n+[0:1]).dnum_est])*24*60*60;
-  % verb=1; figure(1);
-  verb=0;
+  if(~exist('verb'))
+    verb=0;
+  end
   bkgd=hydroAssimOneStep(modelinput,thisobs,dt,nsubsteps,verb);
   bkgd.dnum_est=obs(n).dnum_est;
   bkgd.tide=tide;
