@@ -24,6 +24,12 @@
 % code and hopefully make things easier to follow.  It generates some
 % output .mat files of the results.
 %
+% NOTE: This function will use the local directory /tmp/bathyAssimCache as a
+% disk cache to work around memory limitation.  If the directory doesn't
+% exist, it will be created, and the cached data will be deleted when
+% finished..  You must have ~5GB free in /tmp, for typical runs with ~500
+% time steps.
+%
 addpath(genpath('../../src'))  % hydroSedModel.m and its dependencies
 addpath util  % helper functions
 clearvars -except duck94Case sedmodel nitermax dosave parpoolN
