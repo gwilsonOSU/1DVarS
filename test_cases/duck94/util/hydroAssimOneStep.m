@@ -49,7 +49,9 @@ function [posterior,bkgd_final]=hydroAssimOneStep(prior,obs,dt,nsubsteps,verb)
 % but reduce the time between morphodynamic updates which can improve
 % stability in some cases.
 %
-% verb = set to 1 to show diagnostic plots while assimilating data (default 0)
+% verb = set to 1 to show diagnostic plots while assimilating data, 0 to
+% just give iterations and timestep updates, -1 to just give timestep
+% updates (default 0)
 %
 % OUTPUT:
 %
@@ -466,7 +468,7 @@ for n=1:nitermax
                         posterior.dgamma,posterior.dAw,posterior.dSw,posterior.gammaType,posterior.betaType);
 
   % show the results
-  if(verb)
+  if(verb>0)
     clf
     subplot(321), hold on
     plot(prior.x,prior.h,'r')
@@ -538,7 +540,9 @@ for n=1:nitermax
     break;
   end
 
-  disp(['iteration ' num2str(n) ', itermax = ' num2str(nitermax) ', eps = ' num2str(eps)])
+  if(verb>=0)
+    disp(['iteration ' num2str(n) ', itermax = ' num2str(nitermax) ', eps = ' num2str(eps)])
+  end
 end  % outer loop iterations
 
 % finalize posterior covariances
@@ -560,7 +564,9 @@ posterior.CdSw    =C2(3*nx+3+[1:nx],3*nx+3+[1:nx]);
 % include all sub-steps since it will be used in TL-AD below for propagating
 % the covariance.
 posterior0=posterior;
-disp('running deterministic forecast')
+if(verb>=0)
+  disp('running deterministic forecast')
+end
 bkgd = hydroSedModel(posterior.x,posterior.h,...
                      posterior.H0,posterior.theta0,posterior.omega,...
                      posterior.ka_drag,posterior.beta0,posterior.tau_wind,posterior.detady,...
