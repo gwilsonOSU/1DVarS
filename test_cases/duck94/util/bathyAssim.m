@@ -5,12 +5,6 @@ function [params,diagnostics]=bathyAssim(bathyobs,priorCacheDir,bkgdCacheDir)
 % Phase-2 assimilation.  Use bathymetry observations to correct sediment
 % transport parameters.
 %
-% NOTE: This function will use the local directory /tmp/bathyAssimCache as a
-% disk cache to work around memory limitation.  If the directory doesn't
-% exist, it will be created, and the cached data will be deleted when
-% finished..  You must have ~5GB free in /tmp, for typical runs with ~500
-% time steps.
-%
 % INPUTS:
 %
 % bathyobs = bathymetry observations to be assimilated, produced by prepObsData.m
@@ -88,6 +82,7 @@ for n=1:obsnt
   parforCounterFile=strtrim(parforCounterFile);
   starttime=now;
   clear MCMt_thisn  % parfor requires careful handling of MCMt
+  pctRunOnAll warning('off','all')
   parfor i=1:obsno
     % if(floor(i/obsno*10)>floor((i-1)/obsno*10))
     %   disp(['  checkpoint ' num2str(floor(i/obsno*10)) ' of 10'])
@@ -105,7 +100,11 @@ for n=1:obsnt
     % initialize adjoint outputs
     bkgd1=load([bkgdCacheDir '/bkgd0001.mat']);
     if(strcmp(bkgd1.sedmodel,'vanderA'))
-      ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(9,1));  % init ad_params struct to zero
+      if(isfield(bkgd1.params,'Cc'))
+        ad_params=paramsHandler(0,sedmodel,zeros(9,1));  % init ad_params struct to zero
+      else
+        ad_params=paramsHandler(0,sedmodel,zeros(7,1));  % init ad_params struct to zero
+      end
     elseif(strcmp(bkgd1.sedmodel,'dubarbier'))
       ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(7,1));  % init ad_params struct to zero
     end
