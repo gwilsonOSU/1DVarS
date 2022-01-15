@@ -2,11 +2,15 @@ function [v1o,v2o,v3o,v4o,v5o,v6o,v7o,v8o,v9o]=paramsHandler(unpack,sedmodel,vi)
 %
 % USAGE-STYLE-1:
 %
-%   [fv,ks,lambda,n,m,xi,alpha,Cc,Cf]=paramsHandler(1,'vanderA',params)
+%   [fv,ks,lambda,n,m,xi,alpha,Cc,Cf] = paramsHandler(1,'vanderA',params_struct)
+%
+% USAGE-STYLE-1b:
+%
+%   params_vec = paramsHandler(1,'vanderA',params_struct);  % vector has same order of params as above
 %
 % USAGE-STYLE-2:
 %
-%   params=paramsHandler(1,'vanderA',[fv ks lambda n m xi alpha Cc Cf])
+%   params_struct = paramsHandler(1,'vanderA',[fv ks lambda n m xi alpha Cc Cf])
 %
 % Helper function to unpack and re-pack params struct for van der A model.
 % This was needed as a hack to avoid "cannot be classified" error when using
@@ -48,6 +52,17 @@ if(unpack)
     v5o=params.Cc;
     v6o=params.Cf;
     v7o=params.Ka;
+  end
+  if(nargout==1)  % vector output
+    v1o=[v1o v2o v3o];
+    if(strcmp(sedmodel,'vanderA'))
+      v1o=[v1o v4o v5o v6o v7o];
+      if(isfield(params,'Cc'))
+        v1o=[v1o v8o v9o];
+      end
+    elseif(strcmp(sedmodel,'dubarbier'))
+      v1o=[v1o v4o v5o v6o v7o];
+    end
   end
 else
   params.fv=v1i;
