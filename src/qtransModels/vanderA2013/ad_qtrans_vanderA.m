@@ -796,11 +796,11 @@ ad_t1c   =ad_t1c   + .5*.125*worb1c/sqrt(t1c)*ad_worbc;
 ad_worb2c=ad_worb2c+ sin(t2c)                *ad_worbc;
 ad_t2c   =ad_t2c   + worb2c*cos(t2c)         *ad_worbc;
 ad_worbc=0;
-%18 tl_t2t = 2/sqrt(1-t2ta^2)*tl_t2ta;
-ad_t2ta=ad_t2ta+ 2/sqrt(1-t2ta^2)*ad_t2t;
+%18 tl_t2t = -2/sqrt(1-t2ta^2)*tl_t2ta;
+ad_t2ta=ad_t2ta- 2/sqrt(1-t2ta^2)*ad_t2t;
 ad_t2t=0;
-%17 tl_t2c = 2/sqrt(1-t2ca^2)*tl_t2ca;
-ad_t2ca=ad_t2ca+ 2/sqrt(1-t2ca^2)*ad_t2c;
+%17 tl_t2c = -2/sqrt(1-t2ca^2)*tl_t2ca;
+ad_t2ca=ad_t2ca- 2/sqrt(1-t2ca^2)*ad_t2c;
 ad_t2c=0;
 %16 tl_t2ta = .125*tl_t2tb/worb2t ...
 %           - .125*t2tb/worb2t^2*tl_worb2t;
@@ -1306,9 +1306,9 @@ else
 end
 
 % %b6 critical shields param, Soulsby
-%2 tl_theta_cr = .3/(1+1.2*Dstar)^2*(1.2*tl_Dstar) ...
+%2 tl_theta_cr = -.3/(1+1.2*Dstar)^2*(1.2*tl_Dstar) ...
 %     - 0.055*exp(-.02*Dstar)*(-.02*tl_Dstar);
-ad_Dstar=ad_Dstar+ .3/(1+1.2*Dstar)^2*1.2     *ad_theta_cr;
+ad_Dstar=ad_Dstar- .3/(1+1.2*Dstar)^2*1.2     *ad_theta_cr;
 ad_Dstar=ad_Dstar+ 0.055*exp(-.02*Dstar)*.02  *ad_theta_cr;
 ad_theta_cr=0;
 %1 tl_Dstar=(g*(s-1)/nu^2)^(1/3)*tl_d50;
