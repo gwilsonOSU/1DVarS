@@ -131,59 +131,73 @@ param.streamingType='v';  % choose either 'n' or 'v'.  NOTE, should test both
 % inoutvar='term3';
 % inoutvar='qs';
 
-load ~/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
-waves=posterior;
-physicalConstants;
 
-% define bkgd variables
-x=waves.x;
-nx=length(x);
-d50=180e-6*ones(nx,1);
-d90=400e-6*ones(nx,1);
-h=filtfilt(ones(5,1)/5,1,waves.h);
-tanbeta=calcTanbeta(x,h);
-Hrms=waves.H;
-Ew=waves.E*rho;
-Er=waves.Er*rho;
-Dr=waves.eps_r*rho;
-ubar(:,1)=-(waves.E+2*waves.Er)./(waves.c.*waves.h);
-ubar(:,2)=waves.v;
-omega=waves.sigma;
-kabs=waves.k;
-kvec(:,1)=waves.k.*cos(waves.theta);
-kvec(:,2)=waves.k.*sin(waves.theta);
-theta=waves.theta;
-windW=zeros(length(x),2);
-detady=zeros(length(x),2);
-ws=ws_brownLawler(d50);
-kabs=sqrt(sum(kvec.^2,2));
-[Aw,Sw,Uw,uwave_wksp]=Uwave_ruessink2012_params(1.4*Hrms,kabs,omega,h);
+% select qtrans model to be tested
+% sedmodel='dubarbier';
+sedmodel='vanderA';
+% sedmodel='soulsbyVanRijn';
 
-% reniers model for udelta
+% Use one of the duck94 test case at time step 'targetn' as background
+% state.  Note, model input data are pre-cached as mat-file.
+duck94Case='c'; targetn=250;
+% duck94Case='b'; targetn=200;
+load(['../../../../test_cases/duck94/obsdataCache/obsdata_case' duck94Case '.mat']);
+modelinput=initModelInputs(duck94Case,grid,sedmodel);
+
+% extract relevant model inputs for time step 'targetn'
+dt=diff([hydroobs(targetn+[0 1]).dnum_est])*24*3600;
+nsubsteps=1;
+x=grid.x;
 nx=length(x);
-param.fv=.1;
-param.ks=.0083;
-udelta=zeros(nx,2);  % init
-delta=.2*ones(nx,1);  % init
+H0    =interp1(waves8m.dnum_est,waves8m.Hrms  ,hydroobs(targetn).dnum_est);
+theta0=interp1(waves8m.dnum_est,waves8m.theta0,hydroobs(targetn).dnum_est);
+omega =interp1(waves8m.dnum_est,waves8m.sigmam,hydroobs(targetn).dnum_est);
+tau_wind=interp1(windEOP.dnum_est,windEOP.tau,hydroobs(targetn).dnum_est);
+tau_wind=repmat(tau_wind,nx,1);
+dgamma=ones(nx,1)*.01;
+dAw=ones(nx,1)*.01;
+dSw=ones(nx,1)*.01;
+detady=ones(nx,1)*.001;
+tide=interp1(waves8m.dnum_est,waves8m.tide,hydroobs(targetn).dnum_est);
+d50      =modelinput.d50      ;
+d90      =modelinput.d90      ;
+ka_drag  =modelinput.ka_drag  ;
+beta0    =modelinput.beta0    ;
+betaType =modelinput.betaType ;
+gammaType=modelinput.gammaType;
+param=modelinput.params;
+h=grid.h+tide;
+h(h<.5)=.5;  % min depth constraint
+
+% OPTIONAL: override default hydro model formulations to test their TL-AD
+% gammaType=2003;
+% betaType='const';
+% param.streamingType='v';  % choose either 'n' or 'v'
+
+% run hydro models to get inputs
+[Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd]=hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType);
+Hmo=1.4*Hrms;
+[Aw,Sw,Uw,uwave_bkgd]=Uwave_ruessink2012_params(Hmo,kabs,omega,h);
+rho=1030;
+c=omega./kabs;
+kvec=cat(2,kabs(:).*cos(theta(:)),kabs(:).*sin(theta(:)));
+ubarx=-(Ew+2*Er)./(rho*c.*h);  % e.g., Dubarbier et al. (2015) eqn 8
+ubar(:,1)=ubarx;
+ubar(:,2)=vbar;
+delta=ones(nx,1)*.2;  % init
+udelta=zeros(nx,2);   % init
 for i=1:nx
   if(Dr(i)>0)
     [udelta(i,:),delta(i),udel_bkgd(i)]= ...
         udelta_reniers2004(ubar(i,:),kvec(i,:),omega,...
                            h(i),Hrms(i),detady(i),...
-                           windW(i,:),Dr(i),param.fv,param.ks,d50);
+                           tau_wind(i,:),Dr(i),param.fv,param.ks,d50);
   end
 end
 tanbeta=calcTanbeta(x,h)';
+ws=ws_brownLawler(.8*d50);
 
 % bkgd NL model run
-param.n=1.2;
-param.m=11;
-param.xi=1;  % ??? tuning parameter, O(1) according to Kranenburg (2013)
-param.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
-param.fv=0.1;  % breaking-induced eddy viscosity calibration parameter, see
-                % Reniers et al. (2004) Table 4.  Scalar, of order 0.1 (default)
-% param.Cc=0.01;  % comment out to use automatic above-WBL suspended sediment option (recommended)
-% param.Cf=0.01;  % stirring+slope effect
 [Q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param);
 
 % apply TL and ADJ models for n instances of random forcing/perturbations F
