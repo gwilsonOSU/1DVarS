@@ -188,9 +188,8 @@ else
 end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
-Dr(Dr==0)=min([0; Dr(Dr>0)]);
-delta_bl=ones(nx,1)*.2;  % init
-udelta=zeros(nx,2);   % init
+delta_bl=ones(nx,1)*.05;  % init
+udelta=ubar;   % init
 for i=1:nx
   if(Dr(i)>0)
     [udelta(i,:),delta_bl(i),udel_bkgd(i)]= ...
@@ -284,7 +283,8 @@ if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   dQdx=nan(nx,1);
 else
   dQdx=ddx_upwind(x,Qx,horig);
-  dh=dQdx*dt;  % use ddx_upwind() result
+  % dQdx=ddx_centered(x,Qx);
+  dh=dQdx*dt;
   qp=nan(nx,1);
 end
 dh=dh.*wgt;   % apply damping near shore
@@ -344,7 +344,7 @@ vname{end+1}='udel_bkgd';
 vname{end+1}='hydro_bkgd';
 vname{end+1}='uwave_bkgd';
 vname{end+1}='bkgd_qtrans';
-vname{end+1}='delta';
+vname{end+1}='delta_bl';
 vname{end+1}='udelta';
 vname{end+1}='udelta_w';
 vname{end+1}='vbar';
