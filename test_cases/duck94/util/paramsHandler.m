@@ -10,14 +10,20 @@ function [v1o,v2o,v3o,v4o,v5o,v6o,v7o,v8o,v9o]=paramsHandler(unpack,sedmodel,vi)
 %
 % USAGE-STYLE-2:
 %
-%   params_struct = paramsHandler(1,'vanderA',[fv ks lambda n m xi alpha Cc Cf])
+%   params_struct = paramsHandler(0,'vanderA',[fv ks lambda n m xi alpha Cc Cf])
+%
+% 1st input 0 or 1 says whether to:
+%    0) pack the inputs into a struct for output, or
+%    1) unpack the input-struct and output scalar parameters
 %
 % Helper function to unpack and re-pack params struct for van der A model.
-% This was needed as a hack to avoid "cannot be classified" error when using
-% parfor in full-run assimilation tests
+% This is needed to avoid "cannot be classified" errors when using parfor in
+% full-run assimilation tests.  It also helps keep the order of parameters
+% clearly defined when switching between struct and vector representations,
+% important for assimlation and inversion codes.
 %
-% The variable names in params struct change depending on 'sedmodel'.  The
-% example above is for sedmodel=='vanderA'.
+% The variable names in the params struct (input or output) change depending
+% on 'sedmodel'.  The examples above are for sedmodel=='vanderA'.
 %
 
 if(length(vi)>1)
