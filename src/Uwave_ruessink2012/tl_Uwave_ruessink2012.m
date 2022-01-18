@@ -34,7 +34,7 @@ tl_B = 1./sqrt(Aw.^2 + Sw.^2).*(Aw.*tl_Aw+Sw.*tl_Sw);
 tl_psi = 1./(1+(Aw./Sw).^2).*( tl_Aw./Sw - Aw./Sw.^2.*tl_Sw );
 
 % phi parameter, eqn (12)
-tl_phi = -tl_psi;  % verified
+tl_phi = -tl_psi;
 
 % r parameter, 2-step inversion.  First solve for b as a function of B, then
 % solve for r as a function of b.  TL code then follows based on derivation
