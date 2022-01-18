@@ -382,12 +382,7 @@ ad_udelta_w(:,1)=0;
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
 for i=nx:-1:1
-  if(Dr(i)==0)
-    %11a2 tl_delta_bl(i)=0;
-    ad_delta_bl(i)=0;
-    %11a1 tl_udelta(i,:)=[0 0];
-    ad_udelta(i,:)=[0 0];
-  else
+  if(Dr(i)>0)
     %11b1 [tl_udelta(i,:),tl_delta_bl(i)] = ...
     %     tl_udelta_reniers2004(tl_ubar(i,:),tl_k(i,:),tl_omega,...
     %                           tl_h(i),tl_Hrms(i),tl_detady(i),...
@@ -413,6 +408,11 @@ for i=nx:-1:1
     ad_delta_bl(i)=0;
   end
 end
+% tl_delta_bl=zeros(nx,1);  % init
+ad_delta_bl=zeros(nx,1);
+% tl_udelta=tl_ubar;   % init
+ad_ubar = ad_ubar + ad_udelta;
+ad_udelta=0;
 
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
 % prior to calculation of undertow (udelta)
