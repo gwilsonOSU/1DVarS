@@ -126,8 +126,8 @@ else
 end
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
-tl_delta_bl=ones(nx,1)*.2;  % init
-tl_udelta=zeros(nx,2);   % init
+tl_delta_bl=zeros(nx,1);  % init
+tl_udelta=tl_ubar;   % init
 for i=1:nx
   if(Dr(i)>0)
     [tl_udelta(i,:),tl_delta_bl(i)] = ...
@@ -193,6 +193,7 @@ if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   tl_dQdx=zeros(nx,1);
 else
   tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
+  % tl_dQdx = tl_ddx_centered(tl_Qx,x,Qx);
   tl_dh = tl_dQdx*dt;
   tl_qp = zeros(nx,1);
 end
