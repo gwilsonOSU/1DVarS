@@ -192,7 +192,7 @@ A=zeros(nx);
 for i=2:nx-1
   A(i,i+[-1:1])=[1 -2 1]/dx^2*nu*h(i);
 end
-A(1,1:2)=0; %[-2 1]/dx^2*nu*h(1);
+A(1,1:2)=0;%[-2 1]/dx^2*nu*h(1);
 A(nx,nx-1:nx)=[1 -2]/dx^2*nu*h(nx);
 
 % v2: nonlinear solution with mixing
@@ -200,6 +200,8 @@ v0=vbar;
 opt=optimset('Display','off');
 vbar = fsolve(@(vbar)Fy + Cd.*urms.*vbar.*sqrt(a^2+(vbar./urms).^2) - A*vbar,v0,opt);
 vbar=real(vbar);
+
+Dr(1)=Dr(2);
 
 % outputs struct
 bkgd.x=x;
@@ -227,6 +229,7 @@ bkgd.Qb=Qb;
 bkgd.dSxydx=dSxydx;
 bkgd.Fy=Fy;
 bkgd.vbar=real(vbar);
+bkgd.Cd=Cd;
 bkgd.detady=detady;
 bkgd.beta=beta;
 bkgd.gammaType=gammaType; % hydroParams.m

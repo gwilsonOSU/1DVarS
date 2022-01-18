@@ -99,6 +99,10 @@ ad_beta0=0;
 %   ad_Hrms=zeros(nx,1);
 % end
 
+% tl_Dr(1)=tl_Dr(2);
+ad_Dr(2)=ad_Dr(2)+ad_Dr(1);
+ad_Dr(1)=0;
+
 %b7 % bottom stress model following Ruessink et al. (2001), Feddersen et
 % % al. (2000).  To get TL model, differentiate the eqn for vbar (i.e., the
 % % fsolve() line in waveModel.m) on both sides, then solve for tl_vbar

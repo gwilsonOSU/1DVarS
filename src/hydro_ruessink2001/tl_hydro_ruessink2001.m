@@ -236,7 +236,7 @@ A=zeros(nx);
 for i=2:nx-1
   A(i,i+[-1:1])=[1 -2 1]/dx^2*nu*h(i);
 end
-A(1,1:2)=0; %[-2 1]/dx^2*nu*h(1);
+A(1,1:2)=0;%[-2 1]/dx^2*nu*h(1);
 A(nx,nx-1:nx)=[1 -2]/dx^2*nu*h(nx);
 
 % bottom stress model following Ruessink et al. (2001), Feddersen et
@@ -257,6 +257,8 @@ if(nu==0)
 else
   tl_vbar = inv(diag(dens)+A)*tl_N;  % tl_N = (dens + A) * tl_vbar
 end
+
+tl_Dr(1)=tl_Dr(2);
 
 % % TEST-CODE: override output variable
 % eval(['tl_Hrms = tl_' outvar ';']);
