@@ -192,13 +192,12 @@ tl_uhat=.5./sqrt(2*uw2mean)*2.*tl_uw2mean;
 
 % timing of wave velocity direction change, crest, and trough, based on
 % Ruessink et al 2012.
-asinarg=-r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2));
+asinarg = -r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2));
 tl_asinarg = -tl_r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)) ...
     - r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))*tl_phi_r2012 ...
-    + r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)).^2.*( ...
-        .5./sqrt(1-r_r2012^2)*(-2*r_r2012*tl_r_r2012) );
+    + r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2))^2*( .5/sqrt(1-r_r2012^2)*(-2*r_r2012*tl_r_r2012) );
 % phiuc=asin(asinarg)/omega;   % phase at first upcrossing
-tl_phiuc = 1./sqrt(1-asinarg^2)/omega*tl_asinarg - asinarg/omega^2*tl_omega;
+tl_phiuc = 1./sqrt(1-asinarg^2)/omega*tl_asinarg - asin(asinarg)/omega^2*tl_omega;
 % phidc=pi-phiuc;  % phase at first downcrossing
 tl_phidc=-tl_phiuc;
 % tuc=phiuc/omega;  % time of first upcrossing

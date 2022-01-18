@@ -1371,9 +1371,9 @@ ad_tuc=0;
 %3 tl_phidc=-tl_phiuc;
 ad_phiuc=ad_phiuc-ad_phidc;
 ad_phidc=0;
-%2 tl_phiuc = 1./sqrt(1-asinarg^2)/omega*tl_asinarg - asinarg/omega^2*tl_omega;
+%2 tl_phiuc = 1./sqrt(1-asinarg^2)/omega*tl_asinarg - asin(asinarg)/omega^2*tl_omega;
 ad_asinarg=ad_asinarg+ 1./sqrt(1-asinarg^2)/omega*ad_phiuc;
-ad_omega  =ad_omega  - asinarg/omega^2           *ad_phiuc;
+ad_omega  =ad_omega  - asin(asinarg)/omega^2     *ad_phiuc;
 ad_phiuc=0;
 %1 tl_asinarg = -tl_r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)) ...
 %     - r_r2012*cos(phi_r2012)/(1+sqrt(1-r_r2012^2))*tl_phi_r2012 ...
