@@ -39,58 +39,48 @@ clear
 % inoutvar='delta_bl';  % ok
 % inoutvar='hp';
 
-load ~wilsongr/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
-waves=posterior;
-physicalConstants;
 
-% select dubarbier or vanderA qtrans model
+% select qtrans model to be tested
 % sedmodel='dubarbier';
 sedmodel='vanderA';
 % sedmodel='soulsbyVanRijn';
 
-if(strcmp(sedmodel,'dubarbier'))
-  params.Cw=0.00483 ;
-  params.Cc=0.02002 ;
-  params.Cf=0.01173 ;
-  params.Ka=0.631e-4;
-elseif(strcmp(sedmodel,'vanderA'))
-  params.n=1.2;
-  params.m=11;
-  params.xi=1;  % ??? tuning parameter, O(1) according to Kranenburg (2013)
-  params.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
-  % params.Cc=0.01;  % comment out to use option of automatic above-WBL transport (recommended)
-  % params.Cf=0.01;
-elseif(strcmp(sedmodel,'soulsbyVanRijn'))
-  params.alphab=1.6;
-  params.facua =1.0;
-else
-  error(['invalid sedmodel=' sedmodel])
-end
+% Use one of the duck94 test case at time step 'targetn' as background
+% state.  Note, model input data are pre-cached as mat-file.
+duck94Case='c'; targetn=250;
+% duck94Case='b'; targetn=200;
+load(['../../test_cases/duck94/obsdataCache/obsdata_case' duck94Case '.mat']);
+modelinput=initModelInputs(duck94Case,grid,sedmodel);
 
-% define input variables
-dt=60*60;  % one hour time step
+% extract relevant model inputs for time step 'targetn'
+dt=diff([hydroobs(targetn+[0 1]).dnum_est])*24*3600;
 nsubsteps=1;
-params.fv=0.1;  % breaking-induced eddy viscosity calibration parameter
-params.ks=0.0082;  % undertow bed roughness calibration parameter
-params.lambda=1.5;
-x=waves.x;
+x=grid.x;
 nx=length(x);
-h=flipud(filtfilt(ones(5,1)/5,1,waves.h));
-h(h<=.5)=.5;
-H0=waves.H0;
-theta0=waves.theta0;
-omega=waves.sigma;
-ka_drag=waves.ka_drag;
-tau_wind=ones(nx,2)*.0001;
+H0    =interp1(waves8m.dnum_est,waves8m.Hrms  ,hydroobs(targetn).dnum_est);
+theta0=interp1(waves8m.dnum_est,waves8m.theta0,hydroobs(targetn).dnum_est);
+omega =interp1(waves8m.dnum_est,waves8m.sigmam,hydroobs(targetn).dnum_est);
+tau_wind=interp1(windEOP.dnum_est,windEOP.tau,hydroobs(targetn).dnum_est);
+tau_wind=repmat(tau_wind,nx,1);
+dgamma=ones(nx,1)*.01;
+dAw=ones(nx,1)*01;
+dSw=ones(nx,1)*01;
 detady=ones(nx,1)*.0001;
-dgamma=zeros(nx,1);
-dAw   =ones(nx,1)*+.01;
-dSw   =ones(nx,1)*-.01;
-d50=180e-6*ones(nx,1);
-d90=400e-6*ones(nx,1);
-gammaType=2003;
-betaType='const';
-beta0=0.1;
+tide=interp1(waves8m.dnum_est,waves8m.tide,hydroobs(targetn).dnum_est);
+d50      =modelinput.d50      ;
+d90      =modelinput.d90      ;
+ka_drag  =modelinput.ka_drag  ;
+beta0    =modelinput.beta0    ;
+betaType =modelinput.betaType ;
+gammaType=modelinput.gammaType;
+params=modelinput.params;
+h=grid.h+tide;
+h(h<.75)=.75;  % min depth constraint
+
+% OPTIONAL: override default hydro model formulations to test their TL-AD
+% gammaType=2003;
+% betaType='const';
+% param.streamingType='v';  % choose either 'n' or 'v'
 
 % background NL model run
 [Hrms,vbar,theta,kabs,Qx,hpout,bkgd] = ...

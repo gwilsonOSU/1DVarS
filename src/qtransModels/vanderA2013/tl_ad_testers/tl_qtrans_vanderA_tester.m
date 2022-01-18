@@ -4,75 +4,82 @@
 clear
 addpath(genpath('../../..'));
 
-% % TEST: choose output variable to test
-% outvarlist={};
-% % outvarlist{end+1}='phi_r2012';
-% % outvarlist{end+1}='r_r2012';
+% TEST: choose output variable to test
+outvarlist={};
+% outvarlist{end+1}='phi_r2012';
+% outvarlist{end+1}='r_r2012';
 % % outvarlist{end+1}='uhat';
 % % outvarlist{end+1}='T';
-% % outvarlist{end+1}='Tc';  % slight bias
-% % outvarlist{end+1}='Tt';
-% % outvarlist{end+1}='Tcu';
-% % outvarlist{end+1}='Ttu';
-% % outvarlist{end+1}='uhatc';
-% % outvarlist{end+1}='uhatt';
-% % outvarlist{end+1}='Dstar';
-% % outvarlist{end+1}='theta_cr';  % fixed
-% % outvarlist{end+1}='ahat';
-% % outvarlist{end+1}='utildecr';
-% % outvarlist{end+1}='utildetr';
-% % outvarlist{end+1}='psihatc';
-% % outvarlist{end+1}='psihatt';
-% % outvarlist{end+1}='nlambda';
-% % outvarlist{end+1}='eta';
-% % outvarlist{end+1}='lambda';
-% % outvarlist{end+1}='alpha';
-% % outvarlist{end+1}='ksd';
-% % outvarlist{end+1}='fwc';
-% % outvarlist{end+1}='fwdc';
-% % outvarlist{end+1}='fwdt';
-% % % outvarlist{end+1}='ucrvec';
-% % % outvarlist{end+1}='utrvec';
-% % outvarlist{end+1}='ucrabs';
-% % outvarlist{end+1}='utrabs';
-% % outvarlist{end+1}='thetac';
-% % outvarlist{end+1}='thetat';
-% % outvarlist{end+1}='streamingEffect';
-% % outvarlist{end+1}='thetacx';
-% % outvarlist{end+1}='thetatx';
-% % outvarlist{end+1}='thetahatc';
-% % outvarlist{end+1}='thetahatt';
-% % outvarlist{end+1}='b';
-% % outvarlist{end+1}='RR';
-% % outvarlist{end+1}='worb1c';
-% % outvarlist{end+1}='worb1t';
-% % outvarlist{end+1}='worb2c';
-% % outvarlist{end+1}='worb2t';
-% % outvarlist{end+1}='t1ca';
-% % outvarlist{end+1}='t1ta';
-% % outvarlist{end+1}='t1cb';
-% % outvarlist{end+1}='t1tb';
-% % outvarlist{end+1}='t1c';
-% % outvarlist{end+1}='t1t';
-% % outvarlist{end+1}='t2cb';
-% % outvarlist{end+1}='t2tb';
-% % outvarlist{end+1}='t2ca';
-% % outvarlist{end+1}='t2ta';
-% % outvarlist{end+1}='t2c';
-% % outvarlist{end+1}='t2t';
-% % outvarlist{end+1}='worbc';
-% % outvarlist{end+1}='worbt';
-% % outvarlist{end+1}='wsc';
-% % outvarlist{end+1}='wst';
-% % outvarlist{end+1}='Pc';
-% % outvarlist{end+1}='Pt';
-% % outvarlist{end+1}='qsc';
-% % outvarlist{end+1}='qst';
+% outvarlist{end+1}='phidc';
+% outvarlist{end+1}='phiuc';
+% outvarlist{end+1}='tdc';  % sometimes off
+% outvarlist{end+1}='tuc';
+% outvarlist{end+1}='Tc';
+% outvarlist{end+1}='Tt';
+% outvarlist{end+1}='Tcu';
+% outvarlist{end+1}='Ttu';
+% outvarlist{end+1}='uhatc';
+% outvarlist{end+1}='uhatt';
+% outvarlist{end+1}='Dstar';
+% outvarlist{end+1}='theta_cr';
+% outvarlist{end+1}='ahat';  % small bias
+% outvarlist{end+1}='utildecr';
+% outvarlist{end+1}='utildetr';
+% outvarlist{end+1}='psihatc';  % small bias
+% outvarlist{end+1}='psihatt';  % small bias
+% outvarlist{end+1}='nlambda';
+% outvarlist{end+1}='eta';
+% outvarlist{end+1}='lambda';
+% outvarlist{end+1}='alpha';
+% outvarlist{end+1}='ksd';
+% outvarlist{end+1}='fwc';
+% outvarlist{end+1}='fwdc';
+% outvarlist{end+1}='fwdt';
+% % outvarlist{end+1}='ucrvec';
+% % outvarlist{end+1}='utrvec';
+% outvarlist{end+1}='ucrabs';
+% outvarlist{end+1}='utrabs';
+% outvarlist{end+1}='thetac';
+% outvarlist{end+1}='thetat';
+% outvarlist{end+1}='streamingEffect';
+% outvarlist{end+1}='thetacx';
+% outvarlist{end+1}='thetatx';
+% outvarlist{end+1}='thetahatc';
+% outvarlist{end+1}='thetahatt';
+% outvarlist{end+1}='b';
+% outvarlist{end+1}='RR';
+% outvarlist{end+1}='deltasc';
+% outvarlist{end+1}='etawc';
+% outvarlist{end+1}='worb1c';
+% outvarlist{end+1}='worb1t';
+% outvarlist{end+1}='worb2c';
+% outvarlist{end+1}='worb2t';
+% outvarlist{end+1}='t1ca';
+% outvarlist{end+1}='t1ta';
+% outvarlist{end+1}='t1cb';
+% outvarlist{end+1}='t1tb';
+% outvarlist{end+1}='t1c';
+% outvarlist{end+1}='t1t';
+% outvarlist{end+1}='t2cb';
+% outvarlist{end+1}='t2tb';
+% outvarlist{end+1}='t2ca';
+% outvarlist{end+1}='t2ta';
+% outvarlist{end+1}='t2c';
+% outvarlist{end+1}='t2t';
+% outvarlist{end+1}='worbc';
+% outvarlist{end+1}='worbt';
+% outvarlist{end+1}='wsc';
+% outvarlist{end+1}='wst';
+% outvarlist{end+1}='Pc';
+% outvarlist{end+1}='Pt';
+% outvarlist{end+1}='qsc';
+% outvarlist{end+1}='qst';
 % outvarlist{end+1}='qsCc';
 % outvarlist{end+1}='qsCf';
 % outvarlist{end+1}='qs';
 % for ii=1:length(outvarlist)
 %   outvar=outvarlist{ii};
+%   for jj=1
 %   disp(outvar)
 
 % select qtrans model to be tested
@@ -82,8 +89,8 @@ sedmodel='vanderA';
 
 % Use one of the duck94 test case at time step 'targetn' as background
 % state.  Note, model input data are pre-cached as mat-file.
-duck94Case='c'; targetn=250;
-% duck94Case='b'; targetn=200;
+% duck94Case='c'; targetn=250;
+duck94Case='b'; targetn=200;
 load(['../../../../test_cases/duck94/obsdataCache/obsdata_case' duck94Case '.mat']);
 modelinput=initModelInputs(duck94Case,grid,sedmodel);
 
@@ -98,9 +105,9 @@ omega =interp1(waves8m.dnum_est,waves8m.sigmam,hydroobs(targetn).dnum_est);
 tau_wind=interp1(windEOP.dnum_est,windEOP.tau,hydroobs(targetn).dnum_est);
 tau_wind=repmat(tau_wind,nx,1);
 dgamma=ones(nx,1)*.01;
-dAw=ones(nx,1)*.01;
-dSw=ones(nx,1)*.01;
-detady=ones(nx,1)*.001;
+dAw=ones(nx,1)*01;
+dSw=ones(nx,1)*01;
+detady=ones(nx,1)*.0001;
 tide=interp1(waves8m.dnum_est,waves8m.tide,hydroobs(targetn).dnum_est);
 d50      =modelinput.d50      ;
 d90      =modelinput.d90      ;
@@ -110,7 +117,7 @@ betaType =modelinput.betaType ;
 gammaType=modelinput.gammaType;
 param=modelinput.params;
 h=grid.h+tide;
-h(h<.5)=.5;  % min depth constraint
+h(h<.75)=.75;  % min depth constraint
 
 % OPTIONAL: override default hydro model formulations to test their TL-AD
 % gammaType=2003;
@@ -144,7 +151,7 @@ ws=ws_brownLawler(.8*d50);
 [q,bkgd]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param);%,outvar);
 
 % choose reasonable perturbations
-frac_tl = 0.001;
+frac_tl = 0.01;
 myrand=@()2*(rand(1)-.5);
 tl_h          =[bkgd.h      ]'    *frac_tl*myrand();
 tl_d50        =[bkgd.d50    ]'    *frac_tl*myrand();
@@ -195,9 +202,10 @@ tl_q = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,...
                          tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd);%,outvar);
 
 % compare scatter
+imax=150;  % ignore shoreline
 clf
 subplot(121)
-plot(tl_q_true,tl_q,'.')
+plot(tl_q_true(1:imax),tl_q(1:imax),'.')
 hold on
 axis equal tight
 ax=axis;
@@ -211,7 +219,9 @@ subplot(122), hold on
 plot(tl_q_true)
 plot(tl_q)
 legend('true','predicted')
+xlim([1 imax])
 
 % drawnow;
 % pause(.1);
+% end
 % end

@@ -4,82 +4,92 @@
 clear
 
 % TEST: specify output variable to override
-% outvar='k';
-% outvar='omega';
-% outvar='h';
-% outvar='Hrms';
-% outvar='detady';
-% outvar='tau_wind(:,1)';
-% outvar='Dr';  %ok
-% outvar='params.fv';
-% outvar='params.ks';
-% outvar='d50';
-% outvar='vbar';  %ok
-% outvar='ubarx';  %ok
-% outvar='hp';  %ok!
-% outvar='h';  %ok
-% outvar='tanbeta';  %ok
-% outvar='Hrms';  %ok
-% outvar='kabs';  %ok
-% outvar='omega';  %input, ok
-% outvar='udelta_w(:,1)';  % biased, but ok is due to udelta_reniers
-% outvar='udelta_w(:,2)';  %ok
-% outvar='ws';
-% outvar='Aw';  %ok
-% outvar='Sw';  %ok
-% outvar='Uw';  %ok
+% outvarlist={};
+% outvarlist{end+1}='Hmo';
+% outvarlist{end+1}='Aw';
+% outvarlist{end+1}='Sw';
+% outvarlist{end+1}='Uw';
+% outvarlist{end+1}='k(:,1)';
+% outvarlist{end+1}='k(:,2)';
+% outvarlist{end+1}='c ';
+% outvarlist{end+1}='ubarx ';
+% outvarlist{end+1}='vbar';
+% outvarlist{end+1}='ws ';
+% outvarlist{end+1}='xb ';
+% outvarlist{end+1}='ubar(:,1) ';
+% outvarlist{end+1}='ubar(:,2) ';
+% outvarlist{end+1}='delta_bl';
+% outvarlist{end+1}='udelta(:,1)';
+% outvarlist{end+1}='udelta(:,2)';
+% outvarlist{end+1}='udelta_w(:,1)';
+% outvarlist{end+1}='udelta_w(:,2)';
+% outvarlist{end+1}='tanbeta ';
+% outvarlist{end+1}='ur(:,2)';
+% outvarlist{end+1}='udelta_w(:,1)';
+% outvarlist{end+1}='udelta_w(:,2)';
+% outvarlist{end+1}='Q0 ';
+% outvarlist{end+1}='d50';
+% outvarlist{end+1}='d90';
+% outvarlist{end+1}='h';
+% outvarlist{end+1}='tanbeta';
+% outvarlist{end+1}='Hrms';
+% outvarlist{end+1}='kabs';
+% outvarlist{end+1}='omega';
+% outvarlist{end+1}='delta_bl';
+% outvarlist{end+1}='Q1';
+% outvarlist{end+1}='Q ';
+% outvarlist{end+1}='Qx ';
+% outvarlist{end+1}='dh ';
+% outvarlist{end+1}='dQdx ';
+% outvarlist{end+1}='dh ';
+% outvarlist{end+1}='qp ';
+% outvarlist{end+1}='dh ';
+% outvarlist{end+1}='hp ';
+% for ii=1:length(outvarlist)
+%   outvar=outvarlist{ii};
+%   disp(outvar)
 
-load ~wilsongr/work/unfunded_projects/sedimentTransport1D_TLAD/waveModel_jtech2018/example_inputOutput/assim_1dh_output_oct.mat
-waves=posterior;
-physicalConstants;
-
-% select dubarbier or vanderA qtrans model
+% select qtrans model to be tested
 % sedmodel='dubarbier';
 sedmodel='vanderA';
 % sedmodel='soulsbyVanRijn';
 
-if(strcmp(sedmodel,'dubarbier'))
-  params.Cw=0.00483 ;
-  params.Cc=0.02002 ;
-  params.Cf=0.01173 ;
-  params.Ka=0.631e-4;
-elseif(strcmp(sedmodel,'vanderA'))
-  params.n=1.2;
-  params.m=11;
-  params.xi=1;  % ??? tuning parameter, O(1) according to Kranenburg (2013)
-  params.alpha=8.2;  % come in eqn 27-28, not the same as eqn 19
-  % params.Cc=0.01;  % comment out to test automatic above-WBL sediment handling
-  % params.Cf=0.03;
-elseif(strcmp(sedmodel,'soulsbyVanRijn'))
-  params.alphab=1.6;
-  params.facua =1.0;
-else
-  error(['invalid sedmodel=' sedmodel])
-end
+% Use one of the duck94 test case at time step 'targetn' as background
+% state.  Note, model input data are pre-cached as mat-file.
+duck94Case='c'; targetn=250;
+% duck94Case='b'; targetn=200;
+load(['../../test_cases/duck94/obsdataCache/obsdata_case' duck94Case '.mat']);
+modelinput=initModelInputs(duck94Case,grid,sedmodel);
 
-% define input variables
-dt=60*60;  % one hour time step
+% extract relevant model inputs for time step 'targetn'
+dt=diff([hydroobs(targetn+[0 1]).dnum_est])*24*3600;
 nsubsteps=1;
-params.fv=0.1;
-params.ks=0.0082;
-params.lambda=1.5;
-x=waves.x;
+x=grid.x;
 nx=length(x);
-h=flipud(filtfilt(ones(5,1)/5,1,waves.h));
-H0=2; %waves.H0;
-theta0=waves.theta0;
-omega=2*pi/10; %waves.sigma;
-ka_drag=waves.ka_drag;
-tau_wind=ones(nx,2)*0;
-detady=zeros(nx,1);
-dgamma=ones(nx,1)*+.01;
-dAw   =ones(nx,1)*+.01;
-dSw   =ones(nx,1)*-.01;
-d50=180e-6*ones(nx,1);
-d90=400e-6*ones(nx,1);
-beta0=0.1;
-gammaType=2003;
-betaType='const';
+H0    =interp1(waves8m.dnum_est,waves8m.Hrms  ,hydroobs(targetn).dnum_est);
+theta0=interp1(waves8m.dnum_est,waves8m.theta0,hydroobs(targetn).dnum_est);
+omega =interp1(waves8m.dnum_est,waves8m.sigmam,hydroobs(targetn).dnum_est);
+tau_wind=interp1(windEOP.dnum_est,windEOP.tau,hydroobs(targetn).dnum_est);
+tau_wind=repmat(tau_wind,nx,1);
+dgamma=ones(nx,1)*.01;
+dAw=ones(nx,1)*01;
+dSw=ones(nx,1)*01;
+detady=ones(nx,1)*.0001;
+tide=interp1(waves8m.dnum_est,waves8m.tide,hydroobs(targetn).dnum_est);
+d50      =modelinput.d50      ;
+d90      =modelinput.d90      ;
+ka_drag  =modelinput.ka_drag  ;
+beta0    =modelinput.beta0    ;
+betaType =modelinput.betaType ;
+gammaType=modelinput.gammaType;
+params=modelinput.params;
+h=grid.h+tide;
+h(h<.75)=.75;  % min depth constraint
+
+% OPTIONAL: override default hydro model formulations to test their TL-AD
+% gammaType=2003;
+% betaType='const';
+% param.streamingType='v';  % choose either 'n' or 'v'
 
 % background NL model run
 [Hrms,vbar,theta,kabs,Qx,hpout,bkgd] = ...
@@ -87,42 +97,54 @@ betaType='const';
                   d50,d90,params,sedmodel,gammaType,betaType,dt,nsubsteps);%,outvar);
 
 % choose perturbations
-frac_tl = 0.001;
-myrand=@()2*(rand(1)-.5);
-tl_h            =h            *frac_tl*myrand();
-tl_H0           =H0           *frac_tl*myrand();
-tl_theta0       =theta0       *frac_tl*myrand();
-tl_omega        =omega        *frac_tl*myrand();
-tl_ka_drag      =ka_drag      *frac_tl*myrand();
-tl_beta0        =beta0        *frac_tl*myrand();
-tl_tau_wind     =tau_wind     *frac_tl*myrand();
-tl_detady       =detady       *frac_tl*myrand();
-tl_dgamma       =dgamma       *frac_tl*myrand();
-tl_dAw          =dAw          *frac_tl*myrand();
-tl_dSw          =dSw          *frac_tl*myrand();
-tl_d50          =d50          *frac_tl*myrand();
-tl_d90          =d90          *frac_tl*myrand();
-tl_params.fv    =params.fv    *frac_tl*myrand();
-tl_params.ks    =params.ks    *frac_tl*myrand();
-tl_params.lambda=params.lambda*frac_tl*myrand();
+frac_tl = 1e-4;
+myrand=@(sz)2*(rand(sz)-.5);
+tl_h            =h            *frac_tl.*myrand(size(h            ));
+tl_H0           =H0           *frac_tl.*myrand(size(H0           ));
+tl_theta0       =theta0       *frac_tl.*myrand(size(theta0       ));
+tl_omega        =omega        *frac_tl.*myrand(size(omega        ));
+tl_ka_drag      =ka_drag      *frac_tl.*myrand(size(ka_drag      ));
+tl_beta0        =beta0        *frac_tl.*myrand(size(beta0        ));
+tl_tau_wind     =tau_wind     *frac_tl.*myrand(size(tau_wind     ));
+tl_detady       =detady       *frac_tl.*myrand(size(detady       ));
+tl_dgamma       =dgamma       *frac_tl.*myrand(size(dgamma       ));
+tl_dAw          =dAw          *frac_tl.*myrand(size(dAw          ));
+tl_dSw          =dSw          *frac_tl.*myrand(size(dSw          ));
+tl_d50          =d50          *frac_tl.*myrand(size(d50          ));
+tl_d90          =d90          *frac_tl.*myrand(size(d90          ));
+tl_params.fv    =params.fv    *frac_tl*myrand(1);
+tl_params.ks    =params.ks    *frac_tl*myrand(1);
+tl_params.lambda=params.lambda*frac_tl*myrand(1);
 if(strcmp(sedmodel,'dubarbier'))
-  tl_params.Cw  =params.Cw    *frac_tl*myrand();
-  tl_params.Cc  =params.Cc    *frac_tl*myrand();
-  tl_params.Cf  =params.Cf    *frac_tl*myrand();
-  tl_params.Ka  =params.Ka    *frac_tl*myrand();
+  tl_params.Cw  =params.Cw    *frac_tl*myrand(1);
+  tl_params.Cc  =params.Cc    *frac_tl*myrand(1);
+  tl_params.Cf  =params.Cf    *frac_tl*myrand(1);
+  tl_params.Ka  =params.Ka    *frac_tl*myrand(1);
 elseif(strcmp(sedmodel,'vanderA'))
-  tl_params.n    =params.n    *frac_tl*myrand();
-  tl_params.m    =params.m    *frac_tl*myrand();
-  tl_params.xi   =params.xi   *frac_tl*myrand();
-  tl_params.alpha=params.alpha*frac_tl*myrand();
+  tl_params.n    =params.n    *frac_tl*myrand(1);
+  tl_params.m    =params.m    *frac_tl*myrand(1);
+  tl_params.xi   =params.xi   *frac_tl*myrand(1);
+  tl_params.alpha=params.alpha*frac_tl*myrand(1);
   if(isfield(params,'Cc'))
-    tl_params.Cc =params.Cc   *frac_tl*myrand();
-    tl_params.Cf =params.Cf   *frac_tl*myrand();
+    tl_params.Cc =params.Cc   *frac_tl*myrand(1);
+    tl_params.Cf =params.Cf   *frac_tl*myrand(1);
   end
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))
-  tl_params.alphab=params.alphab*frac_tl*myrand();
-  tl_params.facua=params.facua*frac_tl*myrand();
+  tl_params.alphab=params.alphab*frac_tl*myrand(1);
+  tl_params.facua=params.facua*frac_tl*myrand(1);
 end
+
+% filter the spatially variable noise
+m=20;
+tl_h            =filtfilt(ones(m,1)/m,1,tl_h            );
+tl_tau_wind(:,1)=filtfilt(ones(m,1)/m,1,tl_tau_wind(:,1));
+tl_tau_wind(:,2)=filtfilt(ones(m,1)/m,1,tl_tau_wind(:,2));
+tl_detady       =filtfilt(ones(m,1)/m,1,tl_detady       );
+tl_dgamma       =filtfilt(ones(m,1)/m,1,tl_dgamma       );
+tl_dAw          =filtfilt(ones(m,1)/m,1,tl_dAw          );
+tl_dSw          =filtfilt(ones(m,1)/m,1,tl_dSw          );
+tl_d50          =filtfilt(ones(m,1)/m,1,tl_d50          );
+tl_d90          =filtfilt(ones(m,1)/m,1,tl_d90          );
 
 % pack perturbed variables into params struct for running NL model
 params1.fv=params.fv+tl_params.fv;
@@ -192,3 +214,6 @@ for i=1:length(vname)
   end
 end
 
+% drawnow;
+% pause(.1);
+% end
