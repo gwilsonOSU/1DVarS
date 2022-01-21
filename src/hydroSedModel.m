@@ -126,7 +126,6 @@ nx=length(x);
     hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType);
 
 % apply masking to hydro outputs before proceeding to sediment transport
-warning('masking hydro outputs')
 Hrms (imask)=0;
 vbar (imask)=0;
 Ew   (imask)=0;
