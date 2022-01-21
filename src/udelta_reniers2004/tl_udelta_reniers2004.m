@@ -1,4 +1,4 @@
-function [tl_udelta,tl_delta]=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_tau_wind,tl_Dr,tl_fv,tl_ks,tl_d50,bkgd)%,outvar)
+function [tl_udelta,tl_delta_bl]=tl_udelta_reniers2004(tl_ubar,tl_k,tl_omega,tl_h,tl_Hrms,tl_detady,tl_tau_wind,tl_Dr,tl_fv,tl_ks,tl_d50,bkgd)%,outvar)
 %
 % TL-code for udelta_reniers2004.m
 %
@@ -42,6 +42,7 @@ Hm0         =bkgd.Hm0         ;
 ht          =bkgd.ht          ;
 p1          =bkgd.p1          ;
 delta       =bkgd.delta       ;
+delta_bl    =bkgd.delta_bl    ;
 phi_b       =bkgd.phi_b       ;
 tau_wind    =bkgd.tau_wind    ;
 tau_wind    =bkgd.tau_wind    ;
@@ -110,6 +111,10 @@ tl_delta = ...
     + fdelta*0.09*tl_p1.*ks./ht ...
     + fdelta*0.09*p1.*tl_ks./ht ...
     - fdelta*0.09*p1.*ks./ht.^2.*tl_ht;
+% delta_bl = delta.*ht;  % dimensional WBL height
+tl_delta = ...
+    + fdelta*0.09*tl_p1.*ks ...
+    + fdelta*0.09*p1.*tl_ks;
 % phi_b=6./delta.^2;  % eqn (A9)
 tl_phi_b = -2*6./delta.^3.*tl_delta;
 % tau_wave=Dr.*k/omega;  % eqn (5)

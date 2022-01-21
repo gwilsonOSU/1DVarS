@@ -1,4 +1,4 @@
-function [udelta,delta,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,d50)%,outvar)
+function [udelta,delta_bl,workspc]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,d50)%,outvar)
 %
 % [udelta,delta]=udelta_reniers2004(ubar,k,omega,h,Hrms,detady,tau_wind,Dr,fv,ks,sd50)
 %
@@ -40,6 +40,7 @@ ht=h-Hm0/2;  % eqn (3)
 % delta=fdelta*0.09*(A/ks).^(.82).*ks./ht;  % eqn (15)
 p1=(A./ks).^(.82);
 delta=fdelta*0.09*p1.*ks./ht;  % eqn (15)
+delta_bl = delta.*ht;  % dimensional WBL height
 phi_b=6./delta.^2;  % eqn (A9)
 tau_wave=Dr.*k/omega;  % eqn (5)
 tau_t=tau_wind+tau_wave;  % stated in text
@@ -156,6 +157,7 @@ if(nargout>1)
   workspc.ht               =ht               ;
   workspc.p1               =p1               ;
   workspc.delta            =delta            ;
+  workspc.delta_bl         =delta_bl         ;
   workspc.phi_b            =phi_b            ;
   workspc.tau_wind         =tau_wind         ;
   workspc.tau_wind         =tau_wind         ;

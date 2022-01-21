@@ -1,4 +1,4 @@
-function [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_ks,ad_d50]=ad_udelta_reniers2004(ad_udelta,ad_delta,bkgd)%,invar)
+function [ad_ubar,ad_k,ad_omega,ad_h,ad_Hrms,ad_detady,ad_tau_wind,ad_Dr,ad_fv,ad_ks,ad_d50]=ad_udelta_reniers2004(ad_udelta,ad_delta_bl,bkgd)%,invar)
 %
 % AD-code for tl_udelta_reniers2004.m
 %
@@ -40,6 +40,7 @@ Hm0         =bkgd.Hm0         ;
 ht          =bkgd.ht          ;
 p1          =bkgd.p1          ;
 delta       =bkgd.delta       ;
+delta_bl    =bkgd.delta_bl    ;
 phi_b       =bkgd.phi_b       ;
 tau_wind    =bkgd.tau_wind    ;
 tau_wind    =bkgd.tau_wind    ;
@@ -142,6 +143,7 @@ ad_betab=zeros(1,nintegral);
 ad_alphab=zeros(1,nintegral);
 ad_sgridm=zeros(1,nintegral);
 ad_sgridb=zeros(1,nintegral);
+ad_delta=0;
 
 % % TEST
 % eval(['ad_' invar '=ad_udelta;']);
@@ -524,6 +526,12 @@ ad_tau_wave=0;
 %12 tl_phi_b = -2*6./delta.^3.*tl_delta;
 ad_delta=ad_delta- 2*6./delta.^3.*ad_phi_b;
 ad_phi_b=0;
+%11b tl_delta_bl = ...
+%     + fdelta*0.09*tl_p1.*ks ...
+%     + fdelta*0.09*p1.*tl_ks;
+ad_p1=ad_p1+ fdelta*0.09.*ks.*ad_delta_bl;
+ad_ks=ad_ks+ fdelta*0.09.*p1.*ad_delta_bl;
+ad_delta_bl=0;
 %11 tl_delta = ...
 %     + fdelta*0.09*tl_p1.*ks./ht ...
 %     + fdelta*0.09*p1.*tl_ks./ht ...
