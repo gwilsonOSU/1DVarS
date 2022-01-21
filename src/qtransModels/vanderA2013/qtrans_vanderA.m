@@ -60,7 +60,29 @@ end
 % this wrapper loop serves to handle vector inputs
 nx=length(h);
 for i=1:nx
-  [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
+
+  % for masked points, make a dummy output with all fields set to 0
+  if(Hrms(i)==0)
+    blankwksp=workspc(i-1);  % copy as a template.  Can safely assume i>1
+    fld=fields(blankwksp);
+    for i1=1:length(blankwksp)
+      this=getfield(blankwksp,fld{i1});
+      if(isstruct(this))
+        this=getfield(workspc(i-1),fld{i1});
+        fld2=fields(this);
+        for i2=1:length(fld2)
+          this=setfield(this,fld2{i2},0);
+        end
+      else
+        this=0;
+      end
+      blankwksp=setfield(blankwksp,fld{i1},this);
+    end
+    workspc(i)=blankwksp;
+    qs(i)=0;
+  else
+    [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
+  end
 end
 qs=qs(:);
 workspc=workspc(:);
@@ -364,10 +386,26 @@ else  % OPTION-2
   % (Omegac + Omegat) occurring above the WBL, z>delta.  The above-WBL
   % fraction will be removed from the wave-driven transport calculated
   % previously, and instead used for suspended transport above WBL.
-  Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
-  Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
-  wfracc = (1-exp(-delta/Lc));
-  wfract = (1-exp(-delta/Lt));
+  if(Omegat>0)
+    Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
+  else
+    Lt=0;
+  end
+  if(Omegat>0)
+    Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
+  else
+    Lc=0;
+  end
+  if(Lc>0)
+    wfracc = (1-exp(-delta/Lc));
+  else
+    wfracc=0;
+  end
+  if(Lt>0)
+    wfract = (1-exp(-delta/Lt));
+  else
+    wfract=0;
+  end
   qsVdA = ( qsc*wfracc + qst*wfract )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
 
   % % OLD: current-driven transport, simply multiply above-WBL sediment load

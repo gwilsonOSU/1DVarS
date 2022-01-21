@@ -24,6 +24,15 @@ h    =bkgd.h    ;
 Aw   =bkgd.Aw   ;
 Sw   =bkgd.Sw   ;
 
+% apply masking to points with zero wave height, avoids NaN
+imask=find(Hmo==0);
+Sw(imask)=1;
+Aw(imask)=1;
+Uw(imask)=1;
+Ur(imask)=1;
+dens(imask)=1;
+ee(imask)=1;
+
 % Ursell number, eqn (6)
 tl_aw=tl_Hmo/2;
 tl_Ur = 3/4*( (tl_aw.*k+aw.*tl_k)./(k.*h).^3 ...
@@ -50,3 +59,9 @@ tl_Aw = + sin(psi0).*tl_B0 ...
 % Sw = B0.*cos(psi0);
 tl_Sw = + cos(psi0).*tl_B0 ...
         - B0.*sin(psi0).*tl_psi0;
+
+% apply masking to points with zero wave height, avoids NaN
+imask=find(Hmo==0);
+tl_Aw(imask)=0;
+tl_Sw(imask)=0;
+tl_Uw(imask)=0;

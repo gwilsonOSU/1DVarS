@@ -42,32 +42,37 @@ ad_param=repmat(ad_param,[nx 1]);
 
 % this wrapper loop serves to handle vector inputs
 for i=nx:-1:1
-  % tl_qs(i) = ...
-  %     tl_qtrans_vanderA(tl_d50,tl_d90,tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
-  %                       tl_udelta(i,:),tl_ws,tl_dAw(i),tl_dSw(i),tl_param,bkgd_qtrans(i));
-  [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,...
-   ad1_omega,ad1_udelta,ad1_delta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
-      ad_qtrans_vanderA_main(ad_qs(i),bkgd(i));%,invar);
-  ad_d50(i)=ad_d50(i)+ad1_d50   ;
-  ad_d90(i)=ad_d90(i)+ad1_d90   ;
-  ad_ws(i) =ad_ws(i) +ad1_ws    ;
-  ad_h(i)=ad_h(i)+ad1_h;
-  ad_tanbeta(i)=ad_tanbeta(i)+ad1_tanbeta;
-  ad_Hrms(i)  =ad_Hrms(i)  +ad1_Hrms  ;
-  ad_kabs(i)  =ad_kabs(i)  +ad1_kabs  ;
-  ad_omega=ad_omega+ad1_omega;
-  ad_udelta(i,:)=ad_udelta(i,:)+ad1_udelta;
-  ad_delta(i)=ad_delta(i)+ad1_delta;
-  ad_Aw(i)=ad_Aw(i)+ad1_Aw;
-  ad_Sw(i)=ad_Sw(i)+ad1_Sw;
-  ad_Uw(i)=ad_Uw(i)+ad1_Uw;
-  ad_param(i).n    =ad_param(i).n    +ad1_param.n    ;
-  ad_param(i).m    =ad_param(i).m    +ad1_param.m    ;
-  ad_param(i).xi   =ad_param(i).xi   +ad1_param.xi   ;
-  ad_param(i).alpha=ad_param(i).alpha+ad1_param.alpha;
-  if(isfield(bkgd(1).param,'Cc'))
-    ad_param(i).Cc   =ad_param(i).alpha+ad1_param.Cc   ;
-    ad_param(i).Cf   =ad_param(i).alpha+ad1_param.Cf   ;
+  if(bkgd(i).Hmo==0)  % ignore masked points
+    % tl_qs(i)=0;
+    ad_qs(i)=0;
+  else
+    % tl_qs(i) = ...
+    %     tl_qtrans_vanderA(tl_d50,tl_d90,tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
+    %                       tl_udelta(i,:),tl_ws,tl_dAw(i),tl_dSw(i),tl_param,bkgd_qtrans(i));
+    [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,...
+     ad1_omega,ad1_udelta,ad1_delta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
+        ad_qtrans_vanderA_main(ad_qs(i),bkgd(i));%,invar);
+    ad_d50(i)=ad_d50(i)+ad1_d50   ;
+    ad_d90(i)=ad_d90(i)+ad1_d90   ;
+    ad_ws(i) =ad_ws(i) +ad1_ws    ;
+    ad_h(i)=ad_h(i)+ad1_h;
+    ad_tanbeta(i)=ad_tanbeta(i)+ad1_tanbeta;
+    ad_Hrms(i)  =ad_Hrms(i)  +ad1_Hrms  ;
+    ad_kabs(i)  =ad_kabs(i)  +ad1_kabs  ;
+    ad_omega=ad_omega+ad1_omega;
+    ad_udelta(i,:)=ad_udelta(i,:)+ad1_udelta;
+    ad_delta(i)=ad_delta(i)+ad1_delta;
+    ad_Aw(i)=ad_Aw(i)+ad1_Aw;
+    ad_Sw(i)=ad_Sw(i)+ad1_Sw;
+    ad_Uw(i)=ad_Uw(i)+ad1_Uw;
+    ad_param(i).n    =ad_param(i).n    +ad1_param.n    ;
+    ad_param(i).m    =ad_param(i).m    +ad1_param.m    ;
+    ad_param(i).xi   =ad_param(i).xi   +ad1_param.xi   ;
+    ad_param(i).alpha=ad_param(i).alpha+ad1_param.alpha;
+    if(isfield(bkgd(1).param,'Cc'))
+      ad_param(i).Cc   =ad_param(i).alpha+ad1_param.Cc   ;
+      ad_param(i).Cf   =ad_param(i).alpha+ad1_param.Cf   ;
+    end
   end
 end
 
@@ -474,10 +479,20 @@ if(isfield(param,'Cc'))  % OPTION-1
 else  % OPTION-2
 
   % NL helper variables
-  numst=exp(-deltast/Lt)/0.08;
-  numsc=exp(-deltasc/Lc)/0.08;
-  denomst=1-Omegat*d50/0.08*deltast/Lt^2*exp(-deltast/Lt);
-  denomsc=1-Omegac*d50/0.08*deltasc/Lc^2*exp(-deltasc/Lc);
+  if(Lt>0)
+    numst=exp(-deltast/Lt)/0.08;
+    denomst=1-Omegat*d50/0.08*deltast/Lt^2*exp(-deltast/Lt);
+  else
+    numst=1;
+    denomst=1;
+  end
+  if(Lc>0)
+    numsc=exp(-deltasc/Lc)/0.08;
+    denomsc=1-Omegac*d50/0.08*deltasc/Lc^2*exp(-deltasc/Lc);
+  else
+    numsc=1;
+    denomsc=1;
+  end
   dLtdOmegat = numst*d50/denomst;
   dLcdOmegac = numsc*d50/denomsc;
   dLtdd50 = numst*Omegat/denomst;
@@ -583,26 +598,46 @@ else  % OPTION-2
   ad_T     =ad_T      - (qsc*wfracc + qst*wfract)/T^2*term3*ad_qsVdA;
   ad_term3 =ad_term3  + (qsc*wfracc + qst*wfract)/T        *ad_qsVdA;
   ad_qsVdA=0;
-  %b4 tl_wfract = - delta/Lt^2*exp(-delta/Lt)*tl_Lt ...
-  %     + 1/Lt*exp(-delta/Lt)*tl_delta;
-  ad_Lt   =ad_Lt   - delta/Lt^2*exp(-delta/Lt)*ad_wfract;
-  ad_delta=ad_delta+ 1/Lt*exp(-delta/Lt)      *ad_wfract;
-  ad_wfract=0;
-  %b3 tl_wfracc = - delta/Lc^2*exp(-delta/Lc)*tl_Lc ...
-  %     + 1/Lc*exp(-delta/Lc)*tl_delta;
-  ad_Lc   =ad_Lc   - delta/Lc^2*exp(-delta/Lc)*ad_wfracc;
-  ad_delta=ad_delta+ 1/Lc*exp(-delta/Lc)      *ad_wfracc;
-  ad_wfracc=0;
-  %b2 tl_Lc = + dLcdOmegac*tl_Omegac ...
-  %         + dLcdd50*tl_d50;
-  ad_Omegac=ad_Omegac+ dLcdOmegac*ad_Lc;
-  ad_d50   =ad_d50   + dLcdd50   *ad_Lc;
-  ad_Lc=0;
-  %b1 tl_Lt = + dLtdOmegat*tl_Omegat ...
-  %         + dLtdd50*tl_d50;
-  ad_Omegat=ad_Omegat+ dLtdOmegat*ad_Lt;
-  ad_d50   =ad_d50   + dLtdd50   *ad_Lt;
-  ad_Lt=0;
+  if(Lc>0)
+    %b3 tl_wfracc = - delta/Lc^2*exp(-delta/Lc)*tl_Lc ...
+    %     + 1/Lc*exp(-delta/Lc)*tl_delta;
+    ad_Lc   =ad_Lc   - delta/Lc^2*exp(-delta/Lc)*ad_wfracc;
+    ad_delta=ad_delta+ 1/Lc*exp(-delta/Lc)      *ad_wfracc;
+    ad_wfracc=0;
+  else
+    % tl_wfracc=0;
+    ad_wfracc=0;
+  end
+  if(Lt>0)
+    %b4 tl_wfract = - delta/Lt^2*exp(-delta/Lt)*tl_Lt ...
+    %     + 1/Lt*exp(-delta/Lt)*tl_delta;
+    ad_Lt   =ad_Lt   - delta/Lt^2*exp(-delta/Lt)*ad_wfract;
+    ad_delta=ad_delta+ 1/Lt*exp(-delta/Lt)      *ad_wfract;
+    ad_wfract=0;
+  else
+    % tl_wfract=0;
+    ad_wfract=0;
+  end
+  if(Omegac>0)
+    %b2 tl_Lc = + dLcdOmegac*tl_Omegac ...
+    %         + dLcdd50*tl_d50;
+    ad_Omegac=ad_Omegac+ dLcdOmegac*ad_Lc;
+    ad_d50   =ad_d50   + dLcdd50   *ad_Lc;
+    ad_Lc=0;
+  else
+    % tl_Lc=0;
+    ad_Lc=0;
+  end
+  if(Omegat>0)
+    %b1 tl_Lt = + dLtdOmegat*tl_Omegat ...
+    %         + dLtdd50*tl_d50;
+    ad_Omegat=ad_Omegat+ dLtdOmegat*ad_Lt;
+    ad_d50   =ad_d50   + dLtdd50   *ad_Lt;
+    ad_Lt=0;
+  else
+    % tl_Lt=0;
+    ad_Lt=0;
+  end
 
 end
 

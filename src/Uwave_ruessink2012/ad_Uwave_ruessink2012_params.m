@@ -42,6 +42,22 @@ ad_psi0=0;
 ad_omega=0;
 ad_dSw=0;
 
+% apply masking to points with zero wave height, avoids NaN
+imask=find(Hmo==0);
+% tl_Aw(imask)=0;
+ad_Aw(imask)=0;
+% tl_Sw(imask)=0;
+ad_Sw(imask)=0;
+% tl_Uw(imask)=0;
+ad_Uw(imask)=0;
+
+Sw(imask)=1;
+Aw(imask)=1;
+Uw(imask)=1;
+Ur(imask)=1;
+dens(imask)=1;
+ee(imask)=1;
+
 % convert to Aw and Sw, including user provided corrections
 %2 tl_Sw = + cos(psi0).*tl_B0 ...
 %         - B0.*sin(psi0).*tl_psi0;
@@ -77,7 +93,7 @@ ad_ee=0;
 ad_Hrms=ad_Hrms+ omega/2./sinh(k.*h)                        .*ad_Uw;
 ad_k   =ad_k   - omega/2.*Hrms./sinh(k.*h).^2.*cosh(k.*h).*h.*ad_Uw;
 ad_h   =ad_h   - omega/2.*Hrms./sinh(k.*h).^2.*cosh(k.*h).*k.*ad_Uw;
-ad_omega=ad_omega+ sum(1/2.*Hrms./sinh(k.*h).*ad_Uw);
+ad_omega=ad_omega+ nansum(1/2.*Hrms./sinh(k.*h).*ad_Uw);
 ad_Uw=0;
 %1 tl_Hrms=tl_Hmo/1.4;
 ad_Hmo=ad_Hmo+ad_Hrms/1.4;
@@ -94,3 +110,9 @@ ad_Ur=0;
 %1 tl_aw=tl_Hmo/2;
 ad_Hmo=ad_Hmo+ad_aw/2;
 ad_aw=0;
+
+% make sure H=0 points are not NaN, they should be ignored and set all i/o to zeros
+imask=find(Hmo==0);
+ad_Hmo(imask)=0;
+ad_k(imask)=0;
+ad_h(imask)=0;

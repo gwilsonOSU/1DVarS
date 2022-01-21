@@ -125,6 +125,14 @@ nx=length(x);
 [Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
     hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType);
 
+% apply masking to hydro outputs before proceeding to sediment transport
+warning('masking hydro outputs')
+Hrms (imask)=0;
+vbar (imask)=0;
+Ew   (imask)=0;
+Er   (imask)=0;
+Dr   (imask)=0;
+
 % wave shape parameters.  Note Uwave_ruessink2012 specifies Hmo as input
 Hmo=1.4*Hrms;
 [Aw0,Sw0,Uw,uwave_bkgd]=Uwave_ruessink2012_params(Hmo,kabs,omega,h);

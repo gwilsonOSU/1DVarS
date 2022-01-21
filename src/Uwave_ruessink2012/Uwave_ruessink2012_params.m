@@ -39,6 +39,12 @@ psi0 = -pi/2 + pi/2*tanh(p5./Ur.^p6);
 Aw = B0.*sin(psi0);
 Sw = B0.*cos(psi0);
 
+% apply masking to points with zero wave height, avoids NaN
+imask=find(Hmo==0);
+Aw(imask)=0;
+Sw(imask)=0;
+Uw(imask)=0;
+
 % now save all relevant variables in a struct, so they can be reused in
 % TL-AD functions
 if(nargout>1)

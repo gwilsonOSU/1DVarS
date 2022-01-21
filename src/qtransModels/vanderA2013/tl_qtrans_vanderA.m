@@ -7,9 +7,13 @@ function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,t
 nx=length(tl_h);
 tl_Q=zeros(nx,1);
 for i=1:nx
-  tl_qs(i)= ...
-      tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
-                             tl_omega,tl_udelta(i,:),tl_delta(i),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i));%,outvar);
+  if(bkgd(i).Hmo==0)  % ignore masked points
+    tl_qs(i)=0;
+  else
+    tl_qs(i)= ...
+        tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
+                               tl_omega,tl_udelta(i,:),tl_delta(i),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i));%,outvar);
+  end
 end
 tl_qs=tl_qs(:);
 
@@ -614,30 +618,46 @@ if(isfield(param,'Cc'))  % OPTION-1
 
 else  % OPTION-2
 
-  % Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
-  % Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
-  numst=exp(-deltast/Lt)/0.08;
-  numsc=exp(-deltasc/Lc)/0.08;
-  denomst=1-Omegat*d50/0.08*deltast/Lt^2*exp(-deltast/Lt);
-  denomsc=1-Omegac*d50/0.08*deltasc/Lc^2*exp(-deltasc/Lc);
-  dLtdOmegat = numst*d50/denomst;
-  dLcdOmegac = numsc*d50/denomsc;
-  dLtdd50 = numst*Omegat/denomst;
-  dLcdd50 = numsc*Omegac/denomsc;
-  tl_Lt = + dLtdOmegat*tl_Omegat ...
-          + dLtdd50*tl_d50;
-  tl_Lc = + dLcdOmegac*tl_Omegac ...
-          + dLcdd50*tl_d50;
-  % wfracc = (1-exp(-delta/Lc));
-  tl_wfracc = - delta/Lc^2*exp(-delta/Lc)*tl_Lc ...
-      + 1/Lc*exp(-delta/Lc)*tl_delta;
-  % wfract = (1-exp(-delta/Lt));
-  tl_wfract = - delta/Lt^2*exp(-delta/Lt)*tl_Lt ...
-      + 1/Lt*exp(-delta/Lt)*tl_delta;
+  if(Omegat>0)
+    % Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
+    numst=exp(-deltast/Lt)/0.08;
+    denomst=1-Omegat*d50/0.08*deltast/Lt^2*exp(-deltast/Lt);
+    dLtdOmegat = numst*d50/denomst;
+    dLtdd50 = numst*Omegat/denomst;
+    tl_Lt = + dLtdOmegat*tl_Omegat ...
+            + dLtdd50*tl_d50;
+  else
+    tl_Lt=0;
+  end
+  if(Omegat>0)
+    % Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
+    numsc=exp(-deltasc/Lc)/0.08;
+    denomsc=1-Omegac*d50/0.08*deltasc/Lc^2*exp(-deltasc/Lc);
+    dLcdOmegac = numsc*d50/denomsc;
+    dLcdd50 = numsc*Omegac/denomsc;
+    tl_Lc = + dLcdOmegac*tl_Omegac ...
+            + dLcdd50*tl_d50;
+  else
+    tl_Lc=0;
+  end
+  if(Lc>0)
+    % wfracc = (1-exp(-delta/Lc));
+    tl_wfracc = - delta/Lc^2*exp(-delta/Lc)*tl_Lc ...
+        + 1/Lc*exp(-delta/Lc)*tl_delta;
+  else
+    tl_wfracc=0;
+  end
+  if(Lt>0)
+    % wfract = (1-exp(-delta/Lt));
+    tl_wfract = - delta/Lt^2*exp(-delta/Lt)*tl_Lt ...
+        + 1/Lt*exp(-delta/Lt)*tl_delta;
+  else
+    tl_wfract=0;
+  end
   % qsVdA = ( qsc*wfracc + qst*wfract )/T*sqrt((s-1)*g*d50^3)/(1-psed);  % redefined
   tl_qsVdA = (tl_qsc*wfracc + qsc*tl_wfracc + tl_qst*wfract + qst*tl_wfract)/T*term3 ...
-        - (qsc*wfracc + qst*wfract)/T^2*term3*tl_T ...
-        + (qsc*wfracc + qst*wfract)/T*tl_term3;
+      - (qsc*wfracc + qst*wfract)/T^2*term3*tl_T ...
+      + (qsc*wfracc + qst*wfract)/T*tl_term3;
 
   % uwmo=uw/1.4;
   tl_uwmo = + 1/1.4*tl_uw;

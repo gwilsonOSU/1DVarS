@@ -45,6 +45,13 @@ tl_h(imask)=0;  % min depth constraint
 [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
     tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,tl_beta0,hydro_bkgd);
 
+% apply masking to hydro outputs
+tl_Hrms (imask)=0;
+tl_vbar (imask)=0;
+tl_Ew   (imask)=0;
+tl_Er   (imask)=0;
+tl_Dr   (imask)=0;
+
 % wave shape parameters.  Note Uwave_ruessink2012 specifies Hmo as input
 tl_Hmo=1.4*tl_Hrms;
 [tl_Aw0,tl_Sw0,tl_Uw]=tl_Uwave_ruessink2012_params(tl_Hmo,tl_kabs,tl_omega,tl_h,uwave_bkgd);
