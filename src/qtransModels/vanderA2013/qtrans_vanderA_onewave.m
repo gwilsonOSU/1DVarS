@@ -1,6 +1,6 @@
-function [qs,workspc]=qtrans_vanderA_onewave(uw,d50,d90,wsc,wst,udelta,delta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,eta,lambda,tanbeta,param)
+function [qs,workspc,Omegatc]=qtrans_vanderA_onewave(uw,d50,d90,wsc,wst,udelta,delta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,~,~,tanbeta,param,Omegatc)
 %
-% [qs,workspc]=qtrans_vanderA(uw,d50,d90,wsc,wst,udelta,delta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,param)
+% [qs,workspc]=qtrans_vanderA(uw,d50,d90,wsc,wst,udelta,delta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,param,Omegatc)
 %
 % Calculates transport following van der A (2013).  This version is for a
 % single wave with measured wave shape parameters (uhat,uhatc,T,Tc,etc etc).
@@ -228,10 +228,13 @@ if(Pc<=1)
 else
   Omegact=(1-1./Pc)*Omegac;  % eqn 24
 end
-if(Pt<=1)
-  Omegatc=0;
-else
-  Omegatc=(1-1./Pt)*Omegat;  % eqn 25
+if exist('Omegatc','var') == 0 % if Omegatc does not exist as an input, calculate Omegatc according to equation 26
+    if(Pt<=1)
+      Omegatc=0;
+    else
+      Omegatc=(1-1./Pt)*Omegat;  % eqn 26
+    end
+else % otherwise, use existing value of Omegatc (presumably from previous wave)
 end
 
 % transport, eqn 1
@@ -304,8 +307,8 @@ qs = qsVdA + qsCc + qsCf;
 if(nargout>1)
   workspc=struct;
   workspc.Dstar        =Dstar          ;
-  workspc.Hmo          =Hmo            ;
-  workspc.Hrms         =Hrms           ;
+  % workspc.Hmo          =Hmo            ;
+  % workspc.Hrms         =Hrms           ;
   workspc.Omegac       =Omegac         ;
   workspc.Omegacc      =Omegacc        ;
   workspc.Omegact      =Omegact        ;
@@ -341,8 +344,8 @@ if(nargout>1)
   workspc.fwdt         =fwdt           ;
   workspc.fwt          =fwt            ;
   workspc.tauwRe       =tauwRe         ;
-  workspc.h            =h              ;
-  workspc.kabs         =kabs           ;
+  % workspc.h            =h              ;
+  % workspc.kabs         =kabs           ;
   workspc.ksd          =ksd            ;
   workspc.ksw          =ksw            ;
   workspc.lambda       =lambda         ;
@@ -351,11 +354,11 @@ if(nargout>1)
   workspc.mu           =mu             ;
   workspc.neta         =neta           ;
   workspc.nlambda      =nlambda        ;
-  workspc.nt           =nt             ;
-  workspc.omega        =omega          ;
+  % workspc.nt           =nt             ;
+  % workspc.omega        =omega          ;
   workspc.param        =param          ;
-  workspc.phi_r2012    =phi_r2012      ;
-  workspc.r_r2012      =r_r2012        ;
+  % workspc.phi_r2012    =phi_r2012      ;
+  % workspc.r_r2012      =r_r2012        ;
   workspc.psed         =psed           ;
   workspc.psihat       =psihat         ;
   workspc.psihatc      =psihatc        ;
@@ -363,7 +366,7 @@ if(nargout>1)
   workspc.qs           =qs             ;
   workspc.qsc          =qsc            ;
   workspc.qst          =qst            ;
-  workspc.t            =t              ;
+  % workspc.t            =t              ;
   workspc.theta_av     =theta_av       ;
   workspc.theta_cr     =theta_cr       ;
   workspc.thetac       =thetac         ;
@@ -388,41 +391,41 @@ if(nargout>1)
   workspc.ws           =ws             ;
   workspc.wsc          =wsc            ;
   workspc.wst          =wst            ;
-  workspc.worbc        =worbc          ;
-  workspc.worbt        =worbt          ;
-  workspc.uwave_wksp   =uwave_wksp     ;
-  workspc.Aw           =Aw             ;
-  workspc.Sw           =Sw             ;
-  workspc.Uw           =Uw             ;
+  % workspc.worbc        =worbc          ;
+  % workspc.worbt        =worbt          ;
+  % workspc.uwave_wksp   =uwave_wksp     ;
+  % workspc.Aw           =Aw             ;
+  % workspc.Sw           =Sw             ;
+  % workspc.Uw           =Uw             ;
   workspc.c1           =c1             ;
-  workspc.b            =b              ;
-  workspc.RR           =RR             ;
-  workspc.worb1c       =worb1c         ;
-  workspc.worb1t       =worb1t         ;
-  workspc.worb2c       =worb2c         ;
-  workspc.worb2t       =worb2t         ;
-  workspc.t1ca         =t1ca           ;
-  workspc.t1ta         =t1ta           ;
-  workspc.t1cb         =t1cb           ;
-  workspc.t1tb         =t1tb           ;
-  workspc.t1c          =t1c            ;
-  workspc.t1t          =t1t            ;
-  workspc.t2cb         =t2cb           ;
-  workspc.t2tb         =t2tb           ;
-  workspc.t2ca         =t2ca           ;
-  workspc.t2ta         =t2ta           ;
-  workspc.t2c          =t2c            ;
-  workspc.t2t          =t2t            ;
-  workspc.worbc        =worbc          ;
-  workspc.worbt        =worbt          ;
+  % workspc.b            =b              ;
+%   workspc.RR           =RR             ;
+%   workspc.worb1c       =worb1c         ;
+%   workspc.worb1t       =worb1t         ;
+%   workspc.worb2c       =worb2c         ;
+%   workspc.worb2t       =worb2t         ;
+%   workspc.t1ca         =t1ca           ;
+%   workspc.t1ta         =t1ta           ;
+%   workspc.t1cb         =t1cb           ;
+%   workspc.t1tb         =t1tb           ;
+%   workspc.t1c          =t1c            ;
+%   workspc.t1t          =t1t            ;
+%   workspc.t2cb         =t2cb           ;
+%   workspc.t2tb         =t2tb           ;
+%   workspc.t2ca         =t2ca           ;
+%   workspc.t2ta         =t2ta           ;
+%   workspc.t2c          =t2c            ;
+%   workspc.t2t          =t2t            ;
+  % workspc.worbc        =worbc          ;
+  % workspc.worbt        =worbt          ;
   workspc.f25          =f25            ;
   workspc.theta25      =theta25        ;
   workspc.r            =r              ;
   workspc.fws          =fws            ;
-  workspc.phiuc        =phiuc          ;
-  workspc.phidc        =phidc          ;
-  workspc.icu_guess    =icu_guess      ;
-  workspc.itu_guess    =itu_guess      ;
+%   workspc.phiuc        =phiuc          ;
+%   workspc.phidc        =phidc          ;
+%   workspc.icu_guess    =icu_guess      ;
+%   workspc.itu_guess    =itu_guess      ;
 
   % accounting of suspended seds above WBL
   workspc.eps_s        =eps_s          ;
