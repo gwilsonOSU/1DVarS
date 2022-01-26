@@ -640,6 +640,14 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   end
 
 else  % OPTION-3, above-WBL transport disabled
+  % tl_qsVdA = (tl_qsc + tl_qst)/T*term3 ...
+  %     - (qsc + qst)/T^2*term3*tl_T ...
+  %     + (qsc + qst)/T*tl_term3;
+  ad_qsc  =ad_qsc  + 1/T*term3            *ad_qsVdA;
+  ad_qst  =ad_qst  + 1/T*term3            *ad_qsVdA;
+  ad_T    =ad_T    - (qsc + qst)/T^2*term3*ad_qsVdA;
+  ad_term3=ad_term3+ (qsc + qst)/T        *ad_qsVdA;
+  ad_qsVdA=0;
   % tl_qsCc=0;
   ad_qsCc=0;
   % tl_qsCf=0;

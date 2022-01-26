@@ -442,6 +442,7 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   qsCf = - K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven
 
 else  % OPTION-3, above-WBL transport disabled
+  qsVdA = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
   qsCc=0;
   qsCf=0;
 end

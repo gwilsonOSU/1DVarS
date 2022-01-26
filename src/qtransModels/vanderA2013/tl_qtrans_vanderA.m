@@ -714,6 +714,9 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
       - 1/(g*(s-1)*(1-psed))*eps_s^2*K/ws^2*mean(arg_qsCf)*tl_tanbeta;
 
 else  % OPTION-3, above-WBL transport disabled
+  tl_qsVdA = (tl_qsc + tl_qst)/T*term3 ...
+      - (qsc + qst)/T^2*term3*tl_T ...
+      + (qsc + qst)/T*tl_term3;
   tl_qsCc=0;
   tl_qsCf=0;
 end
