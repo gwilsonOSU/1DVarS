@@ -1,143 +1,75 @@
-function [qs,workspc,Omegatc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param,Omegatc)%,outvar)
+function [qs,workspc]=qtrans_vanderA_onewave(uw,d50,d90,wsc,wst,udelta,delta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,eta,lambda,tanbeta,param)
 %
-% [qs,workspc]=qtrans_vanderA(x,d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,ws,Aw,Sw,Uw,param)
+% [qs,workspc]=qtrans_vanderA(uw,d50,d90,wsc,wst,udelta,delta,uhat,uhatc,uhatt,T,Tc,Tt,Ttu,Tcu,c,param)
 %
-% Calculates transport following van der A (2013)
+% Calculates transport following van der A (2013).  This version is for a
+% single wave with measured wave shape parameters (uhat,uhatc,T,Tc,etc etc).
+% If you only have bulk wave parameters (Hrms,omega), you can instead use
+% qtrans_vanderA.m.
 %
 % INPUTS:
 %
-% d50    : in meters
-% d90    : in meters 
-% h      : water depth, m
-% tanbeta: bottom slope, dimensionless (see calcTanbeta.m)
-% Hrms   : rms wave height, m
-% kabs   : wavenumber, scalar, rad/m
-% omega  : wave frequency, rad/m
-% udelta : near-bed mean velocity, m/s
-%          Note: wave angle is assumed to be zero in this code.  To
-%          incorporate a nonzero wave angle, you should rotate udelta to
-%          align with the wave direction.
-% ws     : sediment settling velocity, m/s
-% Aw,Sw,Uw : wave shape params (as calcualted by Uwave_ruessink2012_params())
+% uw : time series of cross-shore component of velocity for complete wave
+%      period.  Is used for estimation of suspended sediment above the WBL.
+% d50   : in meters
+% d90   : in meters 
+% wsc,wst : particle settling velocities under crest and trough, m/s,
+%           potentially including a correction for orbital velocity.  Note:
+%           If you don't have measurements these can be estimated from wave
+%           parameters instead; refer to the implementation in
+%           qtrans_vanderA.m as an example.
+% udelta: near-bed mean velocity, 2x1 vector, m/s.  Note: wave angle is
+%         assumed to be zero in this code.  To incorporate a nonzero wave
+%         angle, you should rotate udelta to align with the wave direction.
+%         An example of doing this can be found in hydroSedModel.m provided
+%         with the 1DVarS code repository.
+% uhat=sqrt(2*mean(uw.^2)) : rms wave velocity for full wave cycle, eqn 8, m/s
+% uhatc=max(uw) : max velocity under crest, see text below eqn 7, m/s
+% uhatt=min(uw) : max velocity under trough (positive valued), m/s
+% T   : full wave period, s
+% Tc  : duration of crest, s
+% Tt  : duration of trough, s
+% Ttu : duration of deceleration under trough, s
+% Tcu : duration of acceleration under crest, s
+% c   : wave phase speed, m/s (Note: Set param.xi for flow-tunnel experiments, in which case the value of c is irrelevant to the result)
+% eta,lambda: Ripple height and wavelength.  Set eta==0 to neglect ripple effects.
+% tanbeta : tangent of beach slope.  Used for calculating slope-driven suspended transport above the WBL.
 % param.{alpha,xi,m,n}: tuning parameters struct
 %        alpha: phase lag effect, eqns (24)-(28).  Default 8.2
 %        xi   : phase lag effect, eqns (24)-(28).  Default 1.7.  O(1) according to Kranenburg (2013)
 %        m    : MPM leading coefficient, eqn (36).  Default 11.0
 %        n    : MPM exponent, eqn (36).  Default 1.2
 %
-%        OPTIONAL: If Cc,Cf are included, above-WBL transport will be
-%        calculated explicitly using energetics model.  If not included
-%        (recommended), this contribution will be calculated based on
-%        boundary layer height plus energetics.
-%
-%        Cc   : suspended sediment stirring+undertow effect.  Default 0.01
-%        Cf   : suspended sediment stirring+slope effect. Default 0.01, but 0.03 may be good
-%
-%        OPTIONAL: Set param.nosusp=1 to disable above-WBL transport
-%        altogether.  This is not recommended as it will cause unreasonable
-%        onshore transport in all but the most calm wave conditions.  The
-%        option is included for testing purposes only.
-%
-% param.streamingType : select from 'v' (van der A, 2013) or 'n' (Nielsen,
-% 2006).  The Nielsen formulation uses a larger roughness for calculating
-% bed streaming, and therefore produces a larger streaming.
-%
 % OUTPUTS:
 %
-% qs: total sediment transport flux in m2/s.  A factor 1/(1-psed) is
-% included so qs is in terms of bed volume, not sediment volume.
+% qs: total sediment transport flux in m2/s.  This code does not include any
+% correction for bed porosity, so qs is volume of sediment per unit time per
+% unit alongshore distance.
 %
-% workspc: this is intended only for passing internally to
-% {tl,ad}_qtrans_vanderA.m, not for end-user.  Note it is a vector of
-% structs, each of which contains bkgd NL variables.
+% workspc: this is intended for passing internally to TL-AD codes, not for
+% end-user.
 %
 %     If you wish to get user access to output variables other than q, it
 %     would probably be better to add them to the list of outputs rather
 %     than attempt to extract them from the 'workspc' struct.
 %
-
-if(isfield(param,'Cc'))
-  warning(['Explicit EEM-based suspended-load transport is being depreciated at time of writing.  ' ...
-           'Instead, if you remove Cc from params struct, the suspended-load contribution ' ...
-           'will be calculated automatically']);
-end
-
-% this wrapper loop serves to handle vector inputs
-nx=length(h);
-for i=1:nx
-
-  % for masked points, make a dummy output with all fields set to 0
-  if(Hrms(i)==0)
-    blankwksp=workspc(i-1);  % copy as a template.  Can safely assume i>1
-    fld=fields(blankwksp);
-    for i1=1:length(blankwksp)
-      this=getfield(blankwksp,fld{i1});
-      if(isstruct(this))
-        this=getfield(workspc(i-1),fld{i1});
-        fld2=fields(this);
-        for i2=1:length(fld2)
-          this=setfield(this,fld2{i2},0);
-        end
-      else
-        this=0;
-      end
-      blankwksp=setfield(blankwksp,fld{i1},this);
-    end
-    workspc(i)=blankwksp;
-    qs(i)=0;
-  else
-    [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
-  end
-
-end
-qs=qs(:);
-workspc=workspc(:);
-
-end  % end of wrapper function, start of main function
-
-function [qs,workspc,Omegatc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param,Omegatc)%,outvar)
+% !!!!IMPORTANT NOTE, TODO!!!!
+%
+% This code is mostly copied from qtrans_vanderA.m, but this version takes
+% wave shape parameters (uhat,uhatc,uhatt,T,Tc,Tt,Tcu,Ttu) as inputs, while
+% qtrans_vanderA.m calculates wave shape from a model based on bulk wave
+% parameters (Hrms,omega).  Ideally, wave shape parameters would be the
+% default way of running the model, and when needed the wave shape could be
+% calculated from bulk wave parameters externally as a separate function.
+% The ONLY reason for not doing so is the calculation of differential
+% settling velocities (wsc,wst) from bulk parameters is tied up with the vDA
+% model's ripple calculation, making code separation difficult.  In the
+% future it would be good to refactor somehow; the current situation of
+% having mostly-duplicate codes for handling two different input scenarios
+% is not good.
+%
 
 physicalConstants;
-
-% fixed constants
-nt=1000;  % for calculation of intra-wave velocity
-% delta=0.2;  % OLD: fixed delta=0.2m, per VDA paper
-
-% derived params
-Hmo=Hrms*1.4;
-c=omega/kabs;
-
-% note, van der A specifies to use significant orbital velocity amplitude,
-% while Ruessink et al. (2012) uses rms.  Uwave_ruessink2012() follows the
-% Ruessink et al. (2012) convention, so I need to revert to van der A's
-% convention here as a special case.
-Uw=1.4*Uw;
-
-% intra-wave velocities using Ruessink et al. (2012).  Then extract stats
-% relevant to van Der A
-t=linspace(0,2*pi/omega,nt);
-[uw,uwave_wksp]=Uwave_ruessink2012(omega*t,Aw,Sw,Uw);
-r_r2012  =uwave_wksp.r  ;
-phi_r2012=uwave_wksp.phi;
-uhat=sqrt(2*mean(uw.^2));   % rms wave velocity for full wave cycle, eqn 8
-uhatc=max(uw);  % max velocity under crest, see text below eqn 7
-uhatt=-min(uw);  % max velocity under trough (positive valued)
-
-% timing of wave velocity direction change, crest, and trough, based on
-% Ruessink et al 2012.
-phiuc=asin(-r_r2012*sin(phi_r2012)/(1+sqrt(1-r_r2012^2)))/omega;   % phase at first upcrossing
-phidc=pi-phiuc;  % phase at first downcrossing
-tuc=phiuc/omega;  % time of first upcrossing
-tdc=phidc/omega;  % time of first downcrossing
-[~,icu_guess]=max(uw);  % 1st guess
-[~,itu_guess]=min(uw);  % 1st guess
-tcr=Uwave_ruessink2012_tcrest(omega,r_r2012,phi_r2012,t(icu_guess));  % time of crest
-ttr=Uwave_ruessink2012_tcrest(omega,r_r2012,phi_r2012,t(itu_guess));  % time of trough
-T=2*pi/omega;  % full wave period
-Tc = tdc-tuc;  % duration of crest
-Tt=T-Tc;     % duration of trough
-Ttu=ttr-tdc;  % duration of deceleration under trough
-Tcu=tcr-tuc;  % duration of acceleration under crest
 
 % critical shields param, Soulsby
 Dstar=(g*(s-1)/nu^2)^(1/3)*d50;
@@ -181,16 +113,6 @@ end
 nlambda=neta;
 eta=ahat*meta*neta*(.275-.022*psihat^.42);
 lambda=ahat*mlambda*nlambda*(1.97-0.44*psihat^.21);
-
-% TEST: parameterization of Kranenburg et al. (2012) for boundary layer
-% streaming velocity.  Try using this to augment or replace the mean flow at
-% top of boundary layer.
-% ks=.0082;  % Reniers et al. 2004, calibrated for Duck (Table 4)
-% U0 = uhat.^2./c.*( .345 + .7*(ahat/ks).^-.9 - .25./sinh(kabs.*h).^2*0 );
-% U0 = 3/4*uhat.^2./c;  % longuet higgins 1958
-% udelta(1) = U0 + udelta(1);
-% udelta(1)=udelta(1)/4;  % TEST
-% udelta(2)=0;  % TEST
 
 % shields parameter related parameters.  Requires solving a 5-eqn nonlinear
 % system, so this is done in its own code.
@@ -275,41 +197,6 @@ else
   etawt=eta;
 end
 
-% % v0: Use linear theory transfer function to get vertical fluid velocities
-% worbc=+max(etawc/c*diff(uw)./diff(t));
-% worbt=-min(etawt/c*diff(uw)./diff(t));
-
-% Use stokes 2nd order theory to get vertical fluid velocities and correct
-% settling velocity.  Follows Malarkey & Davies (2012).  Some of this is
-% simply ported from COAWST code.  NOTE, it is a bit odd to do hydrodynamic
-% calculations in qtrans_vanderA (by convention, hydro stuff is ideally done
-% by callers of this function), but the code can't be easily moved outside
-% because it uses ripple height as input.
-b=1/r_r2012*(1-sqrt(1-r_r2012^2));  % see MD2012, line after eqn 13b
-RR=0.5*(1+b*sin(-phi_r2012));  % see MD2012, eqn 17, note their phi convention is negated
-worb1c=pi*Hmo*etawc/(T*h);
-worb1t=pi*Hmo*etawt/(T*h);
-worb2c=2*worb1c*(2*RR-1);
-worb2t=2*worb1t*(2*RR-1);
-t1ca = worb1c^2 + 32*worb2c^2;
-t1ta = worb1t^2 + 32*worb2t^2;
-t1cb = worb1c - sqrt(t1ca);
-t1tb = worb1t - sqrt(t1ta);
-t1c = 64 + t1cb^2/worb2c^2;
-t1t = 64 + t1tb^2/worb2t^2;
-t2cb = -worb1c + sqrt( worb1c^2 + 32*worb2c^2 );
-t2tb = -worb1t + sqrt( worb1t^2 + 32*worb2t^2 );
-t2ca = .125*t2cb/worb2c;
-t2ta = .125*t2tb/worb2t;
-t2c = 2*acos(t2ca);
-t2t = 2*acos(t2ta);
-worbc = .125*worb1c*sqrt(t1c) + worb2c*sin(t2c);
-worbt = .125*worb1t*sqrt(t1t) + worb2t*sin(t2t);
-
-% apply orbital vels to adjust sediment velocity
-wsc=max(ws-worbc,0.001);
-wst=max(ws+worbt,0.001);
-
 % sediment load, eqns 23-28.  Note there seems to be a typo in eqns 27-28,
 % the bracketed quotient has an issue with dimensions... I changed it into
 % what I think is intended.
@@ -317,17 +204,11 @@ Pc = param.alpha*(1-param.xi*uhatc./c).*etawc./(2*(Tc-Tcu)*wsc);  % eqn 27
 Pt = param.alpha*(1+param.xi*uhatt./c).*etawt./(2*(Tt-Ttu)*wst);  % eqn 28
 if(abs(thetac)>theta_cr)
   Omegac=param.m*(abs(thetac)-theta_cr).^param.n;  % eqn 2
-  %indt=find(uw>0);  % TEST CODE
-  %theta_timedep=.5*fwdc.*(uw(indt)+udelta(1)).^2/((s-1)*g*d50);  % TEST CODE
-  %Omegac=1/Tc*trapz(t(indt),11*max(0,abs(theta_timedep)-theta_cr).^1.65);  % TEST CODE
 else
   Omegac=0;
 end
 if(abs(thetat)>theta_cr)
   Omegat=param.m*(abs(thetat)-theta_cr).^param.n;  % eqn 2
-  %indt=find(uw<0);  % TEST CODE
-  %theta_timedep=.5*fwdc.*(uw(indt)+udelta(1)).^2/((s-1)*g*d50);  % TEST CODE
-  %Omegat=1/Tt*trapz(t(indt),11*max(0,abs(theta_timedep)-theta_cr).^1.65);  % TEST CODE
 else
   Omegat=0;
 end
@@ -347,13 +228,10 @@ if(Pc<=1)
 else
   Omegact=(1-1./Pc)*Omegac;  % eqn 24
 end
-if exist('Omegatc','var') == 0 % if Omegatc does not exist as an input, calculate Omegatc according to equation 26
-    if(Pt<=1)
-      Omegatc=0;
-    else
-      Omegatc=(1-1./Pt)*Omegat;  % eqn 26
-    end
-else % otherwise, use existing value of Omegatc (presumably from previous wave)
+if(Pt<=1)
+  Omegatc=0;
+else
+  Omegatc=(1-1./Pt)*Omegat;  % eqn 25
 end
 
 % transport, eqn 1
@@ -381,13 +259,14 @@ if(isfield(param,'Cc'))  % OPTION-1
 
   eps_s=0.015;
   uwmo=uw/1.4;
+  ws=.5*(wsc+wst);
   qs2=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^3*udelta(1));
   qs3=mean(sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2).^5);
   qsCc = + qs2*eps_s/ws*param.Cc                 /(g*(s-1)*(1-psed));
   qsCf = - qs3*eps_s/ws*param.Cf*eps_s*tanbeta/ws/(g*(s-1)*(1-psed));
   qsVdA = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
 
-elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
+else  % OPTION-2
 
   % calculate boundary layer e-folding length based on definition of delta_s
   % by Dohmen- Janssen (1999), c(delta_s) = 0.08.  Then use the calculated
@@ -395,36 +274,11 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   % (Omegac + Omegat) occurring above the WBL, z>delta.  The above-WBL
   % fraction will be removed from the wave-driven transport calculated
   % previously, and instead used for suspended transport above WBL.
-  if(Omegat>0)
-    Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
-  else
-    Lt=0;
-  end
-  if(Omegat>0)
-    Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
-  else
-    Lc=0;
-  end
-  if(Lc>0)
-    wfracc = (1-exp(-delta/Lc));
-  else
-    wfracc=0;
-  end
-  if(Lt>0)
-    wfract = (1-exp(-delta/Lt));
-  else
-    wfract=0;
-  end
+  Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
+  Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
+  wfracc = (1-exp(-delta/Lc));
+  wfract = (1-exp(-delta/Lt));
   qsVdA = ( qsc*wfracc + qst*wfract )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
-
-  % % OLD: current-driven transport, simply multiply above-WBL sediment load
-  % % times udelta.  This kinda works but bars tend to become too peaky.
-  % % The slope-driven suspended load transport is missing which would tend to
-  % % smooth out the morphology.
-  % qsCc = ( (1-wfracc)*Tc./T*Omegac*d50*udelta(1) ...
-  %          + (1-wfract)*Tt/T*Omegat*d50*udelta(1) )/(1-psed);  % current-driven
-  % qsCf=0;  % slope-driven, left out of this code
-  % qs = qs + qsCc + qsCf;  % add suspended contribution to total
 
   % current- and slope-driven transport are partitioned according to
   % energetics model (i.e., "wave stirring" doing work against gravitational
@@ -432,6 +286,7 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   % (K = Cc (==Cf) in Dubarbier's notation).
   eps_s=0.015;
   uwmo=uw/1.4;
+  ws=.5*(wsc+wst);
   Omegas = (1-wfracc)*Omegac*Tc/T + (1-wfract)*Omegat*Tt/T;  % total load above-WBL
   utot=sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2);  % total current magnitude (time dependent)
   Kdenom1 = + eps_s/ws*mean(utot.^3);
@@ -441,9 +296,6 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   qsCc = + K*eps_s/ws*mean(utot.^3*udelta(1))/(g*(s-1)*(1-psed));    % current-driven
   qsCf = - K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven
 
-else  % OPTION-3, above-WBL transport disabled
-  qsCc=0;
-  qsCf=0;
 end
 qs = qsVdA + qsCc + qsCf;
 
@@ -579,7 +431,7 @@ if(nargout>1)
   if(isfield(param,'Cc'))
     workspc.qs2          =qs2            ;
     workspc.qs3          =qs3            ;
-  elseif(~isfield(param,'nosusp') || param.nosusp==0)
+  else
     workspc.Lt     =Lt      ;
     workspc.Lc     =Lc      ;
     workspc.wfracc =wfracc  ;
@@ -596,8 +448,3 @@ if(nargout>1)
   workspc.qsCf         =qsCf           ;
 
 end
-
-% TEST-CODE: override output variable
-% eval(['qs = ' outvar ';']);
-
-end  % end of main function
