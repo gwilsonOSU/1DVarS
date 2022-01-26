@@ -160,7 +160,7 @@ tanbeta      =bkgd.tanbeta        ;
 if(isfield(param,'Cc'))  % option-1 for above-WBL transport
   qs2          =bkgd.qs2            ;
   qs3          =bkgd.qs3            ;
-else  % option-2 for above-WBL transport
+elseif(~isfield(param,'nosusp') || param.nosusp==0)  % option-2 for above-WBL transport
   Lt     =bkgd.Lt      ;
   Lc     =bkgd.Lc      ;
   wfracc =bkgd.wfracc  ;
@@ -616,7 +616,7 @@ if(isfield(param,'Cc'))  % OPTION-1
             - qs3*eps_s^2/ws^2*tl_param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
             - qs3*eps_s^2/ws^2*param.Cf*tl_tanbeta/(g*(s-1)*(1-psed));
 
-else  % OPTION-2
+elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
 
   if(Omegat>0)
     % Lt=max(eps,fzero(@(L)Omegat*d50*exp(-deltast/L)-0.08*L,.1));
@@ -713,7 +713,11 @@ else  % OPTION-2
       - 1/(g*(s-1)*(1-psed))*eps_s^2*K/ws^2*mean(tl_arg_qsCf)*tanbeta ...
       - 1/(g*(s-1)*(1-psed))*eps_s^2*K/ws^2*mean(arg_qsCf)*tl_tanbeta;
 
+else  % OPTION-3, above-WBL transport disabled
+  tl_qsCc=0;
+  tl_qsCf=0;
 end
+
 tl_qs = tl_qsVdA + tl_qsCc + tl_qsCf;
 
 % TEST-CODE: override output variable

@@ -33,6 +33,11 @@ function [qs,workspc]=qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,de
 %        Cc   : suspended sediment stirring+undertow effect.  Default 0.01
 %        Cf   : suspended sediment stirring+slope effect. Default 0.01, but 0.03 may be good
 %
+%        OPTIONAL: Set param.nosusp=1 to disable above-WBL transport
+%        altogether.  This is not recommended as it will cause unreasonable
+%        onshore transport in all but the most calm wave conditions.  The
+%        option is included for testing purposes only.
+%
 % param.streamingType : select from 'v' (van der A, 2013) or 'n' (Nielsen,
 % 2006).  The Nielsen formulation uses a larger roughness for calculating
 % bed streaming, and therefore produces a larger streaming.
@@ -378,7 +383,7 @@ if(isfield(param,'Cc'))  % OPTION-1
   qsCf = - qs3*eps_s/ws*param.Cf*eps_s*tanbeta/ws/(g*(s-1)*(1-psed));
   qsVdA = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
 
-else  % OPTION-2
+elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
 
   % calculate boundary layer e-folding length based on definition of delta_s
   % by Dohmen- Janssen (1999), c(delta_s) = 0.08.  Then use the calculated
@@ -432,6 +437,9 @@ else  % OPTION-2
   qsCc = + K*eps_s/ws*mean(utot.^3*udelta(1))/(g*(s-1)*(1-psed));    % current-driven
   qsCf = - K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven
 
+else  % OPTION-3, above-WBL transport disabled
+  qsCc=0;
+  qsCf=0;
 end
 qs = qsVdA + qsCc + qsCf;
 
@@ -567,7 +575,7 @@ if(nargout>1)
   if(isfield(param,'Cc'))
     workspc.qs2          =qs2            ;
     workspc.qs3          =qs3            ;
-  else
+  elseif(~isfield(param,'nosusp') || param.nosusp==0)
     workspc.Lt     =Lt      ;
     workspc.Lc     =Lc      ;
     workspc.wfracc =wfracc  ;

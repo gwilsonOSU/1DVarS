@@ -235,7 +235,7 @@ tanbeta      =bkgd.tanbeta        ;
 if(isfield(param,'Cc'))  % option-1 for above-WBL transport
   qs2          =bkgd.qs2            ;
   qs3          =bkgd.qs3            ;
-else  % option-2 for above-WBL transport
+elseif(~isfield(param,'nosusp') || param.nosusp==0)  % option-2 for above-WBL transport
   Lt     =bkgd.Lt      ;
   Lc     =bkgd.Lc      ;
   wfracc =bkgd.wfracc  ;
@@ -476,7 +476,7 @@ if(isfield(param,'Cc'))  % OPTION-1
   ad_uw=ad_uw+1/1.4*ad_uwmo;
   ad_uwmo=0;
 
-else  % OPTION-2
+elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
 
   % NL helper variables
   if(Lt>0)
@@ -639,6 +639,11 @@ else  % OPTION-2
     ad_Lt=0;
   end
 
+else  % OPTION-3, above-WBL transport disabled
+  % tl_qsCc=0;
+  ad_qsCc=0;
+  % tl_qsCf=0;
+  ad_qsCf=0;
 end
 
 %b14 transport, eqn 1
