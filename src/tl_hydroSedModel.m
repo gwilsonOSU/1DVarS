@@ -180,14 +180,22 @@ tl_Q1 = tl_Q0;
 % Q1(imax:end)=0;
 tl_Q1(imax:end)=0;
 
-% filtering is applied in NL model, neglected in TL
-% Q = Q1;
-tl_Q = tl_Q1;
+% OPTIONAL: Apply horizontal diffusion to Q(x)
+if(nuQ>0)
+  % Q = diffusionSmoother*Q1;
+  tl_Q = diffusionSmoother*tl_Q1;
+else
+  % Q=Q1;
+  tl_Q = tl_Q1;
+end
 
 % rotate output from wave-following coords to cartesian
 tl_Qx = ...
     + tl_Q.*cos(theta) ...
     - Q.*sin(theta).*tl_theta;
+
+% apply masking
+tl_Qx(imask)=0;
 
 % bathymetry update: dhdt = -dzdt = dQdx.  This is the Exner equation,
 % e.g. see Dubarbier et al. (2015) eqn. (16), and note Q is the volumetric
