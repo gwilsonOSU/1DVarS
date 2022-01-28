@@ -262,6 +262,10 @@ else
   ad_dQdx=0;
 end
 
+% apply masking
+% tl_Qx(imask)=0;
+ad_Qx(imask)=0;
+
 % rotate output from wave-following coords to cartesian
 %17 tl_Qx = ...
 %     + tl_Q.*cos(theta) ...
@@ -270,10 +274,16 @@ ad_Q    =ad_Q    + cos(theta)   .*ad_Qx;
 ad_theta=ad_theta- Q.*sin(theta).*ad_Qx;
 ad_Qx=0;
 
-% filtering is applied in NL model, neglected in TL
-% tl_Q = tl_Q1;
-ad_Q1 = ad_Q1 + ad_Q;
-ad_Q=0;
+% OPTIONAL: Apply horizontal diffusion to Q(x)
+if(nuQ>0)
+  % tl_Q = diffusionSmoother*tl_Q1;
+  ad_Q1 = ad_Q1 + diffusionSmoother'*ad_Q;
+  ad_Q=0;
+else
+  % tl_Q = tl_Q1;
+  ad_Q1 = ad_Q1 + ad_Q;
+  ad_Q=0;
+end
 
 % mitigate transport discontinuity at the shoreline
 % tl_Q1(imax:end)=0;
