@@ -349,8 +349,8 @@ end
 %% Rayleigh distributed random waves
 % create pdf using built in function, removing NaNs
 
-n = 10; % number of runs in ensemble
-N = 3600; % number of waves in each run: 1E5 = ~1 week, 12 minutes run time
+n = 5; % number of runs in ensemble
+N = 1200; % number of waves in each run: 1E5 = ~1 week, 12 minutes run time
 
 time_est = N*n*2*12/1E5;
 prompt = ['Estimated runtime is ',num2str(time_est), ' minutes. Continue? [Y]'];
@@ -368,11 +368,11 @@ if str == 'Y'
         ray = fitdist(H_vec{i}.','Rayleigh');
 
         % Other inputs used to calculate q
-        if i == 1
-            delta = delta_on;
-        else
+%         if i == 1
+%             delta = delta_on;
+%         else
             delta = delta_off;
-        end
+%         end
         h = mean(p{i});
         T_av = nanmean(T_vec{i});
         omega = 2*pi/T_av; % definition
