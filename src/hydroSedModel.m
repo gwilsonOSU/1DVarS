@@ -101,8 +101,9 @@ function [Hrms,vbar,theta,kabs,Qx,hp,workspc] = ...
                   d50,d90,params,sedmodel,gammaType,betaType,dt)%,outvar)
 
 % experimental features
-nuQ=.1;  % horizontal diffusion coef to provide smoothing for Q(x).  Set to zero to turn off smoothing.
-nuN=100; % increase this number to increase degree of horizontal diffusive smoothing
+doFilterQ=0;  % numerical filtering with low-pass filter.  Don't use unless nuQ==0 (either choose one filtering scheme, or turn both off)
+nuQ=.1;  % horizontal diffusion coef to provide numerical filtering for Q(x).  Set to zero to turn off filtering.
+nuN=50; % increase this number to increase degree of horizontal diffusive filtering
 doMarieu=0;  % use Marieu's dh/dt instead of upwind differencing
 if(doMarieu==1)
   warning('Marieu code TL-AD appears to have stability issues!')
@@ -251,18 +252,21 @@ imax=imax-1;
 Q1=Q0;
 Q1(imax:end)=0;
 
-% % OLD: use filtering to suppress instabilities.  This is necessary for
-% % vanderA model, to suppress discontinuities associated with switching
-% % on/off of phase lags, ripples, etc.
-% if(doFilterQ)
-%   fc = 1/50;   % band lower bound in 1/m
-%   fs=1/abs(x(2)-x(1));
-%   [b,a] = butter(5,fc/(fs/2),'low');
-%   Q=zeros(size(Q1));
-%   Q(1:(imax-1)) = filtfilt(b,a,Q1(1:(imax-1)));
-% else
-%   Q = Q1;
-% end
+% OPTIONAL: use filtering to suppress instabilities.  This is necessary for
+% vanderA model, to suppress discontinuities associated with switching
+% on/off of phase lags, ripples, etc.
+if(doFilterQ)
+  if(nuQ>0)
+    warning('Recommended to NOT use both doFilterQ and nuQ>0, instead choose one or the other')
+  end
+  fc = 1/50;   % band lower bound in 1/m
+  fs=1/abs(x(2)-x(1));
+  [b,a] = butter(5,fc/(fs/2),'low');
+  Q=zeros(size(Q1));
+  Q(1:(imax-1)) = filtfilt(b,a,Q1(1:(imax-1)));
+else
+  Q = Q1;
+end
 
 % OPTIONAL: Apply horizontal diffusion to Q(x)
 if(nuQ>0)
