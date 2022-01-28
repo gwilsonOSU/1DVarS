@@ -400,22 +400,22 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   else
     Lt=0;
   end
-  if(Omegat>0)
+  if(Omegac>0)
     Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
   else
     Lc=0;
   end
   if(Lc>0)
-    wfracc = (1-exp(-delta/Lc));
+    wfracc = (1-exp(-delta/Lc));  % above-WBL fraction
   else
     wfracc=0;
   end
   if(Lt>0)
-    wfract = (1-exp(-delta/Lt));
+    wfract = (1-exp(-delta/Lt));  % above-WBL fraction
   else
     wfract=0;
   end
-  qsVdA = ( qsc*wfracc + qst*wfract )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
+  qsVdA = ( qsc*wfracc + qst*wfract )./T.*sqrt((s-1)*g*d50^3)/(1-psed);  % total transport within WBL
 
   % % OLD: current-driven transport, simply multiply above-WBL sediment load
   % % times udelta.  This kinda works but bars tend to become too peaky.
@@ -426,20 +426,39 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   % qsCf=0;  % slope-driven, left out of this code
   % qs = qs + qsCc + qsCf;  % add suspended contribution to total
 
-  % current- and slope-driven transport are partitioned according to
+  % EM-model variables
+  eps_s=0.015;
+  eps_b=0.135;
+  tan_phi=0.63;  % sediment internal friction angle
+  uwmo=uw/1.4;
+  utot=sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2);  % total current magnitude (time dependent)
+
+  % above-WBL current- and slope-driven transport are partitioned according to
   % energetics model (i.e., "wave stirring" doing work against gravitational
   % settling).  The two effects are assumed share a common drag coefficient,
   % (K = Cc (==Cf) in Dubarbier's notation).
-  eps_s=0.015;
-  uwmo=uw/1.4;
-  Omegas = (1-wfracc)*Omegac*Tc/T + (1-wfract)*Omegat*Tt/T;  % total load above-WBL
-  utot=sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2);  % total current magnitude (time dependent)
-  Kdenom1 = + eps_s/ws*mean(utot.^3);
-  Kdenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
-  Kdenom=Kdenom1+Kdenom2;
-  K = Omegas*(s-1)*g*d50/(Kdenom1+Kdenom2);  % chosen s.t. EM-model predicts sediment load = Omegas
-  qsCc = + K*eps_s/ws*mean(utot.^3*udelta(1))/(g*(s-1)*(1-psed));    % current-driven
-  qsCf = - K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven
+  Omegai = (1-wfracc)*Omegac*Tc/T + (1-wfract)*Omegat*Tt/T;  % total load above-WBL
+  Kidenom1 = + eps_s/ws*mean(utot.^3);
+  Kidenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
+  Ki = Omegai*(s-1)*g*d50/(Kidenom1+Kidenom2);  % chosen s.t. EM-model predicts sediment load = Omegas
+  qsCc = + Ki*eps_s/ws*mean(utot.^3*udelta(1))/(g*(s-1)*(1-psed));    % current-driven above_WBL suspended load
+  % qsCf = - K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven above-WBL suspended load
+
+  % slope-driven transport includes both suspended and bed load.  Use EM-model
+  % to predict the ratio between the two
+  slopeFact=0.25;  % reduction factor for slope-driven transport efficiency
+  Ksdenom1 = + eps_s/ws*mean(utot.^3);
+  Ksdenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
+  Kbdenom1 = + eps_b/tan_phi*mean(utot.^2);
+  Kbdenom2 = - eps_b/tan_phi^2*mean(utot.^2)*tanbeta;
+  bedSuspRatio = (Kbdenom1 + Kbdenom2)/(Ksdenom1 + Ksdenom2);
+  Omegab = bedSuspRatio*Omegac*Tc/T + bedSuspRatio*Omegat*Tt/T;  % total bed-load
+  Omegas = (1-bedSuspRatio)*Omegac*Tc/T + (1-bedSuspRatio)*Omegat*Tt/T;  % total susp-load
+  % Omegab = wfraccb*Omegac*Tc/T + wfractb*Omegat*Tt/T;  % bed-load, old version
+  Kb = Omegab*(s-1)*g*d50/(Kbdenom1+Kbdenom2);  % chosen s.t. EM-model predicts bed-load = Omegab
+  Ks = Omegas*(s-1)*g*d50/(Ksdenom1+Ksdenom2);  % chosen s.t. EM-model predicts susp-load = Omegas
+  qsCf = - slopeFact*Ks*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven suspended load
+  qbCf = - slopeFact*Kb*eps_b/tan_phi^2*mean(utot.^3)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven bed load
 
 else  % OPTION-3, above-WBL transport disabled
   eps_s=0.015;
@@ -447,8 +466,9 @@ else  % OPTION-3, above-WBL transport disabled
   qsVdA = ( qsc + qst )./T.*sqrt((s-1)*g*d50^3)/(1-psed);
   qsCc=0;
   qsCf=0;
+  qbCf=0;
 end
-qs = qsVdA + qsCc + qsCf;
+qs = qsVdA + qsCc + qsCf + qbCf;
 
 % save all relevant variables for passing to TL model.  Note this runs
 % faster if the variables are hard-coded, don't use eval
@@ -588,15 +608,25 @@ if(nargout>1)
     workspc.wfracc =wfracc  ;
     workspc.wfract =wfract  ;
     workspc.utot   =utot    ;
+    workspc.Omegai =Omegai  ;
     workspc.Omegas =Omegas  ;
-    workspc.Kdenom1=Kdenom1 ;
-    workspc.Kdenom2=Kdenom2 ;
-    workspc.Kdenom =Kdenom  ;
-    workspc.K      =K       ;
+    workspc.Omegab =Omegab  ;
+    workspc.Kidenom1=Kidenom1 ;
+    workspc.Ksdenom1=Ksdenom1 ;
+    workspc.Kbdenom1=Kbdenom1 ;
+    workspc.Kidenom2=Kidenom2 ;
+    workspc.Ksdenom2=Ksdenom2 ;
+    workspc.Kbdenom2=Kbdenom2 ;
+    workspc.Ki      =Ki       ;
+    workspc.Ks      =Ks       ;
+    workspc.Kb      =Kb       ;
+    workspc.bedSuspRatio=bedSuspRatio;
+    workspc.slopeFact=slopeFact;
   end
   workspc.qsVdA        =qsVdA          ;
   workspc.qsCc         =qsCc           ;
   workspc.qsCf         =qsCf           ;
+  workspc.qbCf         =qbCf           ;
 
 end
 

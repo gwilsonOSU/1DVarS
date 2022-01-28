@@ -629,7 +629,7 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   else
     tl_Lt=0;
   end
-  if(Omegat>0)
+  if(Omegac>0)
     % Lc=max(eps,fzero(@(L)Omegac*d50*exp(-deltasc/L)-0.08*L,.1));
     numsc=exp(-deltasc/Lc)/0.08;
     denomsc=1-Omegac*d50/0.08*deltasc/Lc^2*exp(-deltasc/Lc);
