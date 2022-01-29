@@ -417,21 +417,13 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   end
   qsVdA = ( qsc*wfracc + qst*wfract )./T.*sqrt((s-1)*g*d50^3)/(1-psed);  % total transport within WBL
 
-  % % OLD: current-driven transport, simply multiply above-WBL sediment load
-  % % times udelta.  This kinda works but bars tend to become too peaky.
-  % % The slope-driven suspended load transport is missing which would tend to
-  % % smooth out the morphology.
-  % qsCc = ( (1-wfracc)*Tc./T*Omegac*d50*udelta(1) ...
-  %          + (1-wfract)*Tt/T*Omegat*d50*udelta(1) )/(1-psed);  % current-driven
-  % qsCf=0;  % slope-driven, left out of this code
-  % qs = qs + qsCc + qsCf;  % add suspended contribution to total
-
   % EM-model variables
   eps_s=0.015;
   eps_b=0.135;
   tan_phi=0.63;  % sediment internal friction angle
   uwmo=uw/1.4;
   utot=sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2);  % total current magnitude (time dependent)
+  slopeFact=0.25;  % reduction factor for slope-driven transport efficiency
 
   % above-WBL current- and slope-driven transport are partitioned according to
   % energetics model (i.e., "wave stirring" doing work against gravitational
@@ -442,11 +434,9 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   Kidenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
   Ki = Omegai*(s-1)*g*d50/(Kidenom1+Kidenom2);  % chosen s.t. EM-model predicts sediment load = Omegas
   qsCc = + Ki*eps_s/ws*mean(utot.^3*udelta(1))/(g*(s-1)*(1-psed));    % current-driven above_WBL suspended load
-  % qsCf = - K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven above-WBL suspended load
 
   % slope-driven transport includes both suspended and bed load.  Use EM-model
   % to predict the ratio between the two
-  slopeFact=0.25;  % reduction factor for slope-driven transport efficiency
   Ksdenom1 = + eps_s/ws*mean(utot.^3);
   Ksdenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
   Kbdenom1 = + eps_b/tan_phi*mean(utot.^2);
@@ -597,12 +587,16 @@ if(nargout>1)
 
   % accounting of suspended seds above WBL
   workspc.eps_s        =eps_s          ;
+  workspc.eps_b        =eps_b          ;
   workspc.uwmo         =uwmo           ;
   workspc.tanbeta      =tanbeta        ;
   if(isfield(param,'Cc'))
     workspc.qs2          =qs2            ;
     workspc.qs3          =qs3            ;
   elseif(~isfield(param,'nosusp') || param.nosusp==0)
+    workspc.tan_phi      =tan_phi        ;
+    workspc.slopeFact    =slopeFact      ;
+    workspc.bedSuspRatio =bedSuspRatio   ;
     workspc.Lt     =Lt      ;
     workspc.Lc     =Lc      ;
     workspc.wfracc =wfracc  ;
