@@ -137,6 +137,7 @@ weird_wave = cell_init;
 q_param_vec = cell_init;
 q_mean_param = cell_init;
 udelta_vec = cell_init;
+h_vec = cell_init;
 
 for i = 1:2
     % Chop into waves roughly based on p zero crossings
@@ -153,6 +154,7 @@ for i = 1:2
     q_param_vec{i} = init;
     q_mean_param{i} = init;
     udelta_vec{i} = init;
+    h_vec{i} = init;
     
     % input parameters relevant to all waves
     d50 = 0.00018;
@@ -167,12 +169,14 @@ for i = 1:2
     g = 9.81;
     eta = NaN;
     lambda = NaN;
+    delta_on = 0.05*2;
+    delta_off = 0.05;
     if i == 1
-        delta = 0.05*5;
+        delta = delta_on;
     else
-        delta = 0.05;
+        delta = delta_off;
     end
-    tanbeta = 0.05; % constate for now, also from Greg
+    tanbeta = 0.05; % constant for now, also from Greg
     Omegatc = 0;
     % loop to calculate other inputs and q
     for ii = 1:(length(upzc)-1)
@@ -236,7 +240,8 @@ for i = 1:2
             Tcu = wave_t(maxcrestidx) - t00;
 
             % dispersion solver for c
-            h = p_mean{i}(upzc(ii));        
+            h = p_mean{i}(upzc(ii));
+            h_vec{i}(1,ii) = h;
             omega = 2*pi/T;
             k = fzero( @(k) omega^2 - g*k*tanh(k*h), 0.1);
             kabs = k;
@@ -295,6 +300,8 @@ end
 
 %% test plot
 close all
+%%%%%% manually deleting crazy outlier!
+q_vec{1}(941) = NaN;
 for i = 1:2
     if i==1
         txt = 'onshore';
@@ -342,70 +349,105 @@ end
 %% Rayleigh distributed random waves
 % create pdf using built in function, removing NaNs
 
-n = 1; % number of runs in ensemble
-N = 1E3; % number of waves in each run: 1E5 = ~1 week, 12 minutes run time
+n = 5; % number of runs in ensemble
+N = 1200; % number of waves in each run: 1E5 = ~1 week, 12 minutes run time
 
-% initialize q and q_mean
-init = NaN(n,N); 
-cell_init = {init,init};
-q = cell_init;
-q_ray_mean = cell_init;
-breaking = cell_init;
-for i = 1:2
-    H_vec{i}(isnan(H_vec{i}))=[];
-    ray = fitdist(H_vec{i}.','Rayleigh');
+time_est = N*n*2*12/1E5;
+prompt = ['Estimated runtime is ',num2str(time_est), ' minutes. Continue? [Y]'];
+tic
+str = input(prompt,'s');
+if str == 'Y'
+    % initialize q and q_mean
+    init = NaN(n,N); 
+    cell_init = {init,init};
+    q = cell_init;
+    q_ray_mean = cell_init;
+    breaking = cell_init;
+    for i = 1:2
+        H_vec{i}(isnan(H_vec{i}))=[];
+        ray = fitdist(H_vec{i}.','Rayleigh');
 
-    % Other inputs used to calculate q
-    T_av = nanmean(T_vec{i});
-    omega = 2*pi/T_av; % definition
-    kabs = fzero( @(kabs) omega^2 - g*kabs*tanh(kabs*h), 0.1); % dispersion solver
-    udelta = [mean(u_on),0];
-    Omegatc = 0; % initialized as zero for the first wave
-    for j = 1:n
-        for ii=1:N
-            Hrms = random(ray); % choose Rayleigh distributed random wave height
-            Hmo = Hrms;
-            [Aw,Sw,Uw,~]=Uwave_ruessink2012_params(Hmo,k,omega,h);           
-            [q{i}(1,ii),s,Omegatc] = qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param,Omegatc);
-            q_ray_mean{i}(1,ii) = nanmean(q{i});
-            if Hrms/h > 0.78 % check for depth limited breaking
-                breaking{i}(1,ii) = 1;
-            else
-                breaking{i}(1,ii) = 0;
+        % Other inputs used to calculate q
+%         if i == 1
+%             delta = delta_on;
+%         else
+            delta = delta_off;
+%         end
+        h = mean(p{i});
+        T_av = nanmean(T_vec{i});
+        omega = 2*pi/T_av; % definition
+        kabs = fzero( @(kabs) omega^2 - g*kabs*tanh(kabs*h), 0.1); % dispersion solver
+        k = kabs;
+        if i == 1
+            udelta = [0,0];
+        else
+            udelta = [nanmean(udelta_vec{i}),0];
+        end
+        Omegatc = 0; % initialized as zero for the first wave
+        for j = 1:n
+            for ii=1:N
+                Hrms = random(ray); % choose Rayleigh distributed random wave height
+                Hmo = Hrms;
+                [Aw,Sw,Uw,~]=Uwave_ruessink2012_params(Hmo,k,omega,h);           
+                [q{i}(j,ii),s,Omegatc] = qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param,Omegatc);
+                q_ray_mean{i}(j,ii) = nanmean(q{i}(j,:));
+                if Hrms/h > 0.78 % check for depth limited breaking
+                    breaking{i}(j,ii) = 1;
+                else
+                    breaking{i}(j,ii) = 0;
+                end
             end
         end
     end
+else
 end
-
-%% plots 
+toc
+%% standard deviation and other stats
+for i = 1:2
+    s(i,:) = std(q_ray_mean{i});
+end
+% q_mag = abs(q{1});
+% sz = size(q_mag);
+% q_mag_1row = [];
+% for j = 1:sz(1)
+%     q_mag_1row = [q_mag_1row,q_mag(j,:)];
+% end
+% q_mag_sorted = sort(q_mag_1row,'descend');
+% figure()
+% loglog(q_mag_sorted)
+%% plots
 close all
 
 for j = 1:2
     figure()
+    if j==1
+        txt = 'onshore';
+    else
+        txt = 'offshore';
+    end
+  
     for i = 1:n
-        plot(q_mean{j}(i,:),'LineWidth',2)
+        plot(q_ray_mean{j}(i,:),'LineWidth',2,'color',[.5 .5 .5])
         hold on
     end
+    plot(q_mean{j},'b','LineWidth',2)
+    hold on
+    plot(q_mean_param{j},'r','LineWidth',2)
+    hold on
+    %plot(s(1,:),'k','LineWidth',3)
     hold off
     title('running average transport')
+    subtitle(txt)
     ylabel('q mean(m^2/s)')
     xlabel('wave')
     yline(0,'--k')
-    yline(q_mean{j}(n,N))
-    yline(1.1*q_mean{j}(n,N),'--k')
-    yline(0.9*q_mean{j}(n,N),'--k')
+    xline(6*3600/nanmean(T_vec{j}),'--k')
+%     yline(q_mean{j}(n,N))
+%     yline(1.1*q_mean{j}(n,N),'--k')
+%     yline(0.9*q_mean{j}(n,N),'--k')
     set(gca,'FontSize',18)
 
     figure()
-    tiledlayout(3,1)
-    nexttile
-    histogram(abs(q{j}),'FaceColor','r')
-    title('q, linear scale')
-    nexttile
-    histogram(abs(q{j}),'FaceColor','r')
-    set(gca,'yscale','log')
-    title('q, log scale y axis')
-    nexttile
     histogram(abs(q{j}),'FaceColor','r')
     set(gca,'xscale','log')
     set(gca,'yscale','log')
