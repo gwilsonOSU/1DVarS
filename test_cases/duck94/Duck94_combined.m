@@ -37,6 +37,8 @@ p_off = p_off(:);
 t_off = 0:1/fs:(length(u_off)-1)/2;
 t_off = t_off';
 
+h_offset = [pos_on(time_on,1,loc_on,4) - pos_on(time_on,1,loc_on,3),pos_off(time_off,1,loc_off,4) -pos_off(time_off,1,loc_off,3)];
+
 %% combine data into cell arrays
 u{1} = u_on;
 u{2} = u_off;
@@ -169,8 +171,8 @@ for i = 1:2
     g = 9.81;
     eta = NaN;
     lambda = NaN;
-    delta_on = 0.05*2;
-    delta_off = 0.05;
+    delta_on = .1262;
+    delta_off = 0.0662;
     if i == 1
         delta = delta_on;
     else
@@ -240,7 +242,7 @@ for i = 1:2
             Tcu = wave_t(maxcrestidx) - t00;
 
             % dispersion solver for c
-            h = p_mean{i}(upzc(ii));
+            h = p_mean{i}(upzc(ii)) + h_offset(i);
             h_vec{i}(1,ii) = h;
             omega = 2*pi/T;
             k = fzero( @(k) omega^2 - g*k*tanh(k*h), 0.1);
@@ -294,7 +296,7 @@ for i = 1:2
     x_weird = find(weird_wave{i} == 1);
     q_weird = q_vec{i}(weird_wave{i} == 1);
 
-%     q_combined = [q_vec{i}', q_param_vec{i}'];
+%   q_combined = [q_vec{i}', q_param_vec{i}'];
 
 end
 
@@ -350,7 +352,7 @@ end
 % create pdf using built in function, removing NaNs
 
 n = 5; % number of runs in ensemble
-N = 1200; % number of waves in each run: 1E5 = ~1 week, 12 minutes run time
+N = 3700; % number of waves in each run: 1E5 = ~1 week, 12 minutes run time
 
 time_est = N*n*2*12/1E5;
 prompt = ['Estimated runtime is ',num2str(time_est), ' minutes. Continue? [Y]'];
@@ -368,26 +370,26 @@ if str == 'Y'
         ray = fitdist(H_vec{i}.','Rayleigh');
 
         % Other inputs used to calculate q
-%         if i == 1
-%             delta = delta_on;
-%         else
+        if i == 1
+            delta = delta_on;
+        else
             delta = delta_off;
-%         end
-        h = mean(p{i});
+        end
+        h = mean(p{i}) + h_offset(i);
         T_av = nanmean(T_vec{i});
         omega = 2*pi/T_av; % definition
         kabs = fzero( @(kabs) omega^2 - g*kabs*tanh(kabs*h), 0.1); % dispersion solver
         k = kabs;
-        if i == 1
-            udelta = [0,0];
-        else
-            udelta = [nanmean(udelta_vec{i}),0];
-        end
+        c = omega/k;
+        rho = 1000;
         Omegatc = 0; % initialized as zero for the first wave
         for j = 1:n
             for ii=1:N
                 Hrms = random(ray); % choose Rayleigh distributed random wave height
                 Hmo = Hrms;
+                E = 0.125*rho*g*Hmo^2;
+                udelta_approx = -E/(rho*c*h);
+                udelta = [udelta_approx,0];
                 [Aw,Sw,Uw,~]=Uwave_ruessink2012_params(Hmo,k,omega,h);           
                 [q{i}(j,ii),s,Omegatc] = qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param,Omegatc);
                 q_ray_mean{i}(j,ii) = nanmean(q{i}(j,:));

@@ -258,6 +258,7 @@ qst=sqrt(abs(thetat)).*Tt.*(Omegatt+Tt./(2*Ttu).*Omegact).*thetatx./abs(thetat);
 % contribution is based on boundary layer height calculated by VDA model.
 % See further info in comments below.
 %
+ws = (wsc+wst)/2;
 if(isfield(param,'Cc'))  % OPTION-1
 
   eps_s=0.015;
@@ -480,10 +481,10 @@ if(nargout>1)
     workspc.wfract =wfract  ;
     workspc.utot   =utot    ;
     workspc.Omegas =Omegas  ;
-    workspc.Kdenom1=Kdenom1 ;
-    workspc.Kdenom2=Kdenom2 ;
-    workspc.Kdenom =Kdenom  ;
-    workspc.K      =K       ;
+    % workspc.Kdenom1=Kdenom1 ;
+    % workspc.Kdenom2=Kdenom2 ;
+    % workspc.Kdenom =Kdenom  ;
+    % workspc.K      =K       ;
   end
   workspc.qsVdA        =qsVdA          ;
   workspc.qsCc         =qsCc           ;
