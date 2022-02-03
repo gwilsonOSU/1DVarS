@@ -181,6 +181,7 @@ end
 nlambda=neta;
 eta=ahat*meta*neta*(.275-.022*psihat^.42);
 lambda=ahat*mlambda*nlambda*(1.97-0.44*psihat^.21);
+eta=0;  % TEST: disable ripples
 
 % TEST: parameterization of Kranenburg et al. (2012) for boundary layer
 % streaming velocity.  Try using this to augment or replace the mean flow at
