@@ -108,9 +108,8 @@ Hmo=Hrms*1.4;
 c=omega/kabs;
 
 % note, van der A specifies to use significant orbital velocity amplitude,
-% while Ruessink et al. (2012) uses rms.  Uwave_ruessink2012() follows the
-% Ruessink et al. (2012) convention, so I need to revert to van der A's
-% convention here as a special case.
+% while Uwave_ruessink2001.m outputs the rms for Uw.  Revert to van der A's
+% convention here
 Uw=1.4*Uw;
 
 % intra-wave velocities using Ruessink et al. (2012).  Then extract stats
@@ -587,10 +586,12 @@ if(nargout>1)
   workspc.itu_guess    =itu_guess      ;
 
   % accounting of suspended seds above WBL
-  workspc.eps_s        =eps_s          ;
-  workspc.eps_b        =eps_b          ;
-  workspc.uwmo         =uwmo           ;
-  workspc.tanbeta      =tanbeta        ;
+  if(~isfield(param,'nosusp') || param.nosusp==0)
+    workspc.eps_s        =eps_s          ;
+    workspc.eps_b        =eps_b          ;
+    workspc.uwmo         =uwmo           ;
+    workspc.tanbeta      =tanbeta        ;
+  end
   if(isfield(param,'Cc'))
     workspc.qs2          =qs2            ;
     workspc.qs3          =qs3            ;
