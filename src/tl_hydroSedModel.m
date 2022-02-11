@@ -45,6 +45,11 @@ tl_h(imask)=0;  % min depth constraint
 [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
     tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,tl_beta0,hydro_bkgd);
 
+% don't allow Dr==0, otherwise the undertow model will be discontinuous at
+% the break point
+% Dr(Drmask)=.001;
+tl_Dr(Drmask)=0;
+
 % apply masking to hydro outputs
 tl_Hrms (imask)=0;
 tl_vbar (imask)=0;
