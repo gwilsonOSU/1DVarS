@@ -70,6 +70,11 @@ tl_Uwq= omega/2.*( tl_Hrms./sinh(kabs.*h) ...
 % step through each gridpoint
 for i=1:nx
 
+  % for masked points, make a dummy output with all fields set to 0
+  if(Hrms(i)==0)
+  tl_q(i)  =0;
+  else
+
   % intra-wave velocity information, using Ruessink et al. (2012).  Note,
   % comparing to Hsu et al. (2006) it seems as though Dubarbier et al. are
   % using \tilde{U} and \tilde{u} (upper and lower case) interchangably for
@@ -137,6 +142,8 @@ for i=1:nx
                              + Cc*qs2(i) ...
                              - Cf*eps_s*tanbeta(i)/ws(i)*qs3(i) )*tl_ws(i);  % ad symmetric
   tl_q(i)=tl_qa(i)+tl_qb(i)+tl_qs(i);
+
+  end  % masking
 
 end
 

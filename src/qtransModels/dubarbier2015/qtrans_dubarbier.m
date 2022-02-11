@@ -57,6 +57,29 @@ Uwq = omega.*Hrms./(2*sinh(kabs.*h));
 t=linspace(0,2*pi/omega,nt);
 for i=1:nx
 
+  % for masked points, make a dummy output with all fields set to 0
+  if(Hrms(i)==0)
+  bkgd_uwave(i)=bkgd_uwave(i-1);
+  utilde(:,i)=zeros(nt,1);
+  uH(:,i)=zeros(nt,1);
+  Au_nums(i) = 0;
+  Au_dens_1(i) = 0;
+  Au_dens(i) = 0;
+  Au(i) =0;
+  Awq(i)=0;
+  utot(:,i)=zeros(nt,1);
+  qa(i) =0;
+  qb1(i)=0;
+  qb2(i)=0;
+  qb3(i)=0;
+  qb(i) =0;
+  qs1(i)=0;
+  qs2(i)=0;
+  qs3(i)=0;
+  qs(i) =0;
+  q(i)  =0;
+  else
+
   % intra-wave velocity information, using Ruessink et al. (2012).  Note,
   % comparing to Hsu et al. (2006) it seems as though Dubarbier et al. are
   % using \tilde{U} and \tilde{u} (upper and lower case) interchangably for
@@ -88,6 +111,8 @@ for i=1:nx
                          + Cc*qs2(i) ...
                          - Cf*eps_s*tanbeta(i)/ws(i)*qs3(i) );
   q(i)=qa(i)+qb(i)+qs(i);
+
+  end  % catch for masked points
 
 end
 
