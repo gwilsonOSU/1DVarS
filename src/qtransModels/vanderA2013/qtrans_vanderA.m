@@ -425,30 +425,21 @@ elseif(~isfield(param,'nosusp') || param.nosusp==0)  % OPTION-2
   utot=sqrt(uwmo.^2+udelta(1)^2+udelta(2)^2);  % total current magnitude (time dependent)
   slopeFact=0.25;  % reduction factor for slope-driven transport efficiency
 
-  % above-WBL current- and slope-driven transport are partitioned according to
-  % energetics model (i.e., "wave stirring" doing work against gravitational
-  % settling).  The two effects are assumed share a common drag coefficient,
-  % (K = Cc (==Cf) in Dubarbier's notation).
+  % above-WBL transport is according to energetics model (i.e., "wave
+  % stirring" doing work against gravitational settling)
   Omegai = (1-wfracc)*Omegac*Tc/T + (1-wfract)*Omegat*Tt/T;  % total load above-WBL
-  Kidenom1 = + eps_s/ws*mean(utot.^3);
-  Kidenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
-  Ki = Omegai*(s-1)*g*d50/(Kidenom1+Kidenom2);  % chosen s.t. EM-model predicts sediment load = Omegas
+  Ksdenom1 = + eps_s/ws*mean(utot.^3);
+  Ksdenom2 = - slopeFact*(eps_s/ws)^2*mean(utot.^4)*tanbeta;
+  Ki = Omegai*(s-1)*g*d50/(Ksdenom1+Ksdenom2);  % chosen s.t. EM-model predicts sediment load = Omegai
   qsCc = + Ki*eps_s/ws*mean(utot.^3*udelta(1))/(g*(s-1)*(1-psed));    % current-driven above_WBL suspended load
 
-  % slope-driven transport includes both suspended and bed load.  Use EM-model
-  % to predict the ratio between the two
-  Ksdenom1 = + eps_s/ws*mean(utot.^3);
-  Ksdenom2 = - (eps_s/ws)^2*mean(utot.^4)*tanbeta;
+  % slope-driven transport
   Kbdenom1 = + eps_b/tan_phi*mean(utot.^2);
-  Kbdenom2 = - eps_b/tan_phi^2*mean(utot.^2)*tanbeta;
-  bedSuspRatio = (Kbdenom1 + Kbdenom2)/(Ksdenom1 + Ksdenom2);
-  Omegab = bedSuspRatio*Omegac*Tc/T + bedSuspRatio*Omegat*Tt/T;  % total bed-load
-  Omegas = (1-bedSuspRatio)*Omegac*Tc/T + (1-bedSuspRatio)*Omegat*Tt/T;  % total susp-load
-  % Omegab = wfraccb*Omegac*Tc/T + wfractb*Omegat*Tt/T;  % bed-load, old version
-  Kb = Omegab*(s-1)*g*d50/(Kbdenom1+Kbdenom2);  % chosen s.t. EM-model predicts bed-load = Omegab
-  Ks = Omegas*(s-1)*g*d50/(Ksdenom1+Ksdenom2);  % chosen s.t. EM-model predicts susp-load = Omegas
-  qsCf = - slopeFact*Ks*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven suspended load
-  qbCf = - slopeFact*Kb*eps_b/tan_phi^2*mean(utot.^3)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven bed load
+  Kbdenom2 = - slopeFact*eps_b/tan_phi^2*mean(utot.^2)*tanbeta;
+  Omega = Omegac*Tc/T + Omegat*Tt/T;  % total sediment load
+  K = Omega*(s-1)*g*d50/(Kbdenom1+Kbdenom2+Ksdenom1+Ksdenom2);  % chosen s.t. EM-model predicts total sed load = Omega
+  qsCf = - slopeFact*K*(eps_s/ws)^2*mean(utot.^5)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven suspended load
+  qbCf = - slopeFact*K*eps_b/tan_phi^2*mean(utot.^3)*tanbeta/(g*(s-1)*(1-psed));  % slope-driven bed load
 
 else  % OPTION-3, above-WBL transport disabled
   eps_s=0.015;
@@ -598,26 +589,20 @@ if(nargout>1)
   elseif(~isfield(param,'nosusp') || param.nosusp==0)
     workspc.tan_phi      =tan_phi        ;
     workspc.slopeFact    =slopeFact      ;
-    workspc.bedSuspRatio =bedSuspRatio   ;
+    % workspc.bedSuspRatio =bedSuspRatio   ;
     workspc.Lt     =Lt      ;
     workspc.Lc     =Lc      ;
     workspc.wfracc =wfracc  ;
     workspc.wfract =wfract  ;
     workspc.utot   =utot    ;
     workspc.Omegai =Omegai  ;
-    workspc.Omegas =Omegas  ;
-    workspc.Omegab =Omegab  ;
-    workspc.Kidenom1=Kidenom1 ;
+    workspc.Omega  =Omega   ;
     workspc.Ksdenom1=Ksdenom1 ;
     workspc.Kbdenom1=Kbdenom1 ;
-    workspc.Kidenom2=Kidenom2 ;
     workspc.Ksdenom2=Ksdenom2 ;
     workspc.Kbdenom2=Kbdenom2 ;
     workspc.Ki      =Ki       ;
-    workspc.Ks      =Ks       ;
-    workspc.Kb      =Kb       ;
-    workspc.bedSuspRatio=bedSuspRatio;
-    workspc.slopeFact=slopeFact;
+    workspc.K       =K        ;
   end
   workspc.qsVdA        =qsVdA          ;
   workspc.qsCc         =qsCc           ;
