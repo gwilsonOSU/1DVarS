@@ -1,25 +1,30 @@
-function tl_qs=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_delta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
+function [tl_qs,tl_all]=tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_delta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
 %
 % TL code for qtrans_vanderA.m
 %
 
 % this wrapper loop serves to handle vector inputs
 nx=length(tl_h);
-tl_Q=zeros(nx,1);
 for i=1:nx
   if(bkgd(i).Hmo==0)  % ignore masked points
     tl_qs(i)=0;
   else
-    tl_qs(i)= ...
-        tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
-                               tl_omega,tl_udelta(i,:),tl_delta(i),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i));%,outvar);
+    if(nargout==2)
+      [tl_qs(i),tl_all(i)]= ...
+          tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
+                                 tl_omega,tl_udelta(i,:),tl_delta(i),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i));%,outvar);
+    else
+      tl_qs(i)= ...
+          tl_qtrans_vanderA_main(tl_d50(i),tl_d90(i),tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
+                                 tl_omega,tl_udelta(i,:),tl_delta(i),tl_ws(i),tl_Aw(i),tl_Sw(i),tl_Uw(i),tl_param,bkgd(i));%,outvar);
+    end
   end
 end
 tl_qs=tl_qs(:);
 
 end  % end of wrapper function, start of main function
 
-function tl_qs=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_delta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
+function [tl_qs,tl_all]=tl_qtrans_vanderA_main(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,tl_udelta,tl_delta,tl_ws,tl_Aw,tl_Sw,tl_Uw,tl_param,bkgd)%,outvar)
 
 physicalConstants;
 
@@ -623,6 +628,7 @@ if(isfield(param,'Cc'))  % OPTION-1
             + 2*qs3*eps_s^2/ws^3*tl_ws*param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
             - qs3*eps_s^2/ws^2*tl_param.Cf*tanbeta/(g*(s-1)*(1-psed)) ...
             - qs3*eps_s^2/ws^2*param.Cf*tl_tanbeta/(g*(s-1)*(1-psed));
+  error('this option should include qbCf, needs to be added')
 
 elseif(~isfield(param,'nosusp') | param.nosusp==0)  % OPTION-2
 
@@ -755,9 +761,150 @@ else  % OPTION-3, above-WBL transport disabled
       + (qsc + qst)/T*tl_term3;
   tl_qsCc=0;
   tl_qsCf=0;
-  end
+  tl_qBCf=0;
+end
 
-tl_qs = tl_qsVdA + tl_qsCc + tl_qsCf;
+tl_qs = tl_qsVdA + tl_qsCc + tl_qsCf + tl_qbCf;
+
+% dump all ancillary variables
+tl_all.absthetac      =tl_absthetac      ;
+tl_all.absthetat      =tl_absthetat      ;
+tl_all.ahat           =tl_ahat           ;
+tl_all.all            =tl_all            ;
+tl_all.alpha          =tl_alpha          ;
+tl_all.argc           =tl_argc           ;
+tl_all.argc1          =tl_argc1          ;
+tl_all.argc2          =tl_argc2          ;
+tl_all.argt           =tl_argt           ;
+tl_all.argt1          =tl_argt1          ;
+tl_all.argt2          =tl_argt2          ;
+tl_all.asinarg        =tl_asinarg        ;
+tl_all.b              =tl_b              ;
+tl_all.c              =tl_c              ;
+tl_all.deltasc        =tl_deltasc        ;
+tl_all.deltasc        =tl_deltasc        ;
+tl_all.deltast        =tl_deltast        ;
+tl_all.deltast        =tl_deltast        ;
+tl_all.Dstar          =tl_Dstar          ;
+tl_all.eta            =tl_eta            ;
+tl_all.etawc          =tl_etawc          ;
+tl_all.etawt          =tl_etawt          ;
+tl_all.f25            =tl_f25            ;
+tl_all.fwc            =tl_fwc            ;
+tl_all.fwd            =tl_fwd            ;
+tl_all.fwdc           =tl_fwdc           ;
+tl_all.fwdt           =tl_fwdt           ;
+tl_all.fws            =tl_fws            ;
+tl_all.fwt            =tl_fwt            ;
+tl_all.Hmo            =tl_Hmo            ;
+tl_all.lambda         =tl_lambda         ;
+tl_all.meta           =tl_meta           ;
+tl_all.mlambda        =tl_mlambda        ;
+tl_all.mu             =tl_mu             ;
+tl_all.neta           =tl_neta           ;
+tl_all.nlambda        =tl_nlambda        ;
+tl_all.Omegac         =tl_Omegac         ;
+tl_all.Omegacc        =tl_Omegacc        ;
+tl_all.Omegact        =tl_Omegact        ;
+tl_all.Omegat         =tl_Omegat         ;
+tl_all.Omegatc        =tl_Omegatc        ;
+tl_all.Omegatt        =tl_Omegatt        ;
+tl_all.Pc             =tl_Pc             ;
+tl_all.phidc          =tl_phidc          ;
+tl_all.phiuc          =tl_phiuc          ;
+tl_all.psihat         =tl_psihat         ;
+tl_all.psihatc        =tl_psihatc        ;
+tl_all.psihatt        =tl_psihatt        ;
+tl_all.Pt             =tl_Pt             ;
+tl_all.qbCf           =tl_qbCf           ;
+tl_all.qs             =tl_qs             ;
+tl_all.qsc            =tl_qsc            ;
+tl_all.qsCc           =tl_qsCc           ;
+tl_all.qsCf           =tl_qsCf           ;
+tl_all.qst            =tl_qst            ;
+tl_all.qsVdA          =tl_qsVdA          ;
+tl_all.r              =tl_r              ;
+tl_all.RR             =tl_RR             ;
+tl_all.streamingEffect=tl_streamingEffect; 
+tl_all.T              =tl_T              ;
+tl_all.t1c            =tl_t1c            ;
+tl_all.t1ca           =tl_t1ca           ;
+tl_all.t1cb           =tl_t1cb           ;
+tl_all.t1t            =tl_t1t            ;
+tl_all.t1ta           =tl_t1ta           ;
+tl_all.t1tb           =tl_t1tb           ;
+tl_all.t2c            =tl_t2c            ;
+tl_all.t2ca           =tl_t2ca           ;
+tl_all.t2cb           =tl_t2cb           ;
+tl_all.t2t            =tl_t2t            ;
+tl_all.t2ta           =tl_t2ta           ;
+tl_all.t2tb           =tl_t2tb           ;
+tl_all.tauwRe         =tl_tauwRe         ;
+tl_all.Tc             =tl_Tc             ;
+tl_all.tcr            =tl_tcr            ;
+tl_all.Tcu            =tl_Tcu            ;
+tl_all.tdc            =tl_tdc            ;
+tl_all.term3          =tl_term3          ;
+tl_all.theta25        =tl_theta25        ;
+tl_all.thetac         =tl_thetac         ;
+tl_all.theta_cr       =tl_theta_cr       ;
+tl_all.thetacx        =tl_thetacx        ;
+tl_all.thetahatc      =tl_thetahatc      ;
+tl_all.thetahatt      =tl_thetahatt      ;
+tl_all.thetat         =tl_thetat         ;
+tl_all.thetatx        =tl_thetatx        ;
+tl_all.Tt             =tl_Tt             ;
+tl_all.ttr            =tl_ttr            ;
+tl_all.Ttu            =tl_Ttu            ;
+tl_all.tuc            =tl_tuc            ;
+tl_all.ucrabs         =tl_ucrabs         ;
+tl_all.ucrvec         =tl_ucrvec         ;
+tl_all.udabs          =tl_udabs          ;
+tl_all.uhat           =tl_uhat           ;
+tl_all.uhatc          =tl_uhatc          ;
+tl_all.uhatt          =tl_uhatt          ;
+tl_all.utildecr       =tl_utildecr       ;
+tl_all.utildetr       =tl_utildetr       ;
+tl_all.utrabs         =tl_utrabs         ;
+tl_all.utrvec         =tl_utrvec         ;
+tl_all.uw2mean        =tl_uw2mean        ;
+tl_all.worb1c         =tl_worb1c         ;
+tl_all.worb1t         =tl_worb1t         ;
+tl_all.worb2c         =tl_worb2c         ;
+tl_all.worb2t         =tl_worb2t         ;
+tl_all.worbc          =tl_worbc          ;
+tl_all.worbt          =tl_worbt          ;
+tl_all.wsc            =tl_wsc            ;
+tl_all.wst            =tl_wst            ;
+if(isfield(param,'Cc'))  % OPTION-1
+  tl_all.uwmo   =tl_uwmo   ;
+  tl_all.arg_qs2=tl_arg_qs2; 
+  tl_all.qs2    =tl_qs2    ;
+  tl_all.arg_qs3=tl_arg_qs3; 
+  tl_all.qs3    =tl_qs3    ;
+elseif(~isfield(param,'nosusp') | param.nosusp==0)  % OPTION-2
+  tl_all.Lt          =tl_Lt          ;
+  tl_all.Lc          =tl_Lc          ;
+  tl_all.wfracc      =tl_wfracc      ;
+  tl_all.wfract      =tl_wfract      ;
+  tl_all.uwmo        =tl_uwmo        ;
+  tl_all.utot        =tl_utot        ;
+  tl_all.Omegai      =tl_Omegai      ;
+  tl_all.Omega       =tl_Omega       ;
+  tl_all.arg_Ksdenom1=tl_arg_Ksdenom1; 
+  tl_all.arg_Ksdenom2=tl_arg_Ksdenom2; 
+  tl_all.Ksdenom1    =tl_Ksdenom1    ;
+  tl_all.Ksdenom2    =tl_Ksdenom2    ;
+  tl_all.Ki          =tl_Ki          ;
+  tl_all.arg_Kbdenom1=tl_arg_Kbdenom1; 
+  tl_all.arg_Kbdenom2=tl_arg_Kbdenom2; 
+  tl_all.Kbdenom1    =tl_Kbdenom1    ;
+  tl_all.Kbdenom2    =tl_Kbdenom2    ;
+  tl_all.K           =tl_K           ;
+  tl_all.arg_qsCc    =tl_arg_qsCc    ;
+  tl_all.arg_qsCf    =tl_arg_qsCf    ;
+  tl_all.arg_qbCf    =tl_arg_qbCf    ;
+end
 
 % TEST-CODE: override output variable
 % eval(['tl_qs = tl_' outvar ';']);

@@ -1,13 +1,12 @@
 function [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param] = ...
-    ad_qtrans_vanderA(ad_qs,bkgd)%,invar)
+    ad_qtrans_vanderA(ad_qs,bkgd,ad_all)%,invar)
 %
 % AD code for qtrans_vanderA.m
 %
+
 % OPTIONAL: Set eparam==1 to compute parameter adjoint sensitivity at each
 % gridpoint individually.  Else the parameters will be treated as scalar
 % constants (i.e., summed to get a single value).
-%
-
 if(~exist('eparam'))
   eparam=0;
 end
@@ -46,12 +45,21 @@ for i=nx:-1:1
     % tl_qs(i)=0;
     ad_qs(i)=0;
   else
-    % tl_qs(i) = ...
-    %     tl_qtrans_vanderA(tl_d50,tl_d90,tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
-    %                       tl_udelta(i,:),tl_ws,tl_dAw(i),tl_dSw(i),tl_param,bkgd_qtrans(i));
-    [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,...
-     ad1_omega,ad1_udelta,ad1_delta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
-        ad_qtrans_vanderA_main(ad_qs(i),bkgd(i));%,invar);
+    if(exist('ad_all'))
+      % [tl_qs(i),tl_all(i)] = ...
+      %     tl_qtrans_vanderA(tl_d50,tl_d90,tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
+      %                       tl_udelta(i,:),tl_ws,tl_dAw(i),tl_dSw(i),tl_param,bkgd_qtrans(i));
+      [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,...
+       ad1_omega,ad1_udelta,ad1_delta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
+          ad_qtrans_vanderA_main(ad_qs(i),bkgd(i),ad_all(i));%,invar);
+    else
+      % tl_qs(i)=...
+      %     tl_qtrans_vanderA(tl_d50,tl_d90,tl_h(i),tl_tanbeta(i),tl_Hrms(i),tl_kabs(i),...
+      %                       tl_udelta(i,:),tl_ws,tl_dAw(i),tl_dSw(i),tl_param,bkgd_qtrans(i));
+      [ad1_d50,ad1_d90,ad1_h,ad1_tanbeta,ad1_Hrms,ad1_kabs,...
+       ad1_omega,ad1_udelta,ad1_delta,ad1_ws,ad1_Aw,ad1_Sw,ad1_Uw,ad1_param] = ...
+          ad_qtrans_vanderA_main(ad_qs(i),bkgd(i));%,invar);
+    end      
     ad_d50(i)=ad_d50(i)+ad1_d50   ;
     ad_d90(i)=ad_d90(i)+ad1_d90   ;
     ad_ws(i) =ad_ws(i) +ad1_ws    ;
@@ -91,7 +99,7 @@ end
 
 end  % end of wrapper function, start of main function
 
-function [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd)%,invar)
+function [ad_d50,ad_d90,ad_h,ad_tanbeta,ad_Hrms,ad_kabs,ad_omega,ad_udelta,ad_delta,ad_ws,ad_Aw,ad_Sw,ad_Uw,ad_param]=ad_qtrans_vanderA_main(ad_qs,bkgd,ad_all)%,invar)
 
 physicalConstants;
 
@@ -429,21 +437,164 @@ ad_wfract=0;
 ad_Lc=0;
 ad_Lt=0;
 
+% TL: dump all ancillary variables
+% AD: if ancillary variables are provided as input, re-initialize them accordingly
+if(exist('ad_all'))
+  ad_absthetac      =ad_all.absthetac      ;
+  ad_absthetat      =ad_all.absthetat      ;
+  ad_ahat           =ad_all.ahat           ;
+  ad_alpha          =ad_all.alpha          ;
+  ad_argc           =ad_all.argc           ;
+  ad_argc1          =ad_all.argc1          ;
+  ad_argc2          =ad_all.argc2          ;
+  ad_argt           =ad_all.argt           ;
+  ad_argt1          =ad_all.argt1          ;
+  ad_argt2          =ad_all.argt2          ;
+  ad_asinarg        =ad_all.asinarg        ;
+  ad_b              =ad_all.b              ;
+  ad_c              =ad_all.c              ;
+  ad_deltasc        =ad_all.deltasc        ;
+  ad_deltast        =ad_all.deltast        ;
+  ad_Dstar          =ad_all.Dstar          ;
+  ad_eta            =ad_all.eta            ;
+  ad_etawc          =ad_all.etawc          ;
+  ad_etawt          =ad_all.etawt          ;
+  ad_f25            =ad_all.f25            ;
+  ad_fwc            =ad_all.fwc            ;
+  ad_fwd            =ad_all.fwd            ;
+  ad_fwdc           =ad_all.fwdc           ;
+  ad_fwdt           =ad_all.fwdt           ;
+  ad_fws            =ad_all.fws            ;
+  ad_fwt            =ad_all.fwt            ;
+  ad_Hmo            =ad_all.Hmo            ;
+  ad_lambda         =ad_all.lambda         ;
+  ad_meta           =ad_all.meta           ;
+  ad_mlambda        =ad_all.mlambda        ;
+  ad_mu             =ad_all.mu             ;
+  ad_neta           =ad_all.neta           ;
+  ad_nlambda        =ad_all.nlambda        ;
+  ad_Omegac         =ad_all.Omegac         ;
+  ad_Omegacc        =ad_all.Omegacc        ;
+  ad_Omegact        =ad_all.Omegact        ;
+  ad_Omegat         =ad_all.Omegat         ;
+  ad_Omegatc        =ad_all.Omegatc        ;
+  ad_Omegatc        =ad_all.Omegatc        ;
+  ad_Omegatt        =ad_all.Omegatt        ;
+  ad_Pc             =ad_all.Pc             ;
+  ad_phidc          =ad_all.phidc          ;
+  ad_phiuc          =ad_all.phiuc          ;
+  ad_psihat         =ad_all.psihat         ;
+  ad_psihatc        =ad_all.psihatc        ;
+  ad_psihatt        =ad_all.psihatt        ;
+  ad_Pt             =ad_all.Pt             ;
+  ad_qs             =ad_all.qs             ;
+  ad_qsc            =ad_all.qsc            ;
+  ad_qst            =ad_all.qst            ;
+  ad_qsVdA          =ad_all.qsVdA          ;
+  ad_r              =ad_all.r              ;
+  ad_RR             =ad_all.RR             ;
+  ad_streamingEffect=ad_all.streamingEffect; 
+  ad_T              =ad_all.T              ;
+  ad_t1c            =ad_all.t1c            ;
+  ad_t1ca           =ad_all.t1ca           ;
+  ad_t1cb           =ad_all.t1cb           ;
+  ad_t1t            =ad_all.t1t            ;
+  ad_t1ta           =ad_all.t1ta           ;
+  ad_t1tb           =ad_all.t1tb           ;
+  ad_t2c            =ad_all.t2c            ;
+  ad_t2ca           =ad_all.t2ca           ;
+  ad_t2cb           =ad_all.t2cb           ;
+  ad_t2t            =ad_all.t2t            ;
+  ad_t2ta           =ad_all.t2ta           ;
+  ad_t2tb           =ad_all.t2tb           ;
+  ad_tauwRe         =ad_all.tauwRe         ;
+  ad_Tc             =ad_all.Tc             ;
+  ad_tcr            =ad_all.tcr            ;
+  ad_Tcu            =ad_all.Tcu            ;
+  ad_tdc            =ad_all.tdc            ;
+  ad_term3          =ad_all.term3          ;
+  ad_theta25        =ad_all.theta25        ;
+  ad_thetac         =ad_all.thetac         ;
+  ad_theta_cr       =ad_all.theta_cr       ;
+  ad_thetacx        =ad_all.thetacx        ;
+  ad_thetahatc      =ad_all.thetahatc      ;
+  ad_thetahatt      =ad_all.thetahatt      ;
+  ad_thetat         =ad_all.thetat         ;
+  ad_thetatx        =ad_all.thetatx        ;
+  ad_Tt             =ad_all.Tt             ;
+  ad_ttr            =ad_all.ttr            ;
+  ad_Ttu            =ad_all.Ttu            ;
+  ad_tuc            =ad_all.tuc            ;
+  ad_ucrabs         =ad_all.ucrabs         ;
+  ad_ucrvec         =ad_all.ucrvec         ;
+  ad_udabs          =ad_all.udabs          ;
+  ad_uhat           =ad_all.uhat           ;
+  ad_uhatc          =ad_all.uhatc          ;
+  ad_uhatt          =ad_all.uhatt          ;
+  ad_utildecr       =ad_all.utildecr       ;
+  ad_utildetr       =ad_all.utildetr       ;
+  ad_utrabs         =ad_all.utrabs         ;
+  ad_utrvec         =ad_all.utrvec         ;
+  ad_uw2mean        =ad_all.uw2mean        ;
+  ad_worb1c         =ad_all.worb1c         ;
+  ad_worb1t         =ad_all.worb1t         ;
+  ad_worb2c         =ad_all.worb2c         ;
+  ad_worb2t         =ad_all.worb2t         ;
+  ad_worbc          =ad_all.worbc          ;
+  ad_worbt          =ad_all.worbt          ;
+  ad_wsc            =ad_all.wsc            ;
+  ad_wst            =ad_all.wst            ;
+  ad_qsCf=ad_all.qsCf;
+  ad_qbCf=ad_all.qbCf;
+  ad_qsCc=ad_all.qsCc;
+  if(isfield(param,'Cc'))  % OPTION-1
+    ad_uwmo   =ad_all.uwmo   ;
+    ad_arg_qs2=ad_all.arg_qs2; 
+    ad_qs2    =ad_all.qs2    ;
+    ad_arg_qs3=ad_all.arg_qs3; 
+    ad_qs3    =ad_all.qs3    ;
+  elseif(~isfield(param,'nosusp') | param.nosusp==0)  % OPTION-2
+    ad_Lt          =ad_all.Lt          ;
+    ad_Lc          =ad_all.Lc          ;
+    ad_wfracc      =ad_all.wfracc      ;
+    ad_wfract      =ad_all.wfract      ;
+    ad_uwmo        =ad_all.uwmo        ;
+    ad_utot        =ad_all.utot        ;
+    ad_Omegai      =ad_all.Omegai      ;
+    ad_Omega       =ad_all.Omega       ;
+    ad_arg_Ksdenom1=ad_all.arg_Ksdenom1; 
+    ad_arg_Ksdenom2=ad_all.arg_Ksdenom2; 
+    ad_Ksdenom1    =ad_all.Ksdenom1    ;
+    ad_Ksdenom2    =ad_all.Ksdenom2    ;
+    ad_Ki          =ad_all.Ki          ;
+    ad_arg_Kbdenom1=ad_all.arg_Kbdenom1; 
+    ad_arg_Kbdenom2=ad_all.arg_Kbdenom2; 
+    ad_Kbdenom1    =ad_all.Kbdenom1    ;
+    ad_Kbdenom2    =ad_all.Kbdenom2    ;
+    ad_K           =ad_all.K           ;
+    ad_arg_qsCc    =ad_all.arg_qsCc    ;
+    ad_arg_qsCf    =ad_all.arg_qsCf    ;
+    ad_arg_qbCf    =ad_all.arg_qbCf    ;
+  end
+end
+
 % % TEST-CODE: override input variable
 % if(~strcmp(invar,'qs'))
 %   eval(['ad_' invar '=ad_qs;'])
 %   ad_qs=0;
 % end
 
-% tl_qs = tl_qsVdA + tl_qsCc + tl_qsCf;
+% tl_qs = tl_qsVdA + tl_qsCc + tl_qsCf + tl_qbCf;
 ad_qsVdA=ad_qsVdA+ ad_qs;
 ad_qsCc =ad_qsCc + ad_qs;
 ad_qsCf =ad_qsCf + ad_qs;
+ad_qbCf =ad_qbCf + ad_qs;
 ad_qs=0;
 
 % Add suspended load contribution, based on energetics model
 term3 = sqrt((s-1)*g*d50^3)/(1-psed);  % NL helper variable
 if(isfield(param,'Cc'))  % OPTION-1
+  error('this option should include qbCf, needs to be added')
 
   %a8 tl_qsVdA = (tl_qsc + tl_qst)/T*term3 ...
   %       - (qsc + qst)/T^2*term3*tl_T ...
