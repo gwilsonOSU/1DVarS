@@ -1,6 +1,6 @@
 function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_beta0,ad_tau_wind,...
           ad_detady,ad_dgamma,ad_dAw,ad_dSw,...
-          ad_d50,ad_d90,ad_params] = ...
+          ad_d50,ad_d90,ad_params,ad_dumpout] = ...
     ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hpout,bkgd)%,invar)
 
 nx=length(bkgd(1).x);
@@ -62,7 +62,7 @@ for n=bkgd(1).nsubsteps:-1:1
   %                           tl_dgamma,tl_d50,tl_d90,tl_params,...
   %                           bkgd(n),outvar);
   [ad_hp(:,n),ad1_H0,ad1_theta0,ad1_omega,ad1_ka_drag,ad1_beta0,ad1_tau_wind,...
-   ad1_detady,ad1_dgamma,ad1_dAw,ad1_dSw,ad1_d50,ad1_d90,ad1_params] = ...
+   ad1_detady,ad1_dgamma,ad1_dAw,ad1_dSw,ad1_d50,ad1_d90,ad1_params,ad_dumpout(n)] = ...
       ad_hydroSedModel_main(ad_Hrms(:,n),ad_vbar(:,n),ad_theta(:,n),...
                             ad_kabs(:,n),ad_Qx(:,n),ad_hp(:,n+1),...
                             bkgd(n));%,invar);
@@ -117,7 +117,7 @@ end  % end wrapper function (for sub-stepping loop logic)
 
 % begin main function, for single time step
 function [ad_h,ad_H0,ad_theta0,ad_omega,ad_ka_drag,ad_beta0,ad_tau_wind,...
-          ad_detady,ad_dgamma,ad_dAw,ad_dSw,ad_d50,ad_d90,ad_params] = ...
+          ad_detady,ad_dgamma,ad_dAw,ad_dSw,ad_d50,ad_d90,ad_params,ad_dumpout] = ...
     ad_hydroSedModel_main(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hp,bkgd)%,invar)
 
 physicalConstants;
@@ -228,6 +228,7 @@ end
 %21 tl_hp = tl_h + tl_dh;
 ad_h =ad_h + ad_hp;
 ad_dh=ad_dh+ ad_hp;
+ad_dumpout.hp=ad_hp;
 ad_hp=0;
 %20 tl_dh(isnan(dh))=0;
 ad_dh(isnan(dh))=0;
@@ -256,9 +257,11 @@ else
   ad_qp = zeros(nx,1);
   %18b2 tl_dh = tl_dQdx*dt;
   ad_dQdx=ad_dQdx+ dt*ad_dh;
+  ad_dumpout.dh=ad_dh;
   ad_dh=0;
   %18b1 tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
   ad_Qx = ad_Qx + ad_ddx_upwind(ad_dQdx,x,Qx,horig);
+  ad_dumpout.dQdx=dQdx;
   ad_dQdx=0;
 end
 
@@ -272,16 +275,19 @@ ad_Qx(imask)=0;
 %     - Q.*sin(theta).*tl_theta;
 ad_Q    =ad_Q    + cos(theta)   .*ad_Qx;
 ad_theta=ad_theta- Q.*sin(theta).*ad_Qx;
+ad_dumpout.Qx=ad_Qx;
 ad_Qx=0;
 
 % OPTIONAL: Apply horizontal diffusion to Q(x)
 if(nuQ>0)
   % tl_Q = diffusionSmoother*tl_Q1;
   ad_Q1 = ad_Q1 + diffusionSmoother'*ad_Q;
+  ad_dumpout.Q=ad_Q;
   ad_Q=0;
 else
   % tl_Q = tl_Q1;
   ad_Q1 = ad_Q1 + ad_Q;
+  ad_dumpout.Q=ad_Q;
   ad_Q=0;
 end
 
@@ -290,6 +296,7 @@ end
 ad_Q1(imax:end)=0;
 % tl_Q1 = tl_Q0;
 ad_Q0 = ad_Q0 + ad_Q1;
+ad_dumpout.Q1=ad_Q1;
 ad_Q1=0;
 
 % run the requested model for sediment flux (m2/s)
@@ -314,6 +321,7 @@ if(strcmp(sedmodel,'dubarbier'))  % Dubarbier et al. (2015)
   ad_params.Cc=ad_params.Cc+ad1_params_Cc;
   ad_params.Cf=ad_params.Cf+ad1_params_Cf;
   ad_params.Ka=ad_params.Ka+ad1_params_Ka;
+  ad_dumpout.Q0=ad_Q0;
   ad_Q0=0;
 elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
   %15b1 tl_Q0 = tl_qtrans_soulsbyVanRijn(tl_d50,tl_d90,tl_h,tl_tanbeta,...
@@ -335,6 +343,7 @@ elseif(strcmp(sedmodel,'soulsbyVanRijn'))  % Soulsby & van Rijn
   ad_Dr          =ad_Dr          +ad1_Dr          ;
   ad_params.facua =ad_params.facua +ad1_params.facua ;
   ad_params.alphab=ad_params.alphab+ad1_params.alphab;
+  ad_dumpout.Q0=ad_Q0;
   ad_Q0=0;
 elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   %15c1 tl_Q0 = tl_qtrans_vanderA(tl_d50,tl_d90,tl_h,tl_tanbeta,tl_Hrms,tl_kabs,tl_omega,...
@@ -362,10 +371,12 @@ elseif(strcmp(sedmodel,'vanderA'))  % van Der A et al. (2013)
   ad_Aw    =ad_Aw    +ad1_Aw    ;
   ad_Sw    =ad_Sw    +ad1_Sw    ;
   ad_Uw    =ad_Uw    +ad1_Uw    ;
+  ad_dumpout.Q0=ad_Q0;
   ad_Q0=0;
 end
 %14 tl_tanbeta = tl_calcTanbeta(tl_h,x)';
 ad_h = ad_h + ad_calcTanbeta(ad_tanbeta,x);
+ad_dumpout.tanbeta=ad_tanbeta;
 ad_tanbeta=0;
 
 % rotate udelta into wave direction, as assumed by sed transport equations
@@ -378,6 +389,7 @@ ad_udelta(:,1)=ad_udelta(:,1)- sin(theta)             .*ad_udelta_w(:,2);
 ad_theta      =ad_theta      - udelta(:,1).*cos(theta).*ad_udelta_w(:,2);
 ad_udelta(:,2)=ad_udelta(:,2)+ cos(theta)             .*ad_udelta_w(:,2);
 ad_theta      =ad_theta      - udelta(:,2).*sin(theta).*ad_udelta_w(:,2);
+ad_dumpout.udelta_w(:,2)=ad_udelta_w(:,2);
 ad_udelta_w(:,2)=0;
 %12 tl_udelta_w(:,1) = ...
 %     + tl_udelta(:,1).*cos(theta) ...
@@ -388,6 +400,7 @@ ad_udelta(:,1)=ad_udelta(:,1)+ cos(theta)             .*ad_udelta_w(:,1);
 ad_theta      =ad_theta      - udelta(:,1).*sin(theta).*ad_udelta_w(:,1);
 ad_udelta(:,2)=ad_udelta(:,2)+ sin(theta)             .*ad_udelta_w(:,1);
 ad_theta      =ad_theta      + udelta(:,2).*cos(theta).*ad_udelta_w(:,1);
+ad_dumpout.udelta_w(:,1)=ad_udelta_w(:,1);
 ad_udelta_w(:,1)=0;
 
 % Reniers et al. (2004) model for velocity at top of boundary layer
@@ -414,7 +427,9 @@ for i=nx:-1:1
     ad_params.ks    =ad_params.ks    +ad1_params_ks;    
     ad_d50(i)       =ad_d50(i)       +ad1_d50      ;
 
+    ad_dumpout.udelta(i,:)=ad_udelta(i,:);
     ad_udelta(i,:)=0;
+    ad_dumpout.delta_bl(i)=ad_delta_bl(i);
     ad_delta_bl(i)=0;
   end
 end
@@ -432,6 +447,7 @@ if(params.lambda>0)
   ad_ur=zeros(nx,2);   % init
   %3 tl_ubar = tl_ur;
   ad_ur = ad_ur + ad_ubar;
+  ad_dumpout.ubar=ad_ubar;
   ad_ubar=0;
   for i=1:nx
     ind=find(x(i)-xb(i)<=x&x<=x(i));
@@ -504,9 +520,11 @@ end
 % depth averaged mean flow, Nx2 vector, +'ve onshore
 %9 tl_ubar0(:,2) = tl_vbar;
 ad_vbar=ad_vbar+ad_ubar0(:,2);
+ad_dumpout.ubar0(:,2)=ad_ubar0(:,2);
 ad_ubar0(:,2)=0;
 %8 tl_ubar0(:,1) = tl_ubarx;
 ad_ubarx=ad_ubarx+ad_ubar0(:,1);
+ad_dumpout.ubar0(:,1)=ad_ubar0(:,1);
 ad_ubar0(:,1)=0;
 %7 tl_ubarx = ...
 %     - (tl_Ew+2*tl_Er)./(rho*c.*h) ...
@@ -516,6 +534,7 @@ ad_Ew=ad_Ew- 1./(rho*c.*h)                   .*ad_ubarx;
 ad_Er=ad_Er- 2./(rho*c.*h)                   .*ad_ubarx;
 ad_c =ad_c + (Ew+2*Er)./(rho*c.*h).^2.*rho.*h.*ad_ubarx;
 ad_h =ad_h + (Ew+2*Er)./(rho*c.*h).^2.*rho.*c.*ad_ubarx;
+ad_dumpout.ubarx=ad_ubarx;
 ad_ubarx=0;
 
 % convert from (kabs,theta) to vector wavenumber, and calculate c for
@@ -525,18 +544,21 @@ ad_ubarx=0;
 %     - omega./kabs.^2.*tl_kabs;
 ad_omega=ad_omega+ sum(1./kabs       .*ad_c);
 ad_kabs =ad_kabs - omega./kabs.^2.*ad_c;
+ad_dumpout.c=ad_c;
 ad_c=0;
 %5 tl_k(:,2) = ...
 %     + tl_kabs(:).*sin(theta(:)) ...
 %     + kabs(:).*cos(theta(:)).*tl_theta;
 ad_kabs(:)=ad_kabs(:)+ sin(theta(:))         .*ad_k(:,2);
 ad_theta  =ad_theta  + kabs(:).*cos(theta(:)).*ad_k(:,2);
+ad_dumpout.k(:,2)=ad_k(:,2);
 ad_k(:,2)=0;
 %4 tl_k(:,1) = ...
 %     + tl_kabs(:).*cos(theta(:)) ...
 %     - kabs(:).*sin(theta(:)).*tl_theta;
 ad_kabs(:)=ad_kabs(:)+ cos(theta(:))         .*ad_k(:,1);
 ad_theta  =ad_theta  - kabs(:).*sin(theta(:)).*ad_k(:,1);
+ad_dumpout.k(:,1)=ad_k(:,1);
 ad_k(:,1)=0;
 
 % special case dt=0: in this case we are done since there is no morphology
@@ -544,8 +566,10 @@ ad_k(:,1)=0;
 if(dt==0)
   %3a2 tl_hp=tl_h;
   ad_h = ad_h + ad_hp;
+  ad_dumpout.hp=ad_hp;
   ad_hp=0;
   %3a1 tl_Qx=zeros(nx,1);
+  ad_dumpout.Qx=ad_Qx;
   ad_Qx=zeros(nx,1);
 else
 
@@ -553,10 +577,12 @@ else
 % tl_Sw=tl_Sw0+tl_dSw;
 ad_Sw0=ad_Sw0+ad_Sw;
 ad_dSw=ad_dSw+ad_Sw;
+ad_dumpout.Sw=ad_Sw;
 ad_Sw=zeros(nx,1);
 % tl_Aw=tl_Aw0+tl_dAw;
 ad_Aw0=ad_Aw0+ad_Aw;
 ad_dAw=ad_dAw+ad_Aw;
+ad_dumpout.Aw=ad_Aw;
 ad_Aw=zeros(nx,1);
 % [tl_Aw0,tl_Sw0,tl_Uw]=tl_Uwave_ruessink2012_params(tl_Hmo,tl_kabs,tl_omega,tl_h,uwave_bkgd);
 [ad1_Hmo,ad1_kabs,ad1_omega,ad1_h]=ad_Uwave_ruessink2012_params(ad_Aw0,ad_Sw0,ad_Uw,uwave_bkgd);
@@ -566,7 +592,14 @@ ad_omega=ad_omega+ad1_omega;
 ad_h    =ad_h    +ad1_h    ;
 % tl_Hmo=1.4*tl_Hrms;
 ad_Hrms=ad_Hrms+1.4*ad_Hmo;
+ad_dumpout.Hmo=ad_Hmo;
+ad_dumpout.Aw0=ad_Aw0;
+ad_dumpout.Sw0=ad_Sw0;
+ad_dumpout.Uw =ad_Uw ;
 ad_Hmo=0;
+ad_Aw0=0;
+ad_Sw0=0;
+ad_Uw =0;
 
 % apply masking to hydro outputs
 % tl_Hrms (imask)=0;
@@ -599,6 +632,21 @@ ad_tau_wind=ad_tau_wind+ad1_tau_wind;
 ad_detady  =ad_detady  +ad1_detady  ;
 ad_dgamma  =ad_dgamma  +ad1_dgamma  ;
 ad_beta0   =ad_beta0   +ad1_beta0   ;
+
+ad_dumpout.Hrms =ad_Hrms ;
+ad_dumpout.theta=ad_theta;
+ad_dumpout.vbar =ad_vbar ;
+ad_dumpout.kabs =ad_kabs ;
+ad_dumpout.Ew   =ad_Ew   ;
+ad_dumpout.Er   =ad_Er   ;
+ad_dumpout.Dr   =ad_Dr   ;
+ad_Hrms =0;
+ad_theta=0;
+ad_vbar =0;
+ad_kabs =0;
+ad_Ew   =0;
+ad_Er   =0;
+ad_Dr   =0;
 
 %1 tl_h(imask)=0;  % min depth constraint
 ad_h(imask)=0;

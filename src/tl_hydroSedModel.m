@@ -1,4 +1,4 @@
-function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout] = ...
+function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hpout,tl_dump] = ...
     tl_hydroSedModel(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_beta0,tl_tau_wind,...
                      tl_detady,tl_dgamma,tl_dAw,tl_dSw,...
                      tl_d50,tl_d90,tl_params,bkgd)%,outvar)
@@ -8,7 +8,7 @@ tl_hp(:,1) = tl_h;  % init t=0
 for n=1:bkgd(1).nsubsteps
   % disp(['hydroSedModel substep ' num2str(n) ' of ' num2str(bkgd(1).nsubsteps)])
   [tl_Hrms(:,n),tl_vbar(:,n),tl_theta(:,n),tl_kabs(:,n),...
-   tl_Qx(:,n),tl_hp(:,n+1)] = ...
+   tl_Qx(:,n),tl_hp(:,n+1),tl_dump(n)] = ...
       tl_hydroSedModel_main(tl_hp(:,n),tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_beta0,tl_tau_wind,tl_detady,...
                          tl_dgamma,tl_dAw,tl_dSw,tl_d50,tl_d90,tl_params,bkgd(n));%,outvar);
 end
@@ -21,7 +21,7 @@ end
 end  % end wrapper function (for sub-stepping loop logic)
 
 % begin main function, for single time step
-function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hp] = ...
+function [tl_Hrms,tl_vbar,tl_theta,tl_kabs,tl_Qx,tl_hp,tl_dump] = ...
     tl_hydroSedModel_main(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_beta0,tl_tau_wind,tl_detady,tl_dgamma,tl_dAw,tl_dSw,...
                   tl_d50,tl_d90,tl_params,bkgd)%,outvar)
 
@@ -235,6 +235,38 @@ end  % catch for special case dt==0
 % tl_kabs =zeros(nx,1);
 % tl_Hrms =zeros(nx,1);
 % tl_Qx   =zeros(nx,1);
+
+% dump ancillary variables as diagnostics
+tl_dump.Aw      =tl_Aw      ;
+tl_dump.c       =tl_c       ;
+tl_dump.delta_bl=tl_delta_bl;
+tl_dump.dh      =tl_dh      ;
+tl_dump.dQdx    =tl_dQdx    ;
+tl_dump.Dr      =tl_Dr      ;
+tl_dump.Er      =tl_Er      ;
+tl_dump.Ew      =tl_Ew      ;
+tl_dump.h       =tl_h       ;
+tl_dump.Hmo     =tl_Hmo     ;
+tl_dump.hp      =tl_hp      ;
+tl_dump.k       =tl_k       ;
+tl_dump.Q       =tl_Q       ;
+tl_dump.Q0      =tl_Q0      ;
+tl_dump.Q1      =tl_Q1      ;
+tl_dump.qp      =tl_qp      ;
+tl_dump.Sw      =tl_Sw      ;
+tl_dump.tanbeta =tl_tanbeta ;
+tl_dump.term1   =tl_term1   ;
+tl_dump.term2   =tl_term2   ;
+tl_dump.ubar    =tl_ubar    ;
+tl_dump.ubar0   =tl_ubar0   ;
+tl_dump.ubarx   =tl_ubarx   ;
+tl_dump.udelta  =tl_udelta  ;
+tl_dump.udelta_w=tl_udelta_w;
+tl_dump.ur      =tl_ur      ;
+tl_dump.vbar    =tl_vbar    ;
+tl_dump.ws      =tl_ws      ;
+tl_dump.xb      =tl_xb      ;
+tl_dump.xx      =tl_xx      ;
 
 % TEST: tweak output for TL testing
 % eval(['tl_Qx=tl_' outvar ';']);
