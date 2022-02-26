@@ -6,10 +6,10 @@ addpath(genpath('../../src'))
 clearvars -except duck94Case sedmodel
 
 % USER-INPUT: Choose a case
-% duck94Case='b';
+duck94Case='b';
 
 if(~exist('sedmodel'))
-  sedmodel='vanderA';
+  sedmodel='dubarbier';
 end
 
 cacheDir='/tmp/bathyAssimCache';
@@ -42,11 +42,11 @@ numsubsteps=1;
 doplot=1;
 hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,cacheDir,numsubsteps,doplot);
 
-% overlay final bathy
-subplot(321)
-hold on
-plot(grid.xFRF(bathyobs(end).measind),bathyobs(end).h.d,'k-','linewidth',1.5)
-print -dpng casee_defaults_WBLSplittingMethod_noassim.png
+% % overlay final bathy
+% subplot(321)
+% hold on
+% plot(grid.xFRF(bathyobs(end).measind),bathyobs(end).h.d,'k-','linewidth',1.5)
+% print -dpng casee_defaults_WBLSplittingMethod_noassim.png
 
 disp('continue manually')
 return;
