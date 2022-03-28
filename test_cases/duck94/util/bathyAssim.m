@@ -27,7 +27,7 @@ function [params,diagnostics]=bathyAssim(bathyobs,priorCacheDir,bkgdCacheDir)
 % prep params_std, allow for 'percError' percent error in all parameters.
 % NOTE, the order of indexes in params_std is important, it must match the
 % ordering convention used by paramsHandler.m
-percError=0.1  % as a fraction, not percentage
+percError=0.2  % as a fraction, not percentage
 bkgd1=load([priorCacheDir '/bkgd0001.mat']);
 params=bkgd1.params;
 if(strcmp(bkgd1.sedmodel,'vanderA'))
@@ -101,9 +101,9 @@ for n=1:obsnt
     bkgd1=load([bkgdCacheDir '/bkgd0001.mat']);
     if(strcmp(bkgd1.sedmodel,'vanderA'))
       if(isfield(bkgd1.params,'Cc'))
-        ad_params=paramsHandler(0,sedmodel,zeros(9,1));  % init ad_params struct to zero
+        ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(9,1));  % init ad_params struct to zero
       else
-        ad_params=paramsHandler(0,sedmodel,zeros(7,1));  % init ad_params struct to zero
+        ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(7,1));  % init ad_params struct to zero
       end
     elseif(strcmp(bkgd1.sedmodel,'dubarbier'))
       ad_params=paramsHandler(0,bkgd1.sedmodel,zeros(7,1));  % init ad_params struct to zero

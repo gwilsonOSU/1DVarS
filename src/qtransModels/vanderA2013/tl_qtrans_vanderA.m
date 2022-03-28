@@ -154,10 +154,12 @@ elseif(param.streamingType=='n')
   r      =bkgd.r      ;
   fws    =bkgd.fws    ;
 end
-eps_s        =bkgd.eps_s          ;
-% eps_b        =bkgd.eps_b          ;
-uwmo         =bkgd.uwmo           ;
-tanbeta      =bkgd.tanbeta        ;
+if(~isfield(param,'nosusp') || param.nosusp==0)
+  eps_s        =bkgd.eps_s          ;
+  eps_b        =bkgd.eps_b          ;
+  uwmo         =bkgd.uwmo           ;
+  tanbeta      =bkgd.tanbeta        ;
+end
 if(isfield(param,'Cc'))  % option-1 for above-WBL transport
   qs2          =bkgd.qs2            ;
   qs3          =bkgd.qs3            ;

@@ -120,6 +120,11 @@ ad_Q=0;
 %b03 step through each gridpoint
 for i=nx:-1:1
 
+  % for masked points, make a dummy output with all fields set to 0
+  if(Hrms(i)==0)
+  ad_q(i)  =0;
+  else
+
   %b03-2 energetics model, eqns (11)-(14)
 
   %12 tl_q(i)=tl_qa(i)+tl_qb(i)+tl_qs(i);
@@ -283,6 +288,8 @@ for i=nx:-1:1
   ad_Sw(i) =ad_Sw(i)+ad1_Sw;
   ad_Uw(i) =ad_Uw(i)+ad1_Uw;
   ad_utilde(:,i)=0;
+
+  end % masking
 
 end
 
