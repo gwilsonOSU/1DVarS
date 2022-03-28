@@ -33,7 +33,7 @@ p0 = paramsHandler(1,sedmodel,params0);  % vector version
 % prep params_range, which defines valid intervals for each parameter.
 % NOTE, the order of indexes in params_range is important, it must match the
 % ordering convention used by paramsHandler.m
-percError=0.2  % +/- fraction, used for all params by default
+percError=0.5  % +/- fraction, used for all params by default
 if(strcmp(sedmodel,'vanderA'))
   params_range(:,1)=params0.fv    +percError*params0.fv    *[-1 1];  % default params0.fv    = 0.101
   params_range(:,2)=params0.ks    +percError*params0.ks    *[-1 1];  % default params0.ks    = 0.0082
@@ -57,11 +57,11 @@ else
 end
 
 % custom param ranges
-params_range(:,1)=[.071 .159];    % fv: range of optimum values found by Reniers et al.
-params_range(:,2)=[.0006 .0317];  % ks: range of optimum values found by Reniers et al.
-params_range(:,3)=[1 2];  % lambda
-params_range(:,4)=[1 1.3]; % n
-params_range(:,5)=[8 11]; % m
+params_range(:,1)=[.05 .2];    % fv: range of optimum values found by Reniers et al.
+params_range(:,2)=[0.0001 .05];  % ks: range of optimum values found by Reniers et al.
+% params_range(:,3)=[.75 3];  % lambda
+% params_range(:,4)=[.75 1.5]; % n
+% params_range(:,5)=[2 15]; % m
 
 % Init matrices needed for calculating dJ. Note dimensions of the full
 % observation vector is no*nt x 1, where no is number of stations and nt
@@ -75,126 +75,92 @@ obsnt=length(bathyobs);  % number of observation times
 modelnt=max([bathyobs.obsn]);  % number of model time steps for a full run
 obsno=length(bathyobs(1).measind);  % number of obs per time step, assumed same for all steps
 modelnp=length(params_range);
-CMt =nan(modelnp,obsnt,obsno);  % np x (nt,no)
-Mf  =nan(obsnt,obsno);  % (nt,no) x 1
-d   =nan(obsnt,obsno);  % (nt,no) x 1
-Cd  =nan(obsnt,obsno);  % (nt,no) x 1
+Mf  =nan(obsno,obsnt);
+d   =nan(obsno,obsnt);
 
-% calculate representers for each observation [bathyobs.h]
-for n=1:obsnt
-  disp(['Computing representers for time step ' num2str(n) ' of ' num2str(obsnt)])
-  disp(['  Start Time: ' datestr(now)])
-  tic
+% calculate adjoint sensitivity for the set of observations [bathyobs.h]
+disp(['Adjoint model run starting'])
+disp(['  Start Time: ' datestr(now)])
+tic
 
-  [~,parforCounterFile]=unix('mktemp');
-  parforCounterFile=strtrim(parforCounterFile);
-  starttime=now;
-  pctRunOnAll warning('off','all')
-  parfor i=1:obsno
+% initialize adjoints with observations
+ad_Hrms =zeros(modelnx,1);
+ad_theta=zeros(modelnx,1);
+ad_vbar =zeros(modelnx,1);
+ad_kabs =zeros(modelnx,1);
+ad_Qx   =zeros(modelnx,1);
+ad_h    =zeros(modelnx,modelnt+1);
+for n=1:length(bathyobs)
+  thisbkgd=load([bkgdCacheDir '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
+  d (:,n)=bathyobs(n).h.d;
+  Mf(:,n)=thisbkgd.hp(bathyobs(n).measind);
+  Cd=bathyobs(n).h.e(:).^2;
+  ad_h(bathyobs(n).measind,bathyobs(n).obsn+1)=1./Cd.*(d(:,n)-Mf(:,n));
+end
 
-    % initialize comb for observation of h at obs-gridpoint i and obs-time n
-    ad_Hrms =zeros(modelnx,1);
-    ad_theta=zeros(modelnx,1);
-    ad_vbar =zeros(modelnx,1);
-    ad_kabs =zeros(modelnx,1);
-    ad_Qx   =zeros(modelnx,1);
-    ad_h   =zeros(modelnx,modelnt+1);
-    ad_h(bathyobs(n).measind(i),bathyobs(n).obsn+1)=1;  % comb
+% initialize adjoint outputs
+if(strcmp(sedmodel,'vanderA'))
+  if(isfield(params0,'Cc'))
+    ad_params=paramsHandler(0,sedmodel,zeros(9,1));  % init ad_params struct tpo zero
+  else
+    ad_params=paramsHandler(0,sedmodel,zeros(7,1));  % init ad_params struct to zero
+  end
+elseif(strcmp(sedmodel,'dubarbier'))
+  ad_params=paramsHandler(0,sedmodel,zeros(7,1));  % init ad_params struct to zero
+end
+ad_ka_drag=0;
+ad_beta0  =0;
+ad_d50=zeros(modelnx,1);
+ad_d90=zeros(modelnx,1);
+ad_H0 =zeros(modelnt,1);
+ad_theta0  =zeros(modelnt,1);
+ad_omega   =zeros(modelnt,1);
+ad_dgamma  =zeros(modelnx,modelnt);
+ad_dAw     =zeros(modelnx,modelnt);
+ad_dSw     =zeros(modelnx,modelnt);
+ad_tau_wind=zeros(modelnx,2,modelnt);
+ad_detady  =zeros(modelnx,modelnt);
 
-    % initialize adjoint outputs
-    if(strcmp(sedmodel,'vanderA'))
-      if(isfield(params0,'Cc'))
-        ad_params=paramsHandler(0,sedmodel,zeros(9,1));  % init ad_params struct to zero
-      else
-        ad_params=paramsHandler(0,sedmodel,zeros(7,1));  % init ad_params struct to zero
-      end
-    elseif(strcmp(sedmodel,'dubarbier'))
-      ad_params=paramsHandler(0,sedmodel,zeros(7,1));  % init ad_params struct to zero
+% propagate adjoint backwards
+for n2=modelnt:-1:1
+  bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2,'%04d') '.mat']);
+  bkgdn2.h =bkgdn2.h +bkgdn2.tide;
+  bkgdn2.hp=bkgdn2.hp+bkgdn2.tide;
+  [ad1_h,ad_H0(n2),ad_theta0(n2),ad_omega(n2),ad_ka_drag(n2),ad1_beta0,ad_tau_wind(:,:,n2),...
+   ad_detady(:,n2),ad_dgamma(:,n2),ad_dAw(:,n2),ad_dSw(:,n2),...
+   ad1_d50,ad1_d90,ad1_params] = ...
+      ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_h(:,n2+1),bkgdn2);
+  ad_h(:,n2)      =ad_h(:,n2)      +ad1_h            ;
+  ad_beta0        =ad_beta0        +ad1_beta0        ;
+  ad_d50          =ad_d50          +ad1_d50          ;
+  ad_d90          =ad_d90          +ad1_d90          ;
+  ad_params.fv    =ad_params.fv    +ad1_params.fv    ;
+  ad_params.ks    =ad_params.ks    +ad1_params.ks    ;
+  ad_params.lambda=ad_params.lambda+ad1_params.lambda;
+  if(strcmp(sedmodel,'vanderA'))
+    ad_params.n    =ad_params.n    +ad1_params.n    ;
+    ad_params.m    =ad_params.m    +ad1_params.m    ;
+    ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
+    ad_params.alpha=ad_params.alpha+ad1_params.alpha;
+    if(isfield(bkgdn2.params,'Cc'))
+      ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
+      ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
     end
-    ad_ka_drag=0;
-    ad_beta0  =0;
-    ad_d50=zeros(modelnx,1);
-    ad_d90=zeros(modelnx,1);
-    ad_H0=zeros(modelnt,1);
-    ad_theta0  =zeros(modelnt,1);
-    ad_omega   =zeros(modelnt,1);
-    ad_dgamma  =zeros(modelnx,modelnt);
-    ad_dAw     =zeros(modelnx,modelnt);
-    ad_dSw     =zeros(modelnx,modelnt);
-    ad_tau_wind=zeros(modelnx,2,modelnt);
-    ad_detady  =zeros(modelnx,modelnt);
+  elseif(strcmp(sedmodel,'dubarbier'))
+    ad_params.Cw = ad_params.Cw + ad1_params.Cw;
+    ad_params.Cc = ad_params.Cc + ad1_params.Cc;
+    ad_params.Cf = ad_params.Cf + ad1_params.Cf;
+    ad_params.Ka = ad_params.Ka + ad1_params.Ka;
+  end
+end
 
-    % propagate adjoint backwards from time bathyobs(n) to 1
-    for n2=bathyobs(n).obsn:-1:1
-      bkgdn2=load([bkgdCacheDir '/bkgd' num2str(n2,'%04d') '.mat']);
-      bkgdn2.h=bkgdn2.h+bkgdn2.tide;
-      bkgdn2.hp=bkgdn2.hp+bkgdn2.tide;
-      [ad_h(:,n2),ad_H0(n2),ad_theta0(n2),ad_omega(n2),ad_ka_drag(n2),ad1_beta0,ad_tau_wind(:,:,n2),...
-       ad_detady(:,n2),ad_dgamma(:,n2),ad_dAw(:,n2),ad_dSw(:,n2),...
-       ad1_d50,ad1_d90,ad1_params] = ...
-          ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_h(:,n2+1),bkgdn2);
-      ad_beta0       =ad_beta0       +ad1_beta0       ;
-      ad_d50         =ad_d50         +ad1_d50         ;
-      ad_d90         =ad_d90         +ad1_d90         ;
-      ad_params.fv   =ad_params.fv   +ad1_params.fv   ;
-      ad_params.ks   =ad_params.ks   +ad1_params.ks   ;
-      ad_params.lambda=ad_params.lambda+ad1_params.lambda;
-      if(strcmp(sedmodel,'vanderA'))
-        ad_params.n    =ad_params.n    +ad1_params.n    ;
-        ad_params.m    =ad_params.m    +ad1_params.m    ;
-        ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
-        ad_params.alpha=ad_params.alpha+ad1_params.alpha;
-        if(isfield(bkgdn2.params,'Cc'))
-          ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
-          ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
-        end
-      elseif(strcmp(sedmodel,'dubarbier'))
-        ad_params.Cw = ad_params.Cw + ad1_params.Cw;
-        ad_params.Cc = ad_params.Cc + ad1_params.Cc;
-        ad_params.Cf = ad_params.Cf + ad1_params.Cf;
-        ad_params.Ka = ad_params.Ka + ad1_params.Ka;
-      end
-    end
-
-    % Save adjoint M' for this observation, for all tunable parameters being
-    % considered. Note, need to the params struct to a vector.
-    % paramsHandler.m defines the order of parameters in the vector and
-    % helps keep it consistent.
-    CMt(:,n,i)=paramsHandler(1,sedmodel,ad_params);
-
-    % use parforCounterFile to keep track of parfor progress
-    unix(['echo ' num2str(i) ' >> ' parforCounterFile]);
-    ndone = numel(textread(parforCounterFile,'%1c%*[^\n]'))-1;  % number of lines in file
-    percdone=ndone/obsno*100;  % percent done
-    elapsed=(now-starttime)*24*60;  % minutes
-    eta=elapsed/percdone*(100-percdone);  % minutes remaining
-    disp(['  ' num2str(percdone,'%.1f') '% Done.' ...
-          '  Elapsed: ' num2str(elapsed,'%.1f') ' minutes,' ...
-          '  ETA: ' num2str(eta,'%.1f') ' minutes.'])
-
-  end  % loop (index i) over observations at time n
-  unix(['rm -f ' parforCounterFile]);  % clean up
-
-  % unpack data for this obs time
-  d (n,:)=bathyobs(n).h.d;  % (nt,no) x 1
-  Cd(n,:)=bathyobs(n).h.e.^2;  % (nt,no) x 1
-  thisbkgd=load([bkgdCacheDir '/bkgd' num2str(n,'%04d') '.mat']);
-  Mf(n,:)=thisbkgd.hp(bathyobs(n).h.ind);
-
-  disp(['  step ' num2str(n) ' finished in ' num2str(toc) 'sec'])
-end  % bathyobs time loop (index n)
-
-% reshape matrices s.t. observations are treated as one big vector
-CMt =reshape(CMt ,[modelnp obsnt*obsno]);  % np x (nt,no)
-Mf  =reshape(Mf  ,[obsnt*obsno 1]);  % (nt,no) x 1
-d   =reshape(d   ,[obsnt*obsno 1]);  % (nt,no) x 1
-Cd  =reshape(Cd  ,[obsnt*obsno 1]);  % (nt,no) x 1
-
-% calculate cost function gradient
-ind=find(~isnan(d));
-dJ = CMt(:,ind)*diag(1./Cd(ind))*(d(ind)-Mf(ind));
-dJ=dJ(:)';  % row vector
-J0 = sum( (d(ind)-Mf(ind)).^2 );  % lsq cost for alpha=0
+% final adjoint output == cost function gradient, for any parameters being
+% considered.  Note, paramsHandler.m defines the ordering of parameters in
+% the vector and helps keep it consistent.
+dJ = paramsHandler(1,sedmodel,ad_params);
+dJ=dJ(:)'  % row vector
+J0 = sum( (d(:)-Mf(:)).^2 )  % lsq cost for alpha=0
+Mf0=Mf;  % save for later
 
 % define range for scale parameter alpha, such that corrections will stay
 % within the valid ranges defined in params_range.  Report any parameters
@@ -216,17 +182,23 @@ p1 = p0 + alpha_min*dJ;
 p2 = p0 + alpha_max*dJ;
 pmin = min([p1; p2]);
 pmax = max([p1; p2]);
-ibad = find(pmin < params_range(1,:));
-for i=1:length(ibad)
-  error(['parameter ' fld{ibad(i)} ' has specified range of ' ...
-         '[' num2str(params_range(1,ibad(i))) ',' num2str(params_range(2,ibad(i))) ']' ...
-         ', but will consider down to ' num2str(pmin(ibad(i)))])
-end
-ibad = find(pmax > params_range(2,:));
-for i=1:length(ibad)
-  error(['parameter ' fld{ibad(i)} ' has specified range of ' ...
-         '[' num2str(params_range(1,ibad(i))) ',' num2str(params_range(2,ibad(i))) ']' ...
-         ', but will consider up to ' num2str(pmax(ibad(i)))])
+% ibad = find(pmin < params_range(1,:));
+% for i=1:length(ibad)
+%   warning(['parameter ' fld{ibad(i)} ' has specified range of ' ...
+%          '[' num2str(params_range(1,ibad(i))) ',' num2str(params_range(2,ibad(i))) ']' ...
+%          ', but will consider down to ' num2str(pmin(ibad(i)))])
+% end
+% ibad = find(pmax > params_range(2,:));
+% for i=1:length(ibad)
+%   warning(['parameter ' fld{ibad(i)} ' has specified range of ' ...
+%          '[' num2str(params_range(1,ibad(i))) ',' num2str(params_range(2,ibad(i))) ']' ...
+%          ', but will consider up to ' num2str(pmax(ibad(i)))])
+% end
+
+% prep 4 new cachedirs for line-search
+for i=1:4
+  bkgdCacheDirList{i}=['/tmp/bathyCache' num2str(i)];
+  unix(['mkdir -p ' bkgdCacheDirList{i}]);
 end
 
 % perform golden section line-search to find optimal parameter correction
@@ -238,8 +210,10 @@ a(2) = a(1) + (a(3)-a(1))/(1+phi);  % init
 a(4) = a(3) - (a(3)-a(1))/(1+phi);  % init
 J=nan(1,4);  % init.  NaN's mark missing values at each iteration
 iter=0;
-tau=.1;  % tolerance
-while( abs(a(3)-a(1)) > tau*(abs(a(2))+abs(a(4))) )  % check for convergence
+tau=.01;  % tolerance
+nitermax=5;
+isconverged=0;
+while(~isconverged)
   iter=iter+1;
 
   % run NL model to calulate cost function J at each of the test points.  By
@@ -252,61 +226,64 @@ while( abs(a(3)-a(1)) > tau*(abs(a(2))+abs(a(4))) )  % check for convergence
   verb=-1;  % don't report iteration convergence info
   disp(['Updating J-values at index ' num2str(ilist,'%d,') ' for line-search iteration ' num2str(iter)])
   disp(['  Current tolerance check: Search interval width = ' num2str(abs(a(3)-a(1))) ' > ' num2str(tau*(abs(a(2))+abs(a(4))))])
-  clear Mf
-  newJ=zeros(length(ilist),1);
-  if(iter==1)  % parfor version
+  if(iter==1)  % parfor version for initializing 4 search points
     clear modelinputlist
     for i=1:length(ilist)
-      modelinputlist(i)=modelinput;
-      thisp0=p0+a(ilist(i))*dJ;
-      modelinputlist(i).params = paramsHandler(0,sedmodel,thisp0);
-      bkgdCacheDirList{i}=['/tmp/bathyCache' num2str(i)];
-      unix(['mkdir -p ' bkgdCacheDirList{i}]);
+      modelinputlist(ilist(i))=modelinput;
+      thisp=p0+a(ilist(i))*dJ;
+      modelinputlist(ilist(i)).params = paramsHandler(0,sedmodel,thisp);
     end
-    parfor i=1:length(ilist)
-      hydroAssimLoop(modelinputlist(i),grid,waves8m,windEOP,hydroobs,bkgdCacheDirList{i},nsubsteps,doplot,verb);
+    Jnew=nan(length(ilist),1);  % init
+    for i=1:length(ilist)
+      hydroAssimLoop(modelinputlist(ilist(i)),grid,waves8m,windEOP,hydroobs,bkgdCacheDirList{ilist(i)},nsubsteps,doplot,verb);
+      Mf=nan(obsno,obsnt);  % init
       for n=1:length(bathyobs)
-        thisbkgd=load([bkgdCacheDirList{i} '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
-        Mf(n,:)=thisbkgd.hp(bathyobs(n).h.ind)';
+        thisbkgd=load([bkgdCacheDirList{ilist(i)} '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
+        Mf(:,n)=thisbkgd.hp(bathyobs(n).h.ind)';
       end
-      Mf=reshape(Mf,[obsnt*obsno 1]);  % (nt,no) x 1
-      ind=find(~isnan(d.*Mf));
-      newJ(i) = sum( (d(ind)-Mf(ind)).^2 );  % lsq cost for alpha=a(ilist(i))
+      Jnew(i) = sum( (d(:)-Mf(:)).^2 );  % lsq cost for alpha=a(ilist(i))
     end
-    J(ilist)=newJ;
+    J(ilist)=Jnew;
   else  % non-parfor version
     if(length(ilist)>1)
       error('should never happen')
     end
-    thisp0=p0+a(ilist)*dJ;
-    modelinput.params = paramsHandler(0,sedmodel,thisp0);
-    hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,bkgdCacheDir,nsubsteps,doplot,verb);
+    thisp=p0+a(ilist)*dJ;
+    modelinput.params = paramsHandler(0,sedmodel,thisp);
+    hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,bkgdCacheDirList{ilist},nsubsteps,doplot,verb);
+    Mf=nan(obsno,obsnt);  % init
     for n=1:length(bathyobs)
-      thisbkgd=load([bkgdCacheDirList{i} '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
-      Mf(n,:)=thisbkgd.hp(bathyobs(n).h.ind)';
+      thisbkgd=load([bkgdCacheDirList{ilist} '/bkgd' num2str(bathyobs(n).obsn,'%04d') '.mat']);
+      Mf(:,n)=thisbkgd.hp(bathyobs(n).h.ind)';
     end
-    Mf=reshape(Mf,[obsnt*obsno 1]);  % (nt,no) x 1
-    ind=find(~isnan(d.*Mf));
-    J(ilist) = sum( (d(ind)-Mf(ind)).^2 );  % lsq cost for alpha=a(ilist(i))
+    J(ilist) = sum( (d(:)-Mf(:)).^2 );  % lsq cost for alpha=a(ilist(i))
   end
 
-  % determine which interior point will become the next endmember point.
-  % Maintain ordering convention for a-points (a1,a2,a4,a3), and mark the
-  % new unknown point with J=NaN (to be calculated in next iteration)
-  anew=a;
-  if(J(4)<J(2))
-    anew(1)=a(2); Jnew(1)=J(2);
-    anew(2)=a(4); Jnew(2)=J(4);
-    anew(3)=a(3); Jnew(3)=J(3);
-    anew(4) = anew(3) - (anew(3)-anew(1))/(1+phi); Jnew(4)=nan;
-  else
-    anew(1)=a(1); Jnew(1)=J(1);
-    anew(4)=a(2); Jnew(4)=J(2);
-    anew(3)=a(4); Jnew(3)=J(4);
-    anew(2) = anew(3) + (anew(3)-anew(1))/(1+phi); Jnew(2)=nan;
+  isconverged = abs(a(3)-a(1)) > tau*(abs(a(2))+abs(a(4))) | (iter+1)>nitermax;
+  if(~isconverged)
+
+    % Will proceed to next iteration.  Determine which interior point will
+    % become the next endmember point.  Maintain ordering convention for
+    % a-points (a1,a2,a4,a3), and mark the new unknown point with J=NaN (to
+    % be calculated in next iteration).  Keep existing cachedirs for those
+    % points that are not being updated.
+    anew=a;
+    if(J(4)<J(2))
+      anew(1)=a(2); Jnew(1)=J(2); bkgdCacheDirListNew{1}=bkgdCacheDirList{2};
+      anew(2)=a(4); Jnew(2)=J(4); bkgdCacheDirListNew{2}=bkgdCacheDirList{4};
+      anew(3)=a(3); Jnew(3)=J(3); bkgdCacheDirListNew{3}=bkgdCacheDirList{3};
+      anew(4) = anew(3) - (anew(3)-anew(1))/(1+phi); Jnew(4)=nan;
+    else
+      anew(1)=a(1); Jnew(1)=J(1); bkgdCacheDirListNew{1}=bkgdCacheDirList{1};
+      anew(4)=a(2); Jnew(4)=J(2); bkgdCacheDirListNew{4}=bkgdCacheDirList{2};
+      anew(3)=a(4); Jnew(3)=J(4); bkgdCacheDirListNew{3}=bkgdCacheDirList{4};
+      anew(2) = anew(1) + (anew(3)-anew(1))/(1+phi); Jnew(2)=nan;
+    end
+    a=anew
+    J=Jnew
+    bkgdCacheDirList=bkgdCacheDirListNew;
+
   end
-  a=anew;
-  J=Jnew;
 
 end
 
@@ -314,29 +291,31 @@ end
 % of golden section line-search
 [Jmin,imin]=min(J);
 alpha=a(imin);
-params = paramsHandler(1,sedmodel,p0 + alpha*dJ);
+params = paramsHandler(0,sedmodel,p0+alpha*dJ);
 
 % clean up cache directories, but leave the final state cached for next
 % iteration
 if(iter==1)  % solved on first try!
   unix(['rm -rf ' bkgdCacheDir]);  % clean up
-  unix(['mv ' bkgdCacheDirList{imin} ' ' bkgdCacheDir]);  % replace old cachedir with optimal bkgd
+  unix(['mv ' bkgdCacheDirList{imin} ' ' bkgdCacheDir]);  % replace old bkgd with new optimal one
 end
-for i=1:length(ilist)
-  unix(['rm -rf ' bkgdCacheDirList{i}]);  % clean up golden-section cachedirs
+for i=1:4
+  unix(['rm -rf ' bkgdCacheDirList{i}]);  % clean up line-search cachedirs
 end
 
 % pack output struct with assimilation diagnostics
 if(nargout==2)
-  diagnostics.CMt    =CMt    ;
-  diagnostics.Mf     =Mf     ;
+  diagnostics.Mf     =Mf0    ;
   diagnostics.d      =d      ;
   diagnostics.Cd     =Cd     ;
   diagnostics.dJ     =dJ     ;
+  diagnostics.J0     =J0     ;
   diagnostics.Jmin   =Jmin   ;
-  diagnostics.alpha  =alpha  ;
-  diagnostics.params =params ;
-  diagnostics.niter  =iter   ;
   diagnostics.params0=params0;
-  diagnostics.params_range=params_range;
+  diagnostics.params =params ;
+  diagnostics.linesearch.Jlast  =J      ;
+  diagnostics.linesearch.alast  =a      ;
+  diagnostics.linesearch.alpha  =alpha  ;
+  diagnostics.linesearch.niter  =iter   ;
+  diagnostics.linesearch.params_range=params_range;
 end

@@ -15,6 +15,11 @@ function bkgd=hydroAssimLoop(modelinput,grid,waves8m,windEOP,obs,cachedir,nsubst
 %           timestep is given as an output parameter, the full list of time
 %           steps is written to disk due to memory limitations
 %
+%   OPTIONAL-1: set cachedir='' to skip disk-caching
+%
+%   OPTIONAL-2: include output variable to also get bkgd as an output,
+%   otherwise it will only be saved to disk.
+%
 % OUTPUT:
 %
 % bkgd: struct with model outputs, for the final time step.  Its fields are
@@ -35,9 +40,12 @@ if(~exist('doplot'))
 end
 
 % make sure cache directory exists
-if(isempty(dir(cachedir)))
+if(~isempty(cachedir) & isempty(dir(cachedir)))
   disp(['cache directory ' cachedir ' does not exist, creating it now'])
   mkdir(cachedir);
+end
+if(isempty(cachedir) & nargout==0)
+  error('You must either set a cachedir, or request bkgd as an output variable, or both.')
 end
 
 nx=grid.nx;
@@ -45,9 +53,10 @@ nx=grid.nx;
 % begin time loop
 % warning('truncated run, n=220:290')
 timeperstep=4;  % initial estimate of seconds-per-step, to be refined
-for n=1:(length(obs)-1)
-  disp(['Time Step ' num2str(n) ' of ' num2str(length(obs)) ...
-        '.  Estimated ' num2str(timeperstep*(length(obs)-n)/60,'%.1f') ' minutes remaining.' ...
+nt=length(obs);
+for n=1:nt
+  disp(['Time Step ' num2str(n) ' of ' num2str(nt) ...
+        '.  Estimated ' num2str(timeperstep*(nt-n)/60,'%.1f') ' minutes remaining.' ...
         ' (' num2str(timeperstep) ' seconds per step)']);
   tic
 
@@ -105,7 +114,9 @@ for n=1:(length(obs)-1)
   % errors.  This takes the initial 'modelinput' struct, and produces a new
   % 'bkgd' struct containing a forecast valid for the current time step,
   % along with updated covariances for this time step.
-  dt=diff([obs(n+[0:1]).dnum_est])*24*60*60;
+  if(n<nt)
+    dt=diff([obs(n+[0:1]).dnum_est])*24*60*60;
+  end
   if(~exist('verb'))
     verb=0;
   end
@@ -114,7 +125,12 @@ for n=1:(length(obs)-1)
   bkgd.tide=tide;
   bkgd.h =bkgd.h -tide;
   bkgd.hp=bkgd.hp-tide;
-  save([cachedir '/bkgd' num2str(n,'%04d') '.mat'],'-struct','bkgd');
+  if(nargout>0)  % user wants bkgd as an output, not just cached to disk
+    bkgdall(n)=bkgd;
+  end
+  if(~isempty(cachedir))
+    save([cachedir '/bkgd' num2str(n,'%04d') '.mat'],'-struct','bkgd');
+  end
 
   % Use the forecasted bathymetry as inputs for the next time step t(n+1).
   % Note, this code does not attempt to propagate bathymetry covariance
@@ -185,4 +201,8 @@ for n=1:(length(obs)-1)
   end  % if(doplot)
 
   timeperstep = timeperstep/n + toc*(n-1)/n;  % refine running average
+end
+
+if(nargout>0)
+  bkgd=bkgdall;
 end

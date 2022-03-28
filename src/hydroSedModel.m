@@ -127,6 +127,12 @@ nx=length(x);
 [Hrms,theta,vbar,kabs,Ew,Er,Dr,hydro_bkgd] = ...
     hydro_ruessink2001(x,h,H0,theta0,omega,ka_drag,tau_wind,detady,dgamma,beta0,gammaType,betaType);
 
+% don't allow Dr==0, otherwise the undertow model will be discontinuous at
+% the break point
+Drmin=.001;
+Drmask=find(Dr<Drmin);
+Dr(Drmask)=.001;
+
 % apply masking to hydro outputs before proceeding to sediment transport
 Hrms (imask)=0;
 vbar (imask)=0;
@@ -385,6 +391,8 @@ vname{end+1}='doMarieu';
 vname{end+1}='doFilterQ';
 vname{end+1}='nuQ';
 vname{end+1}='nuN';
+vname{end+1}='Drmin';
+vname{end+1}='Drmask';
 if(nuQ>0)
   vname{end+1}='diffusionSmoother';
 end

@@ -580,6 +580,11 @@ ad_Er   (imask)=0;
 % tl_Dr   (imask)=0;
 ad_Dr   (imask)=0;
 
+% don't allow Dr==0, otherwise the undertow model will be discontinuous at
+% the break point
+% tl_Dr(Drmask)=0;
+ad_Dr(Drmask)=0;
+
 % 1DH wave and longshore current balance
 % [tl_Hrms,tl_theta,tl_vbar,tl_kabs,tl_Ew,tl_Er,tl_Dr] = ...
 %     tl_hydro_ruessink2001(tl_h,tl_H0,tl_theta0,tl_omega,tl_ka_drag,tl_tau_wind,tl_detady,tl_dgamma,tl_beta0,hydro_bkgd);

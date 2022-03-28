@@ -68,6 +68,7 @@ return;
 %-------------------------------------------------------
 % Full-run adjoint for h
 %-------------------------------------------------------
+addpath util %paramsHandler.m
 
 % start a parallel pool
 currentPool=gcp('nocreate');
@@ -81,9 +82,9 @@ end
 % use disk caching of background struct to work around shared-memory
 % limitation of matlab's parallel toolbox
 disp('Caching bkgd struct to disk')
-tmpdir='/tmp/bathyAssimCache';
-if(isempty(dir(tmpdir)))
-  mkdir(tmpdir);
+cachedir='/tmp/bathyAssimCache';
+if(isempty(dir(cachedir)))
+  mkdir(cachedir);
 end
 nt=length(bkgd);
 for n=1:nt
@@ -91,12 +92,10 @@ for n=1:nt
     disp(['   ' num2str(floor(n/nt*100)) '%'])
   end
   this=bkgd(n);
-  save([tmpdir '/bkgd' num2str(n) '.mat'],'-struct','this');
+  save([cachedir '/bkgd' num2str(n,'%04d') '.mat'],'-struct','this');
 end
-
-if(~strcmp(bkgd(1).sedmodel,'vanderA'))
-  error('code not implemented with non-vanderA sedmodels yet, it might cause issues with parfor?')
-end
+sedmodel=bkgd(1).sedmodel;
+clear bkgd
 
 % init full-run adjoint variables
 ad_full_tau_windx=zeros(nx,nx,nt);
@@ -116,13 +115,18 @@ ad_full_d90      =zeros(nx,nx,nt);
 ad_full_params_fv=zeros(nx,1);
 ad_full_params_ks=zeros(nx,1);
 ad_full_params_lambda=zeros(nx,1);
-ad_full_params_n    =zeros(nx,1);
-ad_full_params_m    =zeros(nx,1);
-ad_full_params_xi   =zeros(nx,1);
-ad_full_params_alpha=zeros(nx,1);
-ad_full_params_Cc   =zeros(nx,1);
-ad_full_params_Cf   =zeros(nx,1);
-
+if(strcmp(sedmodel,'vanderA'))
+  ad_full_params_n    =zeros(nx,1);
+  ad_full_params_m    =zeros(nx,1);
+  ad_full_params_xi   =zeros(nx,1);
+  ad_full_params_alpha=zeros(nx,1);
+elseif(strcmp(sedmodel,'dubarbier'))
+  ad_full_params_Cw=zeros(nx,1);
+  ad_full_params_Cc=zeros(nx,1);
+  ad_full_params_Cf=zeros(nx,1);
+  ad_full_params_Ka=zeros(nx,1);
+end
+  
 % calculate full-run bathymetry adjoints at every gridpoint
 parfor i=1:nx
   if(floor(i/nx*10)>floor((i-1)/nx*10))
@@ -139,8 +143,8 @@ parfor i=1:nx
   ad_h(i,nt+1)=1;  % comb
 
   % initialize adjoint outputs
-  bkgd1=load([tmpdir '/bkgd1.mat']);
-  ad_params=paramsHandler(0,'vanderA',zeros(8,1));  % init ad_params struct to zero
+  bkgd1=load([cachedir '/bkgd0001.mat']);
+  ad_params=paramsHandler(0,sedmodel,zeros(7,1));  % init ad_params struct to zero
   ad_ka_drag=0;
   ad_beta0  =0;
   ad_d50=zeros(nx,1);
@@ -156,7 +160,7 @@ parfor i=1:nx
 
   % propagate adjoint backwards from time nt to 1
   for n2=nt:-1:1
-    bkgdn2=load([tmpdir '/bkgd' num2str(n2) '.mat']);
+    bkgdn2=load([cachedir '/bkgd' num2str(n2,'%04d') '.mat']);
     [ad_h(:,n2),ad_H0(n2),ad_theta0(n2),ad_omega(n2),ad1_ka_drag,ad1_beta0,ad_tau_wind(:,:,n2),...
      ad_detady(:,n2),ad_dgamma(:,n2),ad_dAw(:,n2),ad_dSw(:,n2),...
      ad1_d50,ad1_d90,ad1_params] = ...
@@ -168,12 +172,17 @@ parfor i=1:nx
     ad_params.fv   =ad_params.fv   +ad1_params.fv   ;
     ad_params.ks   =ad_params.ks   +ad1_params.ks   ;
     ad_params.lambda=ad_params.lambda+ad1_params.lambda;
-    ad_params.n    =ad_params.n    +ad1_params.n    ;
-    ad_params.m    =ad_params.m    +ad1_params.m    ;
-    ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
-    ad_params.alpha=ad_params.alpha+ad1_params.alpha;
-    ad_params.Cc   =ad_params.Cc   +ad1_params.Cc   ;
-    ad_params.Cf   =ad_params.Cf   +ad1_params.Cf   ;
+    if(strcmp(sedmodel,'vanderA'))
+      ad_params.n    =ad_params.n    +ad1_params.n    ;
+      ad_params.m    =ad_params.m    +ad1_params.m    ;
+      ad_params.xi   =ad_params.xi   +ad1_params.xi   ;
+      ad_params.alpha=ad_params.alpha+ad1_params.alpha;
+    elseif(strcmp(sedmodel,'dubarbier'))
+      ad_params.Cw=ad_params.Cw+ad1_params.Cw;
+      ad_params.Cc=ad_params.Cc+ad1_params.Cc;
+      ad_params.Cf=ad_params.Cf+ad1_params.Cf;
+      ad_params.Ka=ad_params.Ka+ad1_params.Ka;
+    end
   end
 
   % save adjoint info for this grid point
@@ -193,13 +202,17 @@ parfor i=1:nx
   ad_full_d90      (i,:,:)=ad_d90      ;
   ad_full_params_fv(i)    =ad_params.fv;
   ad_full_params_lambda(i)=ad_params.lambda;
-  ad_full_params_n    (i)=ad_params.n    ;
-  ad_full_params_m    (i)=ad_params.m    ;
-  ad_full_params_xi   (i)=ad_params.xi   ;
-  ad_full_params_alpha(i)=ad_params.alpha;
-  ad_full_params_Cc   (i)=ad_params.Cc   ;
-  ad_full_params_Cf   (i)=ad_params.Cf   ;
-
+  if(strcmp(sedmodel,'vanderA'))
+    ad_full_params_n    (i)=ad_params.n    ;
+    ad_full_params_m    (i)=ad_params.m    ;
+    ad_full_params_xi   (i)=ad_params.xi   ;
+    ad_full_params_alpha(i)=ad_params.alpha;
+  elseif(strcmp(sedmodel,'dubarbier'))
+    ad_full_params_Cw(i)=ad_params.Cw;
+    ad_full_params_Cc(i)=ad_params.Cc;
+    ad_full_params_Cf(i)=ad_params.Cf;
+    ad_full_params_Ka(i)=ad_params.Ka;
+  end
 end  % loop for adjoint at each gridpoint
 
 % rename the "full" adjoint variables for simplicity
@@ -225,8 +238,6 @@ if(strcmp(bkgd(1).sedmodel,'vanderA'))
   ad_params.m    =ad_full_params_m    ;
   ad_params.xi   =ad_full_params_xi   ;
   ad_params.alpha=ad_full_params_alpha;
-  ad_params.Cc   =ad_full_params_Cc   ;
-  ad_params.Cf   =ad_full_params_Cf   ;
 elseif(strcmp(bkgd(1).sedmodel,'dubarbier'))
   ad_params.Cw=ad_full_params_Cw;
   ad_params.Cc=ad_full_params_Cc;

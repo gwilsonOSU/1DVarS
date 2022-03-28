@@ -176,10 +176,23 @@ for n=1:length(bathyobs)
   bathyobs(n).h.e=ones(size(bathyobs(n).h.d))*.05;
 end
 
+% load model inputs.  NOTE: turning off hydro-DA, the results are much
+% smoother in time and the forward model is still accurate
+modelinput=initModelInputs(duck94Case,grid,sedmodel);
+warning('disabling hydro DA')
+nx=length(grid.x);
+modelinput.Ch=zeros(nx);
+modelinput.Cs=0;
+modelinput.Cgamma=zeros(nx);
+modelinput.CdAw=zeros(nx);
+modelinput.CdSw=zeros(nx);
+modelinput.CH0=0;
+modelinput.Ctheta0=0;
+modelinput.Cka=0;
+
 % initial phase-1 hydro-assimilating time loop, using default parameter
 % values.  Cache the results as the prior, which will be used throughout the
 % iterations below.
-modelinput=initModelInputs(duck94Case,grid,sedmodel);
 hydroAssimLoop(modelinput,grid,waves8m,windEOP,hydroobs,priorCacheDir);
 
 % two-phase iterative assimilation

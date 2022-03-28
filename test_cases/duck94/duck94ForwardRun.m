@@ -35,7 +35,7 @@ end
 modelinput=initModelInputs(duck94Case,grid,sedmodel);
 
 % make any desired modifications to model inputs
-modelinput.params.Cf=0;  % turn off slope-based suspended transport
+modelinput.params.beta0=0.1;
 
 % run forward model (with hydro assimilation)
 numsubsteps=1;

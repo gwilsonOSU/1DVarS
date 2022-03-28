@@ -37,7 +37,7 @@ doprint=1;
 % pick a representative time step 'targetn' for adjoint analysis, and define
 % some plotting parameters
 if(duck94Case=='b')
-  targetn=200;  % 200 is a high-Qx time for case-b
+  targetn=210;  % 210 is a high-Qx time for case-b
   qscale=2e-4;
   qsign=+1;
 elseif(duck94Case=='c')
@@ -119,7 +119,7 @@ for i=1:nx  % TODO, use parfor?
   ad_Qx(i)=1;  % comb
 
   % run adjoint for time n
-  bkgdn=load([cacheDir '/bkgd' num2str(n) '.mat']);
+  bkgdn=load([cacheDir '/bkgd' num2str(n,'%04d') '.mat']);
   [ad_h(:,i),ad_H0(i),ad_theta0(i),ad_omega(i),ad_ka_drag(i),ad_beta0(i),ad_tau_wind(:,:,i),...
    ad_detady(:,i),ad_dgamma(:,i),ad_dAw(:,i),ad_dSw(:,i),ad_d50(:,i),ad_d90(:,i),ad_params(i)] = ...
       ad_hydroSedModel(ad_Hrms,ad_vbar,ad_theta,ad_kabs,ad_Qx,ad_hp,bkgdn);
@@ -146,8 +146,10 @@ ad_n_norm    =[ad_params.n    ]*bkgdn.params.n    *qsign;
 ad_m_norm    =[ad_params.m    ]*bkgdn.params.m    *qsign;
 ad_xi_norm   =[ad_params.xi   ]*bkgdn.params.xi   *qsign;
 ad_alpha_norm=[ad_params.alpha]*bkgdn.params.alpha*qsign;
-ad_Cc_norm=[ad_params.Cc]*bkgdn.params.Cc*qsign;
-ad_Cf_norm=[ad_params.Cf]*bkgdn.params.Cf*qsign;
+if(isfield(bkgdn.params,'Cc'))
+  ad_Cc_norm=[ad_params.Cc]*bkgdn.params.Cc*qsign;
+  ad_Cf_norm=[ad_params.Cf]*bkgdn.params.Cf*qsign;
+end
 ad_H0_norm     =ad_H0     *bkgdn.H0     *qsign;
 ad_theta0_norm =ad_theta0 *bkgdn.theta0 *qsign;
 ad_omega_norm  =ad_omega  *bkgdn.omega  *qsign;
@@ -176,13 +178,14 @@ figure(2),clf
 subplot(2,2,1)  % sed params
 hold on
 lstr={};
-title('Sediment Transport Parameters')
+title('Sediment Parameters')
 plot(grid.xFRF,ad_n_norm      ),lstr{end+1}='\Delta n       ';
 plot(grid.xFRF,ad_m_norm      ),lstr{end+1}='\Delta m       ';
 plot(grid.xFRF,ad_xi_norm     ),lstr{end+1}='\Delta \xi   ';
 plot(grid.xFRF,ad_alpha_norm  ),lstr{end+1}='\Delta \alpha';
-plot(grid.xFRF,ad_Cc_norm),lstr{end+1}='\Delta C_c';
-plot(grid.xFRF,ad_Cf_norm),lstr{end+1}='\Delta C_f';
+plot(grid.xFRF,max(ad_h_norm )),lstr{end+1}='\Delta h     '; 
+% plot(grid.xFRF,ad_Cc_norm),lstr{end+1}='\Delta C_c';
+% plot(grid.xFRF,ad_Cf_norm),lstr{end+1}='\Delta C_f';
 legend(lstr)
 subplot(2,2,2)  % hydro BCs
 hold on
@@ -192,7 +195,7 @@ plot(grid.xFRF,-ad_H0_norm    ),lstr{end+1}='-\Delta H_0     ';
 plot(grid.xFRF,ad_omega_norm  ),lstr{end+1}='\Delta \omega  ';
 plot(grid.xFRF,ad_theta0_norm ),lstr{end+1}='\Delta \theta_0'; 
 plot(grid.xFRF,ad_beta0_norm  ),lstr{end+1}='\Delta \beta_0'; 
-plot(grid.xFRF,max(ad_h_norm )),lstr{end+1}='\Delta h     '; 
+plot(grid.xFRF,-ad_lambda_norm),lstr{end+1}='-\Delta \lambda';
 legend(lstr)
 subplot(2,2,3)  % hydro interior errors (+bathymetry)
 hold on
@@ -208,7 +211,6 @@ lstr={};
 title('Undertow Model Parameters')
 plot(grid.xFRF,ad_fv_norm),lstr{end+1}='\Delta f_v     ';
 plot(grid.xFRF,ad_ks_norm),lstr{end+1}='\Delta k_s   ';
-plot(grid.xFRF,ad_lambda_norm),lstr{end+1}='\Delta \lambda';
 legend(lstr)
 for i=1:4
   subplot(2,2,i)
