@@ -155,7 +155,7 @@ elseif(param.streamingType=='n')
   fws    =bkgd.fws    ;
 end
 eps_s        =bkgd.eps_s          ;
-eps_b        =bkgd.eps_b          ;
+% eps_b        =bkgd.eps_b          ;
 uwmo         =bkgd.uwmo           ;
 tanbeta      =bkgd.tanbeta        ;
 if(isfield(param,'Cc'))  % option-1 for above-WBL transport

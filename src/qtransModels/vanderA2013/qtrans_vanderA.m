@@ -588,7 +588,7 @@ if(nargout>1)
 
   % accounting of suspended seds above WBL
   workspc.eps_s        =eps_s          ;
-  workspc.eps_b        =eps_b          ;
+%  workspc.eps_b        =eps_b          ;
   workspc.uwmo         =uwmo           ;
   workspc.tanbeta      =tanbeta        ;
   if(isfield(param,'Cc'))

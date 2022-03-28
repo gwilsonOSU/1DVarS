@@ -2,8 +2,8 @@ clear
 close all
 
 % paths
-addpath(genpath('/home/shusin8/users/wilsongr/Duck94_SteveH/'))
-addpath(genpath('/home/server/student/homes/aldricja/1DVarS'))
+%addpath(genpath('/home/shusin8/users/wilsongr/Duck94_SteveH/'))
+%addpath(genpath('/home/server/student/homes/aldricja/1DVarS'))
 
 % load files
 m_on = matfile('0926.mat');
