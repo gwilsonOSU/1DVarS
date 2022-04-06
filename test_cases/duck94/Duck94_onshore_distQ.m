@@ -1,10 +1,15 @@
 clear
 close all
 
+% addpath('/Users/jack/Documents/GitHub/1DVarS/src/Uwave_ruessink2012')
+% addpath('/Users/jack/Documents/GitHub/1DVarS/src/qtransModels/vanderA2013')
+% addpath('/Users/jack/Documents/GitHub/1DVarS/src')
+addpath('/home/server/student/homes/aldricja/1DVarS/src/Uwave_ruessink2012')
+addpath('/home/server/student/homes/aldricja/1DVarS/src/qtransModels/vanderA2013')
+addpath('/home/server/student/homes/aldricja/1DVarS/src')
+
+
 b0926 = matfile('bkgd0181_0926_1600EST.mat');
-addpath('/Users/jack/Documents/GitHub/1DVarS/src/Uwave_ruessink2012')
-addpath('/Users/jack/Documents/GitHub/1DVarS/src/qtransModels/vanderA2013')
-addpath('/Users/jack/Documents/GitHub/1DVarS/src')
 
 x_0926 = b0926.x;
 d50_0926 = b0926.d50;
@@ -99,8 +104,20 @@ for idx = 1:idxmax
     tl_param.n = 0;
     tl_Hmo = 1;
 
-    H = (0.1:0.1:2.5);
-
+    H = (0.01:0.01:6);
+    for i = 1:length(H)
+        Hmo = H(i);
+        Hrms = H(i);
+        [Aw,Sw,Uw,workspcU] = Uwave_ruessink2012_params(Hmo,k,omega,h);
+        [qs(idx,i),workspc] = qtrans_vanderA(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param);
+    end
+    
+    [qs_peaks{idx},qs_peaks_locs{idx}] = findpeaks(qs(idx,:));
+    [qs_troughs{idx},qs_troughs_locs{idx}] = findpeaks(-qs(idx,:));
+    qs_troughs{idx} = -qs_troughs{idx};
+    qs_maxima_locs{idx} = [qs_peaks_locs{idx};qs_troughs_locs{idx}];
+    qs_maxima_locs{idx} = sort(qs_maxima_locs{idx});
+            
     for i = 1:length(H)
         Hmo = H(i);
         Hrms = H(i);
@@ -115,6 +132,51 @@ for idx = 1:idxmax
         distQ(idx,i) = abs(dHdQ(idx,i)).*rayfcn;
 %         distQ(distQ==inf) = [];
     end
+        
+    %% evenly spaced q vector
+    tic
+    n = 100000;
+    qmin = min(min(qs));
+    qmax = max(max(qs));
+    qvec = qmin:(qmax-qmin)/n:qmax;
+    distQmonotonic = zeros(10,length(qvec));
+    for idx = 1:idxmax
+        distQsubsections = zeros(10,length(qvec));
+
+        if isempty(find(qs(idx,:)==0))
+            int_limits{idx} = [1;qs_maxima_locs{idx};length(H)];
+        else
+            zeroloc = find(qs(idx,:)==0);
+            int_limits{idx} = [zeroloc(end)+1;qs_maxima_locs{idx};length(H)];
+        end
+        
+        for j = 1:(length(int_limits{idx})-1)
+            qveclowerlimit = find(qvec>qs(idx,int_limits{idx}(j)), 1 );
+            qvecupperlimit = find(qvec<qs(idx,int_limits{idx}(j+1)), 1, 'last' );
+            distQsubsections(j,qveclowerlimit:qvecupperlimit) = interp1(qs(idx,int_limits{idx}(j):int_limits{idx}(j+1)),distQ(idx,int_limits{idx}(j):int_limits{idx}(j+1)),qvec(qveclowerlimit:qvecupperlimit));
+        end
+            
+        distQmonotonic(idx,:) = sum(distQsubsections);
+        
+    end
+    toc
+    
+    % plot distribution of q
+    tic
+    figure()
+    tiledlayout(ceil(sqrt(idxmax)),ceil(sqrt(idxmax)))
+    for idx = 1:idxmax
+        nexttile
+        loglog(qvec,distQmonotonic(idx,:))
+    end
+    toc
+    
+    % numerically integrate    
+    for idx = 1:idxmax
+        integrate(1,idx) = trapz(qvec,distQmonotonic(idx,:));
+    end
+    figure()
+    plot(xvec,integrate)
     
     % linear interpolation for infinite tail
     infidx = find(distQ(idx,:) == Inf);
@@ -144,70 +206,144 @@ for idx = 1:idxmax
     else
         distQexp(idx,:) = distQ(idx,:);
     end
-    
-    
-end 
+end  
+%%
+clear integrate
+% % peak finding
+% for idx = 1:idxmax
+%     [qs_peaks{idx},qs_peaks_locs{idx}] = findpeaks(qs(idx,:));
+%     [qs_troughs{idx},qs_troughs_locs{idx}] = findpeaks(-qs(idx,:));
+%     qs_troughs{idx} = -qs_troughs{idx};
+%     [dHdQ_peaks{idx},dHdQ_peaks_locs{idx}] = findpeaks(dHdQ(idx,:));
+%     [dHdQ_troughs{idx},dHdQ_troughs_locs{idx}] = findpeaks(-dHdQ(idx,:));
+%     dHdQ_troughs{idx} = -dHdQ_troughs{idx};
+% end
 
+% plot of transport as a function of wave height
 figure()
-hold on
+tiledlayout(ceil(sqrt(idxmax)),ceil(sqrt(idxmax)))
 for idx = 1:idxmax
-    plot(H,distQ(idx,:),'-k')
-    plot(H,distQexp(idx,:),':b')
+    nexttile
+    plot(H,qs(idx,:),'-k','LineWidth',2)
+%     set(gca,'yscale','log')
+%     set(gca,'xscale','log')
+    title(['x = ' num2str(xvec(idx)),'m'])
+end
+
+% plot of dH/dQ as a function of wave height
+figure()
+tiledlayout(ceil(sqrt(idxmax)),ceil(sqrt(idxmax)))
+for idx = 1:idxmax
+    nexttile
+    plot(H,dHdQ(idx,:),'-k','LineWidth',2)
+%     set(gca,'yscale','log')
+%     set(gca,'xscale','log')
+    title(['x = ' num2str(xvec(idx)),'m'])
+end
+
+% plot of distribution of q as a function of wave height
+figure()
+tiledlayout(ceil(sqrt(idxmax)),ceil(sqrt(idxmax)))
+for idx = 1:idxmax
+    nexttile
+    plot(H,distQ(idx,:),'-k','LineWidth',2)
+    hold on
+    plot(H,distQexp(idx,:),':b','LineWidth',2)
     set(gca,'yscale','log')
     set(gca,'xscale','log')
-    integrate(1,idx) = trapz(qs(idx,:),distQexp(idx,:));
+    title(['x = ' num2str(xvec(idx)),'m'])
 end
-hold off
 
+% integral of pdf as a function of grid point
+integrate = zeros(1,idxmax);
+for idx = 1:idxmax
+    int_limits{idx} = [1;qs_maxima_locs{idx};length(H)];
+    for j = 1:(length(int_limits{idx})-1)
+        integrate(idx) = abs(trapz(qs(idx,int_limits{idx}(j):int_limits{idx}(j+1)),distQexp(idx,int_limits{idx}(j):int_limits{idx}(j+1)))) + integrate(idx);
+    end
+end
 
-% sample plot x = 270m
 figure()
-tiledlayout(4,1)
-nexttile
-plot(H,qs(10,:))
-set(gca,'xscale','log')
-set(gca,'yscale','log')
-title('transport x = 270m')
-nexttile
-plot(H,tl_qs(10,:))
-set(gca,'xscale','log')
-set(gca,'yscale','log')
-title('dq/dH')
-nexttile
-plot(H,dHdQ(10,:))
-title('dH/dq')
-set(gca,'yscale','log')
-set(gca,'xscale','log')
-nexttile
-plot(H,distQ(10,:))
-xlabel('H (m)')
-set(gca,'xscale','log')
-set(gca,'yscale','log')
-title('distribution of Q')
+plot(xvec,integrate)
+xlabel('grid point (m)')
+ylabel('integral of PDF')
+ylim([0 1.2])
+    
+ 
 
-% sample plot x = 225
-figure()
-tiledlayout(4,1)
-nexttile
-plot(H,qs(1,:))
 
-title('transport x = 225m')
-nexttile
-plot(H,tl_qs(1,:))
-set(gca,'xscale','log')
-set(gca,'yscale','log')
-title('dq/dH')
-nexttile
-plot(H,dHdQ(1,:))
-title('dH/dq')
-set(gca,'yscale','log')
-set(gca,'xscale','log')
-nexttile
-plot(H,distQ(1,:))
-xlabel('H (m)')
-set(gca,'xscale','log')
-set(gca,'yscale','log')
-title('distribution of Q')
+
+% figure()
+% tiledlayout(ceil(sqrt(idxmax)),ceil(sqrt(idxmax)))
+% for idx = 1:idxmax
+%     nexttile
+%     plot(H,distQexp(idx,:),'--b')
+%     set(gca,'yscale','log')
+%     set(gca,'xscale','log')
+%     title(['x = ' num2str(xvec(idx)),'m'])
+% 
+% end
+
+% figure()
+% hold on
+% for idx = 1:idxmax
+%     plot(H,distQ(idx,:),'-k')
+%     plot(H,distQexp(idx,:),':b')
+%     set(gca,'yscale','log')
+%     set(gca,'xscale','log')
+%     integrate(1,idx) = trapz(qs(idx,:),distQexp(idx,:));
+% end
+% hold off
+
+
+% % sample plot x = 270m
+% figure()
+% tiledlayout(4,1)
+% nexttile
+% plot(H,qs(10,:))
+% set(gca,'xscale','log')
+% set(gca,'yscale','log')
+% title('transport x = 270m')
+% nexttile
+% plot(H,tl_qs(10,:))
+% set(gca,'xscale','log')
+% set(gca,'yscale','log')
+% title('dq/dH')
+% nexttile
+% plot(H,dHdQ(10,:))
+% title('dH/dq')
+% set(gca,'yscale','log')
+% set(gca,'xscale','log')
+% nexttile
+% plot(H,distQ(10,:))
+% xlabel('H (m)')
+% set(gca,'xscale','log')
+% set(gca,'yscale','log')
+% title('distribution of Q')
+% 
+% % sample plot x = 225
+% figure()
+% tiledlayout(4,1)
+% nexttile
+% plot(H,qs(1,:))
+% 
+% title('transport x = 225m')
+% nexttile
+% plot(H,tl_qs(1,:))
+% set(gca,'xscale','log')
+% set(gca,'yscale','log')
+% title('dq/dH')
+% nexttile
+% plot(H,dHdQ(1,:))
+% title('dH/dq')
+% set(gca,'yscale','log')
+% set(gca,'xscale','log')
+% nexttile
+% plot(H,distQ(1,:))
+% xlabel('H (m)')
+% set(gca,'xscale','log')
+% set(gca,'yscale','log')
+% title('distribution of Q')
 
 % qbar = trapz(qs,qs.*distQ);
 % qvar = trapz(qs,distQ.*(qs-qbar).^2);
