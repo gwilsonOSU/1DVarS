@@ -86,7 +86,11 @@ for i=1:nx
     workspc(i)=blankwksp;
     qs(i)=0;
   else
-    [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
+    if exist('Omegatc') == 0
+        [qs(i),workspc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),Aw(i),Sw(i),Uw(i),param);%,outvar);
+    else
+        [qs(i),workspc(i),Omegatc(i)] = qtrans_vanderA_main(d50(i),d90(i),h(i),tanbeta(i),Hrms(i),kabs(i),omega,udelta(i,:),delta(i),ws(i),Aw(i),Sw(i),Uw(i),param,Omegatc(i));%,outvar);
+    end
   end
 
 end
@@ -577,6 +581,10 @@ if(nargout>1)
   workspc.itu_guess    =itu_guess      ;
 
   % accounting of suspended seds above WBL
+  workspc.eps_s        =eps_s          ;
+%   workspc.eps_b        =eps_b          ;
+  workspc.uwmo         =uwmo           ;
+  workspc.tanbeta      =tanbeta        ;
   if(~isfield(param,'nosusp') || param.nosusp==0)
     workspc.eps_s        =eps_s          ;
     workspc.eps_b        =eps_b          ;
