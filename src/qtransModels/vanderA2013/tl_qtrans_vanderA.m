@@ -789,12 +789,9 @@ tl_all.Dstar          =tl_Dstar          ;
 tl_all.eta            =tl_eta            ;
 tl_all.etawc          =tl_etawc          ;
 tl_all.etawt          =tl_etawt          ;
-tl_all.f25            =tl_f25            ;
 tl_all.fwc            =tl_fwc            ;
-tl_all.fwd            =tl_fwd            ;
 tl_all.fwdc           =tl_fwdc           ;
 tl_all.fwdt           =tl_fwdt           ;
-tl_all.fws            =tl_fws            ;
 tl_all.fwt            =tl_fwt            ;
 tl_all.Hmo            =tl_Hmo            ;
 tl_all.lambda         =tl_lambda         ;
@@ -823,7 +820,6 @@ tl_all.qsCc           =tl_qsCc           ;
 tl_all.qsCf           =tl_qsCf           ;
 tl_all.qst            =tl_qst            ;
 tl_all.qsVdA          =tl_qsVdA          ;
-tl_all.r              =tl_r              ;
 tl_all.RR             =tl_RR             ;
 tl_all.streamingEffect=tl_streamingEffect; 
 tl_all.T              =tl_T              ;
@@ -839,13 +835,11 @@ tl_all.t2cb           =tl_t2cb           ;
 tl_all.t2t            =tl_t2t            ;
 tl_all.t2ta           =tl_t2ta           ;
 tl_all.t2tb           =tl_t2tb           ;
-tl_all.tauwRe         =tl_tauwRe         ;
 tl_all.Tc             =tl_Tc             ;
 tl_all.tcr            =tl_tcr            ;
 tl_all.Tcu            =tl_Tcu            ;
 tl_all.tdc            =tl_tdc            ;
 tl_all.term3          =tl_term3          ;
-tl_all.theta25        =tl_theta25        ;
 tl_all.thetac         =tl_thetac         ;
 tl_all.theta_cr       =tl_theta_cr       ;
 tl_all.thetacx        =tl_thetacx        ;
@@ -905,6 +899,15 @@ elseif(~isfield(param,'nosusp') | param.nosusp==0)  % OPTION-2
   tl_all.arg_qsCf    =tl_arg_qsCf    ;
   tl_all.arg_qbCf    =tl_arg_qbCf    ;
 end
+if(~isfield(param,'streamingType') || param.streamingType=='v')
+  tl_all.fwd=tl_fwd;
+elseif(param.streamingType=='n')
+  tl_all.f25    =tl_f25    ;
+  tl_all.theta25=tl_theta25;
+  tl_all.r      =tl_r      ;
+  tl_all.fws    =tl_fws    ;
+end
+tl_all.tauwRe=tl_tauwRe;
 
 % TEST-CODE: override output variable
 % eval(['tl_qs = tl_' outvar ';']);
