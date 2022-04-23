@@ -102,37 +102,7 @@ end
 % OPTIONAL: Dubarbier et al. suggest a modification to the mean velocity
 % prior to calculation of undertow (udelta)
 if(params.lambda>0)
-  xb=params.lambda*2*pi./kabs;
-  tl_xb = -params.lambda*2*pi./kabs.^2.*tl_kabs ...
-          + tl_params.lambda*2*pi./kabs;
-  for i=1:nx
-    ind=find(x(i)-xb(i)<=x&x<=x(i));
-    if(length(ind)<=1)
-      tl_ur(i,1) = tl_ubar0(i,1);
-      tl_ur(i,2) = tl_ubar0(i,2);
-    else
-      xx=xb(i)-x(i)+x(ind);
-      xx=xx(:);
-      for n=1:length(ind)
-        tl_xx(n)=tl_xb(i);
-      end
-      tl_xx=tl_xx(:);
-      term2=sum(xx);
-      tl_term2=0;
-      for n=1:length(ind)
-        tl_term2 = tl_term2 + tl_xx(n);
-      end
-      for j=1:2
-        term1=sum(xx.*ubar0(ind,j));
-        tl_term1=0;
-        for n=1:length(ind)
-          tl_term1 = tl_term1 + tl_xx(n)*ubar0(ind(n),j) + xx(n)*tl_ubar0(ind(n),j);
-        end
-        tl_ur(i,j) = tl_term1/term2 - term1/term2^2*tl_term2;
-      end
-    end
-  end
-  tl_ubar = tl_ur;
+  tl_ubar = tl_dubarbierUmod(tl_ubar0,tl_kabs,tl_params.lambda,ubar0,kabs,params.lambda,x);
 else
   tl_ubar = tl_ubar0;
 end
@@ -212,8 +182,8 @@ if(doMarieu)  % use "stable" Marieu formulation for dh/dt
   tl_dh = tl_hp - tl_h;
   tl_dQdx=zeros(nx,1);
 else
-  tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
-  % tl_dQdx = tl_ddx_centered(tl_Qx,x,Qx);
+  % tl_dQdx = tl_ddx_upwind(tl_Qx,x,Qx,horig);
+  tl_dQdx = tl_ddx_centered(tl_Qx,x,Qx);
   tl_dh = tl_dQdx*dt;
   tl_qp = zeros(nx,1);
 end
@@ -238,6 +208,8 @@ end  % catch for special case dt==0
 
 % dump ancillary variables as diagnostics
 tl_dump.Aw      =tl_Aw      ;
+tl_dump.Sw      =tl_Sw      ;
+tl_dump.Uw      =tl_Uw      ;
 tl_dump.c       =tl_c       ;
 tl_dump.delta_bl=tl_delta_bl;
 tl_dump.dh      =tl_dh      ;
@@ -253,20 +225,19 @@ tl_dump.Q       =tl_Q       ;
 tl_dump.Q0      =tl_Q0      ;
 tl_dump.Q1      =tl_Q1      ;
 tl_dump.qp      =tl_qp      ;
-tl_dump.Sw      =tl_Sw      ;
 tl_dump.tanbeta =tl_tanbeta ;
-tl_dump.term1   =tl_term1   ;
-tl_dump.term2   =tl_term2   ;
+% tl_dump.term1   =tl_term1   ;
+% tl_dump.term2   =tl_term2   ;
 tl_dump.ubar    =tl_ubar    ;
 tl_dump.ubar0   =tl_ubar0   ;
 tl_dump.ubarx   =tl_ubarx   ;
 tl_dump.udelta  =tl_udelta  ;
 tl_dump.udelta_w=tl_udelta_w;
-tl_dump.ur      =tl_ur      ;
+% tl_dump.ur      =tl_ur      ;
 tl_dump.vbar    =tl_vbar    ;
 tl_dump.ws      =tl_ws      ;
-tl_dump.xb      =tl_xb      ;
-tl_dump.xx      =tl_xx      ;
+% tl_dump.xb      =tl_xb      ;
+% tl_dump.xx      =tl_xx      ;
 
 % TEST: tweak output for TL testing
 % eval(['tl_Qx=tl_' outvar ';']);
