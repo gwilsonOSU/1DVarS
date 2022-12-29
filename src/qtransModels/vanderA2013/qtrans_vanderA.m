@@ -99,7 +99,7 @@ workspc=workspc(:);
 
 end  % end of wrapper function, start of main function
 
-function [qs,workspc,Omegatc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param,Omegatc)%,outvar)
+function [qs,workspc,localOmegatc]=qtrans_vanderA_main(d50,d90,h,tanbeta,Hrms,kabs,omega,udelta,delta,ws,Aw,Sw,Uw,param,Omegatc)%,outvar)
 
 physicalConstants;
 
@@ -351,13 +351,18 @@ if(Pc<=1)
 else
   Omegact=(1-1./Pc)*Omegac;  % eqn 24
 end
-if exist('Omegatc','var') == 0 % if Omegatc does not exist as an input, calculate Omegatc according to equation 26
-    if(Pt<=1)
-      Omegatc=0;
-    else
-      Omegatc=(1-1./Pt)*Omegat;  % eqn 26
-    end
-else % otherwise, use existing value of Omegatc (presumably from previous wave)
+if(Pt<=1)
+  localOmegatc=0;
+else
+  localOmegatc=(1-1./Pt)*Omegat;  % eqn 26
+end
+
+% handle optional passing of Omegatc from one wave to the next: If Omegatc
+% is provided as input, use it here.  If not provided as input, assume waves
+% are periodic hence the previous wave has Omegatc==localOmegatc.  Note,
+% regardless the localOmegatc will always be provided as output.
+if(~exist('Omegatc'))
+  Omegatc=localOmegatc;
 end
 
 % transport, eqn 1
