@@ -24,11 +24,11 @@ obsdatafn=['obsdataCache/obsdata_case' duck94Case '.mat'];
 if(~isempty(dir(obsdatafn)))
   disp(['loading pre-cached obsdata function: ' obsdatafn])
   load(obsdatafn);
-else
-  disp(['loading obsdata'])
-  [hydroobs,bathyobs,grid,waves8m,windEOP]=prepObsData(dnum,bathyfn,duck94Case);
-  disp(['caching obsdata for next time: ' obsdatafn])
-  save(obsdatafn,'hydroobs','bathyobs','grid','waves8m','windEOP');
+% else  % old version
+%   disp(['loading obsdata'])
+%   [hydroobs,bathyobs,grid,waves8m,windEOP]=prepObsData(dnum,bathyfn,duck94Case);
+%   disp(['caching obsdata for next time: ' obsdatafn])
+%   save(obsdatafn,'hydroobs','bathyobs','grid','waves8m','windEOP');
 end
 
 % load default model inputs
