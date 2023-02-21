@@ -1,2 +1,2 @@
-Variational data assimilation for depth-averaged alongshore uniform
+Tangent-linear adjoint model for depth-averaged alongshore uniform
 sediment transport.
