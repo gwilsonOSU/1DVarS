@@ -1,0 +1,39 @@
+% guidlines for using scalecInterp
+
+
+% assume data in form of x_data, y_data, z_data, rms error, z_data_error
+
+% choose output domain
+x1 = ...
+x2 = ...
+dxi = ...
+y1 = ...
+y2 = ...
+dyi = ...
+xi=x1:dxi:x2;
+yi=y1:dyi:y2;
+[Xi,Yi] = meshgrid(xi,yi);
+
+% choose subsampling rates to achieve (1) better computational efficiency (2) more accurarate error estimates
+Nsubsample = 2; % usefull range is 2-8. a larger number retains more short-scale variations (might be more accurate), but is slower
+[Xs,zs, es] = subsampleData([x_data(:),y_data(:)],z_data(:),z_data_rmse,[dxi,dyi]/Nsubsample );
+
+% choose your favorite filter.  'hanning' is bullet proof, 'quadloess' is high performance, and works well if there are NOT any significant data gaps, 'si' is most computational effort
+filtname = 'hanning';
+
+% choose your filter length scales, should be tied to dxi,dyi
+Lx = 2*dxi;
+Ly = 2*dyi; 
+
+% send to interpolator (try the scalecInterpTile if you have massive data set (like 10^6 points)
+[zi, msei, nmsei, msri] = scalecInterp(Xs, zs, es, [Xi(:),Yi(:)], [Lx,Ly], filtname);
+
+% reconstruct
+Zi = reshape(zsii, size(Xi));
+Ei = reshape(sqrt(msri+msei), size(Xi));
+
+% TIP, if you have temporal data you should NOT, in general, create a 3-dim output array and then pass in all the Xi,Yi,Ti interpolation points to the interpolator.  It will work, but, typically, this is very slow.
+% INSTEAD, I choose the time points where I want output and I LOOP through them, estimating a 2-d spatial output at each ti.  You can throw in ALL of the data each time or select relevant time increments based on your temporal smoothing (influence of data goes to zero for |t-ti| > Lt.
+
+
+

@@ -1,0 +1,7 @@
+Code was copied from
+<github>/src/qtransModels/vanderA2013/qtrans_vanderA.m on Sep 7, 2021.
+
+The code was then modified to remove the use of uwave_ruessink2012.m,
+which is a method for predicting intra-wave u(t) given bulk wave
+statistics (k,omega,Hmo).  For the present tests this is not
+appropriate since u(t) is prescribed as an input.

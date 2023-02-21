@@ -1,0 +1,1 @@
+function r = boxcar_wt(r)%% w = boxcar_wt(x)%% Input%   x are nxm inputs, weights will be centered on x=0%% Output%   w are weights 0<=w<=1[n,m] = size(r);% boxcar windowr = (((abs(r)<=1)*ones(m,1))==m);

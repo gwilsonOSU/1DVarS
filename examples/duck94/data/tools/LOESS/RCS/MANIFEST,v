@@ -1,0 +1,30 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2004.08.24.19.41.26;	author stanley;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@Contents.m
+loess_filters.doc
+loessFilt.m
+loessInterp.m
+loessWt.m
+regrXZW.m
+svdInvert.m
+@
