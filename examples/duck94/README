@@ -5,17 +5,11 @@ This directory contains tests of the 1DVarS codes, using data from the
 Duck94 field experiment.  The tests are organized into two main
 scripts, which themselves call a few utilities (directory 'util').
 
-1) duck94TwoPhaseInversion.m: Uses a two-phase approach to assimilate
-   data and predict bar migrations.  Phase-1 corrects hydrodynamic
-   errors, while phase-2 corrects sediment transport errors.  The two
-   phases are cycled iteratively, until both hydro and sediment
-   transport are accurate (if all goes well).
+1) duck94AdjiontSensitivity*.m: Demonstration of uncertainty
+   quantification using adjoint sensitivity analysis, to quantify how
+   different model variables impact outputs for Duck94.
 
-2) (work in progress) duck94AdjiontSensitivity*.m: Demonstration of
-   uncertainty quantification, using adjoint sensitivity analysis to
-   quantify how different model variables impact outputs for Duck94.
-
-3) duck94ForwardRun.m: If you just want to try a forward model run
+2) duck94ForwardRun.m: If you just want to try a forward model run
    with no bathymetry assimilation.  Can be useful for quick(er) tests
    when adding new physics to the model, or trying different parameter
    combinations.  Note, hydro observations are still assimilated to
@@ -28,21 +22,11 @@ your path.
 
 ---> addpath(genpath('/path/to/1DVarS/src/'))
 
-Also check the git 'tags' for versions that are known-good with duck94
-test cases.  New features may creep in that are untested for duck94.
-
 ---
 OTHER SUB-DIRECTORIES IN THIS DIRECTORY:
 
-A) data: Contains a LOT of observational data from the Duck94
-   experiment.  Most is *not* stored in the github repo because it's
-   4.7GB total size.  If you are reading ./util/prepObsData.m and
-   wondering about apparently-missing subdirectories in the 'data'
-   directory, there is your answer.
+A) obsdataCache: Contains cached versions of specific observational
+   data used by duck94TwoPhaseInversion.m.  These are stored on github
+   to provide the minimal datasets needed for running the example.
 
-B) obsdataCache: Contains cached versions of specific observational
-   data used by duck94TwoPhaseInversion.m.  These *are* stored on
-   github and provide the minimal datasets needed for running
-   duck94TwoPhaseInversion.m.
-
-C) utils: Contains sub-functions called by the main scripts.
+B) utils: Contains sub-functions called by the main scripts.

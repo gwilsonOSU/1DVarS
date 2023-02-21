@@ -3,7 +3,8 @@ function [obs,bathyobs,grid,waves8m,windEOP]=prepObsData(dnum,bathyfn,duck94Case
 % [hydroobs,bathyobs,grid,waves8m,windEOP]=prepObsData(dnum,bathyfn,duck94Case)
 %
 % Loads data needed for model initialization and hydro-assimilation in duck
-% 94 test case.  
+% 94 test case.  Requires full duck94 data set in directory 'data', this is
+% not shared on github, must contact S. Elgar for access.
 %
 % INPUTS:
 %

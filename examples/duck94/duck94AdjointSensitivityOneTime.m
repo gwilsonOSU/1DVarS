@@ -1,23 +1,5 @@
 %
-% Full-run adjoint sensitivity. The final-time adjoint bathymetry is
-% initialized with the identity matrix and propagates backwards through
-% time. Adjoints for time-independent parameters are stored for each time
-% step, and should be summed to get the overall adjoint sensitivity for
-% final bathymetry.
-%
-% Examples:
-%
-% ex1) ad_theta0(i,n) represents the sensitivity of final bathymetry at
-%       gridpoint i to unit perturbations in theta0 at time n.
-%
-% ex2) ad_h(i,j,n) represents the sensitivity of final bathymetry at gridpoint
-%      i to unit perturbations in bathymetry at gridpoint j at time n.
-%
-% ex2b) The matrix ad_h(:,:,1) shows how initial bathymetry affects final
-%        bathymetry.
-%
-% TODO: Instead of final-bathymetry, this code could easily be adapted to
-% compute adjoint sensitivity for sediment flux (Qx), or other variables.
+% Single-time adjoint sensitivity calculation
 %
 addpath util
 addpath(genpath('../../src'))
@@ -59,11 +41,11 @@ obsdatafn=['obsdataCache/obsdata_case' duck94Case '.mat'];
 if(~isempty(dir(obsdatafn)))
   disp(['loading pre-cached obsdata function: ' obsdatafn])
   load(obsdatafn);
-else
-  disp(['loading obsdata'])
-  [hydroobs,bathyobs,grid,waves8m,windEOP]=prepObsData(dnum,bathyfn,duck94Case);
-  disp(['caching obsdata for next time: ' obsdatafn])
-  save(obsdatafn,'hydroobs','bathyobs','grid','waves8m','windEOP');
+% else  % old version, requires full duck94 data set - contact S. Elgar for access
+%   disp(['loading obsdata'])
+%   [hydroobs,bathyobs,grid,waves8m,windEOP]=prepObsData(dnum,bathyfn,duck94Case);
+%   disp(['caching obsdata for next time: ' obsdatafn])
+%   save(obsdatafn,'hydroobs','bathyobs','grid','waves8m','windEOP');
 end
 
 % % use saved outputs from duck94TwoPhaseInversion.m as a background state for
