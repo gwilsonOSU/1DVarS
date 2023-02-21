@@ -1,3 +1,0 @@
-These are some early experiments using the 1dvars model to evaluate adjoint sensitivity to model inputs, for "tyical" barred beach cases.  The files in parametricDuck are the more recent versions.  They use a parametric barred beach profile as a generic representation.  Possibly the expreiments could be expanded to emcompass things like onshore vs offshore bar migrations.  However this needs to be fleshed out a bit more first...
-
-Note the matlab scripts below this directory may reference old paths.  They were created before I reorganized the 1DVarS code into a git repo.
